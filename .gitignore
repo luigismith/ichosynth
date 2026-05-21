@@ -1,0 +1,22 @@
+# Editor / IDE
+.history/
+.vscode/
+*.code-workspace
+
+# Arduino / Teensy build artifacts
+build/
+*.hex
+*.elf
+
+# Backup archives (PCB/enclosure exports)
+_DOCS/**/*.zip
+
+# OS cruft
+Thumbs.db
+.DS_Store
+
+# Local Claude / ralph-loop runtime artifacts
+.claude/settings.local.json
+.claude/ralph-task.md
+.claude/ralph-loop.local.md
+
