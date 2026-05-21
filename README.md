@@ -133,6 +133,13 @@ config.h switches at a glance:
    HAS_ENCODER4             (0/1, default 1)
 
 
+MANUALI (Italiano)
+-------------
+This fork ships two beginner-friendly manuals in Italian:
+- Build manual (fully hand-wired DIY, no custom PCB): MANUALE_COSTRUZIONE.md
+- Usage manual (how to play the synth): MANUALE_USO.md
+
+
 LICENSE
 -------------
 The code is released under the MIT License, which means it's freely available for personal and commercial use, modification, distribution, and private copying. This permissive license is part of our effort to support innovation and creativity.
