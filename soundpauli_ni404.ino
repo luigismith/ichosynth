@@ -12,6 +12,7 @@
 #define TargetFPS 27
 
 #include "Arduino.h"
+#include "config.h"
 #include <Mapf.h>
 #include <WS2812Serial.h>  // leds
 #define USE_WS2812SERIAL   // leds
@@ -27,8 +28,7 @@
 #include "audioinit.h"
 
 #define SD_SLOT BUILTIN_SDCARD
-#define NUM_LEDS 256
-#define DATA_PIN 17
+// NUM_LEDS and DATA_PIN are defined in config.h
 int lastFile[9] = { 0 };
 bool tmpMute = false;
 const unsigned int defaultVelocity = 63;
@@ -164,23 +164,23 @@ struct Device {
 EXTMEM Device SMP = { false, 1, 10, 100, 10, 1, 1, 1, 1, { 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 }, 0, false, 1, 16, 0, 0, 0, 0, 0, { maxfilterResolution, maxfilterResolution, maxfilterResolution, maxfilterResolution, maxfilterResolution, maxfilterResolution, maxfilterResolution, maxfilterResolution, maxfilterResolution, maxfilterResolution, maxfilterResolution, maxfilterResolution, maxfilterResolution, maxfilterResolution, maxfilterResolution }, {} };
 
 Encoder encoders[4] = {
-  Encoder(5, 22),   // 0, LEFT KNOB  (UP / DOWN, REMOVE TRIGGER, doubleTab: Enter/Exit Single-Sample-Mode)
-  Encoder(4, 2),    // 1, RIGHT KNOB (LEFT / RIGHT, ADD TRIGGER)
-  Encoder(9, 14),   // 2, MIDDLE LEFT KNOB (SELECT PAGE, double-tab+hold: set Accents), Long hold(+l/r knob): Select BPM OR VOLUME
-                    // REMOVE IF YOU ONLY HAVE 3
-  Encoder(32, 33),  // 3 Middle Right Knob
+  Encoder(ENC_LEFT_CLK, ENC_LEFT_DT),   // 0, LEFT KNOB  (UP / DOWN, REMOVE TRIGGER, doubleTab: Enter/Exit Single-Sample-Mode)
+  Encoder(ENC_RIGHT_CLK, ENC_RIGHT_DT), // 1, RIGHT KNOB (LEFT / RIGHT, ADD TRIGGER)
+  Encoder(ENC_MIDL_CLK, ENC_MIDL_DT),   // 2, MIDDLE LEFT KNOB (SELECT PAGE, double-tab+hold: set Accents), Long hold(+l/r knob): Select BPM OR VOLUME
+                                        // REMOVE IF YOU ONLY HAVE 3
+  Encoder(ENC_MIDR_CLK, ENC_MIDR_DT),   // 3 Middle Right Knob
 };
 
-// DO YOU HAVE 4 ENCODERS? (s.above), set pins to 99,99 or similar
-bool isEncoder4Defined = true;
+// DO YOU HAVE 4 ENCODERS? (set HAS_ENCODER4 in config.h)
+bool isEncoder4Defined = HAS_ENCODER4;
 // Filtering and Sample-End-Seeking is then disabled, volume is on left Knob
 
 
 
-  Switch multiresponseButton1 = Switch(15);  // Left-Knob: (doubleTab: Enter/Exit Single-Sample-Mode)
-  Switch multiresponseButton3 = Switch(16);  // Middle-Left: VOLUME / BPM
-  Switch multiresponseButton4 = Switch(41);  // Middle-Right:
-  Switch multiresponseButton2 = Switch(3);   // right-Knob:  (double-tab+hold: set Accents), Long hold(+l/r knob): Select BPM OR VOLUME
+  Switch multiresponseButton1 = Switch(BTN_LEFT);  // Left-Knob: (doubleTab: Enter/Exit Single-Sample-Mode)
+  Switch multiresponseButton3 = Switch(BTN_MIDL);  // Middle-Left: VOLUME / BPM
+  Switch multiresponseButton4 = Switch(BTN_MIDR);  // Middle-Right:
+  Switch multiresponseButton2 = Switch(BTN_RIGHT); // right-Knob:  (double-tab+hold: set Accents), Long hold(+l/r knob): Select BPM OR VOLUME
 
 
 
@@ -298,8 +298,8 @@ void setup() {
   }
 
   pinMode(0, INPUT_PULLDOWN);
-  pinMode(3, INPUT_PULLDOWN);
-  pinMode(16, INPUT_PULLDOWN);
+  pinMode(BTN_RIGHT, INPUT_PULLDOWN);
+  pinMode(BTN_MIDL, INPUT_PULLDOWN);
   FastLED.addLeds<WS2812SERIAL, DATA_PIN, BRG>(leds, NUM_LEDS);
   showIntro();
 
