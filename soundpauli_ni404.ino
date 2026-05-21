@@ -75,6 +75,16 @@ unsigned int pagebeat, beat = 1;
 unsigned int samplePackID, fileID = 1;
 EXTMEM unsigned int lastPreviewedSample[maxFolders] = {};
 IntervalTimer playTimer;
+#if MIDI_CLOCK_OUT_ENABLED
+IntervalTimer midiClockTimer;            // ticks at 24 PPQN when we are the master
+volatile bool midiClockRunning = false;  // true while we are emitting clock
+volatile unsigned long lastExternalClockMs = 0;  // last incoming clock pulse
+unsigned long midiClockIntervalUs();
+bool slavedToExternalClock();
+void sendMidiClockPulse();
+void midiClockTransport(bool playing);
+void midiClockUpdateTempo();
+#endif
 unsigned int lastPage = 1;
 unsigned int lastButtonPressTime = 0;
 bool resetTimerActive = false;
@@ -961,6 +971,10 @@ void togglePlay(bool &value) {
   beat = 1;
   pagebeat = 1;
   SMP.page = 1;
+
+#if MIDI_CLOCK_OUT_ENABLED
+  midiClockTransport(value);  // emit MIDI Start/Stop when we are the master
+#endif
 }
 
 void playNote() {
@@ -1747,6 +1761,9 @@ void updateBPM() {
   SMP.bpm = currentMode->pos[2];
   playNoteInterval = ((60 * 1000 / SMP.bpm) / 4) * 1000;
   playTimer.update(playNoteInterval);
+#if MIDI_CLOCK_OUT_ENABLED
+  midiClockUpdateTempo();
+#endif
   drawBPMScreen();
 }
 
@@ -2474,6 +2491,9 @@ void loadPattern(bool autoload) {
     bpm_vol->pos[2] = SMP.bpm;
     playNoteInterval = ((60 * 1000 / SMP.bpm) / 4) * 1000;
     playTimer.update(playNoteInterval);
+#if MIDI_CLOCK_OUT_ENABLED
+    midiClockUpdateTempo();
+#endif
 
     if (!isEncoder4Defined) {
       bpm_vol->pos[0] = SMP.vol;
@@ -2640,6 +2660,9 @@ void handleSongPosition(uint16_t beats) {
 
 
 void myClock() {
+#if MIDI_CLOCK_OUT_ENABLED
+  lastExternalClockMs = millis();  // mark us as slaved to an external clock
+#endif
   if (waitForFourBars) pulseCount++;
   unsigned int now = millis();
   if (lastClockTime > 0) {
@@ -2660,3 +2683,48 @@ void myClock() {
   }
   lastClockTime = now;
 }
+
+#if MIDI_CLOCK_OUT_ENABLED
+/* ------------------------------------------------------------------ *
+ *  MIDI CLOCK OUT (master sync)
+ *
+ *  A dedicated IntervalTimer emits MIDI realtime Clock at 24 PPQN so external
+ *  gear can slave to the NI404. We only act as master when NOT receiving an
+ *  external clock (see slavedToExternalClock). The audio/step engine is
+ *  untouched; this is an independent, evenly-spaced clock source.
+ *
+ *  Note: the transport has no resume-from-position (play always restarts at
+ *  beat 1), so only Start/Stop are emitted - 0xFB Continue has no trigger here.
+ * ------------------------------------------------------------------ */
+unsigned long midiClockIntervalUs() {
+  unsigned int bpm = SMP.bpm;
+  if (bpm < 1) bpm = 1;
+  return 60000000UL / ((unsigned long)bpm * 24UL);  // 24 pulses per quarter note
+}
+
+bool slavedToExternalClock() {
+  return (millis() - lastExternalClockMs) < EXTERNAL_CLOCK_TIMEOUT_MS;
+}
+
+void sendMidiClockPulse() {
+  if (slavedToExternalClock()) return;  // don't fight the external master
+  usbMIDI.sendRealTime(usbMIDI.Clock);
+}
+
+void midiClockTransport(bool playing) {
+  if (playing) {
+    if (slavedToExternalClock()) return;  // external master owns the transport
+    usbMIDI.sendRealTime(usbMIDI.Start);
+    midiClockTimer.begin(sendMidiClockPulse, midiClockIntervalUs());
+    midiClockRunning = true;
+  } else if (midiClockRunning) {
+    midiClockTimer.end();
+    midiClockRunning = false;
+    usbMIDI.sendRealTime(usbMIDI.Stop);
+  }
+}
+
+void midiClockUpdateTempo() {
+  if (midiClockRunning) midiClockTimer.update(midiClockIntervalUs());
+}
+#endif

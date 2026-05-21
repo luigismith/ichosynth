@@ -65,5 +65,8 @@
 #ifndef MIDI_CLOCK_OUT_ENABLED
 #define MIDI_CLOCK_OUT_ENABLED 0
 #endif
+// If incoming external MIDI clock pulses arrive within this window, the NI404
+// stays a slave and does not generate its own clock.
+#define EXTERNAL_CLOCK_TIMEOUT_MS 750
 
 #endif // NI404_CONFIG_H
