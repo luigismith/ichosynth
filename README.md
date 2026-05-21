@@ -87,6 +87,52 @@ Compiler-Switches
 USB-Type: (Serial)+MIDI16X
 
 
+FORK ADDITIONS
+-------------
+This fork adds three optional, opt-in features. All configuration lives in
+`config.h`, and every feature defaults to OFF so the firmware behaves exactly
+like upstream until you enable it.
+
+1) Centralized config (`config.h`)
+   Pin assignments (LED matrix, encoders, encoder buttons) and all feature
+   switches are now in one header, so retargeting the build to a hardware
+   variant is a single-file change.
+
+2) OLED status HUD (0.96" SSD1306, 128x64, I2C)
+   A small status screen showing the current mode, BPM, volume, velocity,
+   page/last-page and play/stop state. The refresh is throttled and only redraws
+   when a shown value changes, so it does not disturb the timing-sensitive audio
+   loop.
+   - Enable: set `#define OLED_ENABLED 1` in `config.h`.
+   - Extra libraries (only needed when enabled):
+       Adafruit_SSD1306
+       Adafruit_GFX
+   - Wiring: the OLED shares the same I2C bus as the Teensy Audio Shield's
+     SGTL5000 codec (different address, no conflict). Only 4 wires:
+       OLED SDA -> Teensy 18
+       OLED SCL -> Teensy 19
+       OLED VCC -> 3V3
+       OLED GND -> GND
+   - Address defaults to 0x3C (`OLED_I2C_ADDR`); some panels use 0x3D.
+
+3) MIDI clock OUT (master sync)
+   The sequencer can emit MIDI realtime Clock (24 PPQN), Start and Stop over
+   USB-MIDI so external gear slaves to the NI404. It only acts as master when no
+   external clock is being received, so the existing clock-slave behavior is
+   preserved.
+   - Enable: set `#define MIDI_CLOCK_OUT_ENABLED 1` in `config.h`.
+   - Note: the transport restarts from the top on play, so only Start/Stop are
+     sent (no Continue).
+
+config.h switches at a glance:
+   OLED_ENABLED              (0/1, default 0)
+   OLED_I2C_ADDR            (default 0x3C)
+   OLED_WIDTH / OLED_HEIGHT (128 / 64)
+   OLED_FPS                 (max display refresh, default 15)
+   MIDI_CLOCK_OUT_ENABLED   (0/1, default 0)
+   HAS_ENCODER4             (0/1, default 1)
+
+
 LICENSE
 -------------
 The code is released under the MIT License, which means it's freely available for personal and commercial use, modification, distribution, and private copying. This permissive license is part of our effort to support innovation and creativity.
