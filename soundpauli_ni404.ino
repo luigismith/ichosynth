@@ -26,6 +26,7 @@
 #include "files.h"
 #include <TeensyPolyphony.h>
 #include "audioinit.h"
+#include "display.h"
 
 #define SD_SLOT BUILTIN_SDCARD
 // NUM_LEDS and DATA_PIN are defined in config.h
@@ -443,6 +444,9 @@ void setup() {
   sgtl5000_1.lineOutLevel(1);
 
   AudioMemory(64);
+
+  // OLED HUD shares the I2C bus the codec just brought up (no-op if disabled).
+  oledInit();
 
   autoLoad();
 
@@ -1607,6 +1611,13 @@ void loop() {
   }
 
   FastLEDshow();  // draw!
+
+#if OLED_ENABLED
+  // Throttled + dirty-checked inside; safe to call every loop.
+  oledRenderStatus(currentMode->name.c_str(), SMP.bpm, SMP.vol, SMP.velocity,
+                   SMP.page, lastPage, isPlaying);
+#endif
+
   yield();
   delay(5);  // otherwise, the audio lib crashes after 1-60sec //(1 is good if 720MHZ overclock!!!!)
 }
