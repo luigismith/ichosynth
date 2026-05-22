@@ -269,6 +269,8 @@ def build(path, st):
                     story.append(img_flowable(name, scale=0.92))
                     story.append(Spacer(1, 6))
             else:
+                # Preformatted renders text verbatim (no XML markup parsing),
+                # so raw <, >, & are fine and must NOT be entity-escaped.
                 txt = deemoji("\n".join(code))
                 tbl = Table([[Preformatted(txt, st["code"])]], colWidths=[USABLE])
                 tbl.setStyle(TableStyle([
