@@ -58,10 +58,10 @@ ichosynth/
 ## 📑 Table of contents
 
 - [🧠 The idea in 30 seconds](#-the-idea-in-30-seconds)
-- [🛠️ How it's wired](#️-how-its-wired)
+- [🔧 How it's wired](#-how-its-wired)
 - [🔌 Fork feature 1 — OLED status HUD](#-fork-feature-1--oled-status-hud)
-- [🎚️ Fork feature 2 — MIDI clock OUT](#️-fork-feature-2--midi-clock-out-master-sync)
-- [⚙️ config.h at a glance](#️-configh-at-a-glance)
+- [🎹 Fork feature 2 — MIDI clock OUT](#-fork-feature-2--midi-clock-out-master-sync)
+- [🔩 config.h at a glance](#-configh-at-a-glance)
 - [🚀 Build & flash](#-build--flash)
 - [📚 Manuals (Italiano)](#-manuals--manuali-italiano)
 - [🧩 Hardware list](#-hardware-list)
@@ -94,7 +94,7 @@ The full playing guide is in the [usage manual](MANUALE_USO.md).
 
 ---
 
-## 🛠️ How it's wired
+## 🔧 How it's wired
 
 Pins live in [`config.h`](config.h) — change the build for a hardware variant by editing **one file**.
 
@@ -140,7 +140,7 @@ flowchart LR
 
 ---
 
-## 🎚️ Fork feature 2 — MIDI clock OUT (master sync)
+## 🎹 Fork feature 2 — MIDI clock OUT (master sync)
 
 The sequencer can emit MIDI realtime **Clock (24 PPQN), Start & Stop** over USB-MIDI so external gear
 slaves to `ichosynth`. It is a polite master — it **only** generates clock when **no external clock is
@@ -163,7 +163,7 @@ flowchart TD
 
 ---
 
-## ⚙️ config.h at a glance
+## 🔩 config.h at a glance
 
 | Switch | Default | Meaning |
 |---|:---:|---|
