@@ -1,0 +1,51 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 740 560" width="740" height="560" role="img">
+<rect x="0" y="0" width="740" height="999" rx="0" ry="0" fill="#0d1117"/>
+<text x="28" y="40" font-family="'Segoe UI',Helvetica,Arial,sans-serif" font-size="22" fill="#e6edf3" text-anchor="start" font-weight="700">Mappa delle modalità</text>
+<text x="28" y="64" font-family="'Segoe UI',Helvetica,Arial,sans-serif" font-size="13.5" fill="#9aa4b2" text-anchor="start" font-weight="400">Da DRAW raggiungi ogni modalità con una combinazione di gesti. Ritorno: click C-SX / rilascia.</text>
+<line x1="28" y1="78" x2="712" y2="78" stroke="#30363d" stroke-width="1" stroke-linecap="round"/>
+<rect x="36" y="250" width="150" height="60" rx="9" ry="9" fill="#161b22" stroke="#e6edf3" stroke-width="2"/>
+<text x="111.0" y="278.0" font-family="'Segoe UI',Helvetica,Arial,sans-serif" font-size="12.5" fill="#e6edf3" text-anchor="middle" font-weight="700">DRAW</text>
+<text x="111.0" y="295.0" font-family="'Segoe UI',Helvetica,Arial,sans-serif" font-size="10.5" fill="#9aa4b2" text-anchor="middle" font-weight="400">schermata principale</text>
+<rect x="320" y="94" width="190" height="54" rx="9" ry="9" fill="#161b22" stroke="#FF7A1A" stroke-width="2"/>
+<text x="415.0" y="125.5" font-family="'Segoe UI',Helvetica,Arial,sans-serif" font-size="12.5" fill="#e6edf3" text-anchor="middle" font-weight="700">Volume / BPM</text>
+<line x1="186" y1="280" x2="314.20011301095127" y2="127.88195545715483" stroke="#FF7A1A" stroke-width="2" stroke-linecap="round"/>
+<polygon points="320.0,121.0 318.2,130.8 310.6,124.4" fill="#FF7A1A"/>
+<rect x="220.6" y="190.5" width="64.80000000000001" height="18" rx="5" ry="5" fill="#0d1117" stroke="#FF7A1A" stroke-width="1"/>
+<text x="253.0" y="203.5" font-family="'Segoe UI',Helvetica,Arial,sans-serif" font-size="10.5" fill="#e6edf3" text-anchor="middle" font-weight="400">hold C-DX</text>
+<rect x="320" y="172" width="190" height="54" rx="9" ry="9" fill="#161b22" stroke="#E83AA6" stroke-width="2"/>
+<text x="415.0" y="203.5" font-family="'Segoe UI',Helvetica,Arial,sans-serif" font-size="12.5" fill="#e6edf3" text-anchor="middle" font-weight="700">Velocity</text>
+<line x1="186" y1="280" x2="312.2978203474966" y2="203.6557951630804" stroke="#E83AA6" stroke-width="2" stroke-linecap="round"/>
+<polygon points="320.0,199.0 315.2,207.8 310.0,199.2" fill="#E83AA6"/>
+<rect x="214.4" y="229.5" width="77.2" height="18" rx="5" ry="5" fill="#0d1117" stroke="#E83AA6" stroke-width="1"/>
+<text x="253.0" y="242.5" font-family="'Segoe UI',Helvetica,Arial,sans-serif" font-size="10.5" fill="#e6edf3" text-anchor="middle" font-weight="400">2× click DX</text>
+<rect x="320" y="255" width="190" height="54" rx="9" ry="9" fill="#161b22" stroke="#3A6BE8" stroke-width="2"/>
+<text x="415.0" y="286.5" font-family="'Segoe UI',Helvetica,Arial,sans-serif" font-size="12.5" fill="#e6edf3" text-anchor="middle" font-weight="700">SINGLE</text>
+<line x1="186" y1="280" x2="311.001002282981" y2="281.8656866012385" stroke="#3A6BE8" stroke-width="2" stroke-linecap="round"/>
+<polygon points="320.0,282.0 311.3,286.9 311.4,276.9" fill="#3A6BE8"/>
+<rect x="214.4" y="271.0" width="77.2" height="18" rx="5" ry="5" fill="#0d1117" stroke="#3A6BE8" stroke-width="1"/>
+<text x="253.0" y="284.0" font-family="'Segoe UI',Helvetica,Arial,sans-serif" font-size="10.5" fill="#e6edf3" text-anchor="middle" font-weight="400">2× click SX</text>
+<rect x="320" y="394" width="190" height="54" rx="9" ry="9" fill="#161b22" stroke="#9A57E8" stroke-width="2"/>
+<text x="415.0" y="425.5" font-family="'Segoe UI',Helvetica,Arial,sans-serif" font-size="12.5" fill="#e6edf3" text-anchor="middle" font-weight="700">Sample Pack</text>
+<line x1="186" y1="280" x2="313.80003896181466" y2="414.4761604001184" stroke="#9A57E8" stroke-width="2" stroke-linecap="round"/>
+<polygon points="320.0,421.0 310.4,418.2 317.7,411.3" fill="#9A57E8"/>
+<rect x="211.3" y="340.5" width="83.4" height="18" rx="5" ry="5" fill="#0d1117" stroke="#9A57E8" stroke-width="1"/>
+<text x="253.0" y="353.5" font-family="'Segoe UI',Helvetica,Arial,sans-serif" font-size="10.5" fill="#e6edf3" text-anchor="middle" font-weight="400">hold SX + DX</text>
+<rect x="320" y="478" width="190" height="54" rx="9" ry="9" fill="#161b22" stroke="#2AD4B8" stroke-width="2"/>
+<text x="415.0" y="509.5" font-family="'Segoe UI',Helvetica,Arial,sans-serif" font-size="12.5" fill="#e6edf3" text-anchor="middle" font-weight="700">Menu salva/carica</text>
+<line x1="186" y1="280" x2="315.3948328176475" y2="497.26744316396037" stroke="#2AD4B8" stroke-width="2" stroke-linecap="round"/>
+<polygon points="320.0,505.0 311.3,500.1 319.9,495.0" fill="#2AD4B8"/>
+<rect x="198.9" y="382.5" width="108.2" height="18" rx="5" ry="5" fill="#0d1117" stroke="#2AD4B8" stroke-width="1"/>
+<text x="253.0" y="395.5" font-family="'Segoe UI',Helvetica,Arial,sans-serif" font-size="10.5" fill="#e6edf3" text-anchor="middle" font-weight="400">hold C-DX + C-SX</text>
+<rect x="560" y="178" width="160" height="50" rx="9" ry="9" fill="#161b22" stroke="#3A6BE8" stroke-width="2"/>
+<text x="640.0" y="207.5" font-family="'Segoe UI',Helvetica,Arial,sans-serif" font-size="12.5" fill="#e6edf3" text-anchor="middle" font-weight="700">Sample Browser</text>
+<line x1="510" y1="282" x2="555.1868216598699" y2="210.6048217774056" stroke="#3A6BE8" stroke-width="2" stroke-linecap="round"/>
+<polygon points="560.0,203.0 559.6,213.0 551.1,207.6" fill="#3A6BE8"/>
+<rect x="493.3" y="232.5" width="83.4" height="18" rx="5" ry="5" fill="#0d1117" stroke="#3A6BE8" stroke-width="1"/>
+<text x="535.0" y="245.5" font-family="'Segoe UI',Helvetica,Arial,sans-serif" font-size="10.5" fill="#e6edf3" text-anchor="middle" font-weight="400">hold SX + DX</text>
+<rect x="560" y="336" width="160" height="50" rx="9" ry="9" fill="#161b22" stroke="#3A6BE8" stroke-width="2"/>
+<text x="640.0" y="365.5" font-family="'Segoe UI',Helvetica,Arial,sans-serif" font-size="12.5" fill="#e6edf3" text-anchor="middle" font-weight="700">Note Shift</text>
+<line x1="510" y1="282" x2="555.1868216598699" y2="353.39517822259444" stroke="#3A6BE8" stroke-width="2" stroke-linecap="round"/>
+<polygon points="560.0,361.0 551.1,356.4 559.6,351.0" fill="#3A6BE8"/>
+<rect x="487.1" y="311.5" width="95.8" height="18" rx="5" ry="5" fill="#0d1117" stroke="#3A6BE8" stroke-width="1"/>
+<text x="535.0" y="324.5" font-family="'Segoe UI',Helvetica,Arial,sans-serif" font-size="10.5" fill="#e6edf3" text-anchor="middle" font-weight="400">hold DX + C-DX</text>
+</svg>

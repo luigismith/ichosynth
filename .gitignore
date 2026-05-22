@@ -11,8 +11,9 @@ build/
 # Backup archives (PCB/enclosure exports)
 _DOCS/**/*.zip
 
-# Generated asset previews (PNG renders of the SVG infographics, for review only)
+# Generated asset previews / PDF render checks (review only, not committed)
 assets/_preview/
+assets/_pdfcheck/
 
 # OS cruft
 Thumbs.db

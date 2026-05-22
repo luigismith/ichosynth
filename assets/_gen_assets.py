@@ -362,10 +362,146 @@ def gen_sd():
     write("sd-structure.svg", svg(W, H, o))
 
 
+# =========================================================================
+# shared flow helpers (local equivalents of the Mermaid diagrams)
+# =========================================================================
+import math
+
+
+def _box(x, y, w, h, title, accent, sub=None, fill=PANEL, dash=None):
+    p = [rrect(x, y, w, h, 9, fill, accent, 2, dash=dash)]
+    if sub:
+        p.append(text(x + w / 2, y + h / 2 - 2, title, 12.5, INK, "middle", "700"))
+        p.append(text(x + w / 2, y + h / 2 + 15, sub, 10.5, SUB, "middle"))
+    else:
+        p.append(text(x + w / 2, y + h / 2 + 4.5, title, 12.5, INK, "middle", "700"))
+    return p
+
+
+def _arrow(x1, y1, x2, y2, color=GREY, label=None):
+    ang = math.atan2(y2 - y1, x2 - x1)
+    hx, hy = x2 - 9 * math.cos(ang), y2 - 9 * math.sin(ang)
+    p = [line(x1, y1, hx, hy, color, 2)]
+    a1 = ang + math.radians(150)
+    a2 = ang - math.radians(150)
+    p.append(f'<polygon points="{x2:.1f},{y2:.1f} {x2+10*math.cos(a1):.1f},{y2+10*math.sin(a1):.1f} {x2+10*math.cos(a2):.1f},{y2+10*math.sin(a2):.1f}" fill="{color}"/>')
+    if label:
+        mx, my = (x1 + x2) / 2, (y1 + y2) / 2
+        tw = 9 + len(label) * 6.2
+        p.append(rrect(mx - tw / 2, my - 10, tw, 18, 5, BG, color, 1))
+        p.append(text(mx, my + 3, label, 10.5, INK, "middle"))
+    return p
+
+
+# =========================================================================
+# 6) MIDI CLOCK master/slave
+# =========================================================================
+def gen_midi():
+    W, H = 560, 360
+    o = header(W, "MIDI clock: master o slave?",
+               "Il NI404 genera il proprio clock solo se non ne riceve uno esterno.")
+    o += _box(230, 104, 100, 46, "Premi Play", "#1f6feb")
+    o += _box(170, 196, 220, 52, "Clock esterno", "#d29922", sub="ricevuto negli ultimi 750 ms?")
+    o += _arrow(280, 150, 280, 196, GREY)
+    o += _box(40, 300, 200, 48, "Resta SLAVE", "#3b82f6", sub="segue il clock esterno")
+    o += _box(320, 300, 210, 48, "Diventa MASTER", GREEN, sub="invia Start + Clock 24 PPQN")
+    o += _arrow(220, 248, 140, 300, "#3b82f6", "Sì")
+    o += _arrow(340, 248, 420, 300, GREEN, "No")
+    write("midi-clock.svg", svg(W, H, o))
+
+
+# =========================================================================
+# 7) MODES MAP (state machine)
+# =========================================================================
+def gen_modes():
+    W, H = 740, 560
+    o = header(W, "Mappa delle modalità",
+               "Da DRAW raggiungi ogni modalità con una combinazione di gesti. Ritorno: click C-SX / rilascia.")
+    # DRAW
+    o += _box(36, 250, 150, 60, "DRAW", "#e6edf3", sub="schermata principale")
+    sat = [
+        (320, 94, "Volume / BPM", "#FF7A1A", "hold C-DX", "rilascia"),
+        (320, 172, "Velocity", "#E83AA6", "2× click DX", "rilascia"),
+        (320, 255, "SINGLE", "#3A6BE8", "2× click SX", "2× click SX"),
+        (320, 394, "Sample Pack", "#9A57E8", "hold SX + DX", "click C-SX"),
+        (320, 478, "Menu salva/carica", "#2AD4B8", "hold C-DX + C-SX", "click C-SX"),
+    ]
+    for x, y, name, col, g, _back in sat:
+        o += _box(x, y, 190, 54, name, col)
+        o += _arrow(186, 280, x, y + 27, col, g)
+    # SINGLE children
+    children = [
+        (560, 178, "Sample Browser", "hold SX + DX"),
+        (560, 336, "Note Shift", "hold DX + C-DX"),
+    ]
+    for x, y, name, g in children:
+        o += _box(x, y, 160, 50, name, "#3A6BE8")
+        o += _arrow(510, 282, x, y + 25, "#3A6BE8", g)
+    write("modes-map.svg", svg(W, H, o))
+
+
+# =========================================================================
+# 8) ASSEMBLY FLOW
+# =========================================================================
+def gen_assembly():
+    steps = [
+        ("1 · Teensy", "PSRAM + header", "#1f6feb"),
+        ("2 · Audio", "scheda audio", "#2AD4B8"),
+        ("3 · Matrice", "LED 16×16", "#E83A3A"),
+        ("4 · Encoder", "×3–4", "#E8D23A"),
+        ("5 · OLED", "fork (opz.)", GREEN),
+        ("6 · Check", "multimetro", "#FF7A1A"),
+        ("✅ Pronto", "firmware", GREEN),
+    ]
+    bw, bh, gap = 104, 56, 22
+    W = 28 * 2 + len(steps) * bw + (len(steps) - 1) * gap
+    H = 170
+    o = header(W, "Montaggio: i 6 passi", "Dal Teensy nudo al dispositivo pronto per il firmware.")
+    x = 28
+    y = 92
+    for i, (t, s, c) in enumerate(steps):
+        dash = "6 4" if t.startswith("5") else None
+        o += _box(x, y, bw, bh, t, c, sub=s, dash=dash)
+        if i < len(steps) - 1:
+            o += _arrow(x + bw, y + bh / 2, x + bw + gap, y + bh / 2, GREY)
+        x += bw + gap
+    write("assembly-flow.svg", svg(W, H, o))
+
+
+# =========================================================================
+# 9) FLASH FLOW
+# =========================================================================
+def gen_flash():
+    steps = [
+        ("Arduino IDE", "+ Teensyduino", "#1f6feb"),
+        ("Librerie", "FastLED, Audio…", "#2AD4B8"),
+        ("ResamplingReader.h", "⚠ sostituisci", "#d29922"),
+        ("USB Type", "Serial + MIDI", "#9A57E8"),
+        ("config.h", "OLED / MIDI (opz.)", GREEN),
+        ("Upload ▶", "carica sul Teensy", "#E83A3A"),
+    ]
+    bw, bh, gap = 132, 56, 22
+    W = 28 * 2 + len(steps) * bw + (len(steps) - 1) * gap
+    H = 170
+    o = header(W, "Caricare il firmware: la sequenza", "Segui l'ordine; il passo 3 è obbligatorio.")
+    x = 28
+    y = 92
+    for i, (t, s, c) in enumerate(steps):
+        o += _box(x, y, bw, bh, t, c, sub=s)
+        if i < len(steps) - 1:
+            o += _arrow(x + bw, y + bh / 2, x + bw + gap, y + bh / 2, GREY)
+        x += bw + gap
+    write("flash-flow.svg", svg(W, H, o))
+
+
 if __name__ == "__main__":
     gen_grid()
     gen_encoders()
     gen_voices()
     gen_wiring()
     gen_sd()
+    gen_midi()
+    gen_modes()
+    gen_assembly()
+    gen_flash()
     print("done.")

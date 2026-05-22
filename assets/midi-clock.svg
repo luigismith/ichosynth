@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 560 360" width="560" height="360" role="img">
+<rect x="0" y="0" width="560" height="999" rx="0" ry="0" fill="#0d1117"/>
+<text x="28" y="40" font-family="'Segoe UI',Helvetica,Arial,sans-serif" font-size="22" fill="#e6edf3" text-anchor="start" font-weight="700">MIDI clock: master o slave?</text>
+<text x="28" y="64" font-family="'Segoe UI',Helvetica,Arial,sans-serif" font-size="13.5" fill="#9aa4b2" text-anchor="start" font-weight="400">Il NI404 genera il proprio clock solo se non ne riceve uno esterno.</text>
+<line x1="28" y1="78" x2="532" y2="78" stroke="#30363d" stroke-width="1" stroke-linecap="round"/>
+<rect x="230" y="104" width="100" height="46" rx="9" ry="9" fill="#161b22" stroke="#1f6feb" stroke-width="2"/>
+<text x="280.0" y="131.5" font-family="'Segoe UI',Helvetica,Arial,sans-serif" font-size="12.5" fill="#e6edf3" text-anchor="middle" font-weight="700">Premi Play</text>
+<rect x="170" y="196" width="220" height="52" rx="9" ry="9" fill="#161b22" stroke="#d29922" stroke-width="2"/>
+<text x="280.0" y="220.0" font-family="'Segoe UI',Helvetica,Arial,sans-serif" font-size="12.5" fill="#e6edf3" text-anchor="middle" font-weight="700">Clock esterno</text>
+<text x="280.0" y="237.0" font-family="'Segoe UI',Helvetica,Arial,sans-serif" font-size="10.5" fill="#9aa4b2" text-anchor="middle" font-weight="400">ricevuto negli ultimi 750 ms?</text>
+<line x1="280" y1="150" x2="280.0" y2="187.0" stroke="#8a8f98" stroke-width="2" stroke-linecap="round"/>
+<polygon points="280.0,196.0 275.0,187.3 285.0,187.3" fill="#8a8f98"/>
+<rect x="40" y="300" width="200" height="48" rx="9" ry="9" fill="#161b22" stroke="#3b82f6" stroke-width="2"/>
+<text x="140.0" y="322.0" font-family="'Segoe UI',Helvetica,Arial,sans-serif" font-size="12.5" fill="#e6edf3" text-anchor="middle" font-weight="700">Resta SLAVE</text>
+<text x="140.0" y="339.0" font-family="'Segoe UI',Helvetica,Arial,sans-serif" font-size="10.5" fill="#9aa4b2" text-anchor="middle" font-weight="400">segue il clock esterno</text>
+<rect x="320" y="300" width="210" height="48" rx="9" ry="9" fill="#161b22" stroke="#2ea44f" stroke-width="2"/>
+<text x="425.0" y="322.0" font-family="'Segoe UI',Helvetica,Arial,sans-serif" font-size="12.5" fill="#e6edf3" text-anchor="middle" font-weight="700">Diventa MASTER</text>
+<text x="425.0" y="339.0" font-family="'Segoe UI',Helvetica,Arial,sans-serif" font-size="10.5" fill="#9aa4b2" text-anchor="middle" font-weight="400">invia Start + Clock 24 PPQN</text>
+<line x1="220" y1="248" x2="147.54599254670575" y2="295.0951048446413" stroke="#3b82f6" stroke-width="2" stroke-linecap="round"/>
+<polygon points="140.0,300.0 144.5,291.1 150.0,299.5" fill="#3b82f6"/>
+<rect x="169.3" y="264.0" width="21.4" height="18" rx="5" ry="5" fill="#0d1117" stroke="#3b82f6" stroke-width="1"/>
+<text x="180.0" y="277.0" font-family="'Segoe UI',Helvetica,Arial,sans-serif" font-size="10.5" fill="#e6edf3" text-anchor="middle" font-weight="400">Sì</text>
+<line x1="340" y1="248" x2="412.45400745329425" y2="295.0951048446413" stroke="#2ea44f" stroke-width="2" stroke-linecap="round"/>
+<polygon points="420.0,300.0 410.0,299.5 415.5,291.1" fill="#2ea44f"/>
+<rect x="369.3" y="264.0" width="21.4" height="18" rx="5" ry="5" fill="#0d1117" stroke="#2ea44f" stroke-width="1"/>
+<text x="380.0" y="277.0" font-family="'Segoe UI',Helvetica,Arial,sans-serif" font-size="10.5" fill="#e6edf3" text-anchor="middle" font-weight="400">No</text>
+</svg>
