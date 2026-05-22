@@ -1,166 +1,251 @@
+<div align="center">
 
-DIY OPEN SOURCE HARDWARE SAMPLER-SEQUENCER
+# 🎛️ ichosynth
 
----------
-An Etch-A-SketchTM inspired device for beginners and makers.
+### A DIY, open-source sampler-sequencer you *draw* like an Etch-A-Sketch™
 
+You sketch music onto a 16×16 RGB LED grid with a few rotary knobs. No computer, no screen menus to memorize — just turn, push, and listen.
 
-THE OPEN SOURCE SAMPLE-SEQUENCER FOR EVERYONE.
--------------
-The NI404 is an innovative, open-source DIY sample-sequencer from SP_ (aka soundpauli) - inspired by the classic Etch-A-Sketch, tailored for beginners and DIY enthusiasts. Designed around the Teensy Microcontroller and Audioboard from PJRC, this device offers an accessible entry point into the world of music creation.
-The NI404 is more than just a musical instrument; it's a journey into the world of sound exploration, perfect for live performances, studio sessions, or simply having fun creating music. Whether you're a seasoned musician or a curious beginner, the NI404 is your gateway to an exciting world of musical possibilities.
+[![License: MIT](https://img.shields.io/badge/License-MIT-2ea44f.svg)](#-license)
+[![Platform: Teensy 4.1](https://img.shields.io/badge/Platform-Teensy%204.1-ee6611.svg)](https://www.pjrc.com/store/teensy41.html)
+[![Language: C++ / Arduino](https://img.shields.io/badge/Code-C%2B%2B%20%2F%20Arduino-00599C.svg)](#)
+[![Fork of: NI404](https://img.shields.io/badge/Fork%20of-NI404%20by%20SP__-blueviolet.svg)](#-credits--upstream)
+[![Manuali: Italiano](https://img.shields.io/badge/Manuali-🇮🇹%20Italiano-008C45.svg)](#-manuals--manuali-italiano)
 
-EASY TO USE.
--------------
-With its playful design, the NI404 lets users create complex sound patterns without any prior knowledge of musical instruments or equipment. It's perfect for beginners and makers alike.
+</div>
 
-DYNAMIC CONTROL DESPITE LESS BUTTONS.
--------------
-At the heart of the NI404 is a vivid 16x16 RGB LED panel display, paired with three intuitive rotary-push encoders. Navigate a cursor across the grid, where each row signifies a voice and each column a potential note, allowing for up to 16 pitches per note. This feature enables the mixing of up to 8 voices simultaneously.
+> **What is this?** `ichosynth` is a friendly **fork of [NI404](#-credits--upstream)** by **SP_ (soundpauli)**.
+> The original is a brilliant standalone instrument; this fork keeps it 100% compatible and adds a
+> few quality-of-life things — an optional **status OLED**, **MIDI clock master sync**, a single-file
+> **hardware config**, and two **beginner-friendly Italian manuals**. Every new feature is **opt-in and
+> defaults to OFF**, so the firmware behaves *exactly* like upstream until you flip a switch.
 
-REAL-TIME INTERACTION.
--------------
-Adjust samples, instruments, pitches, notes, volume, BPM, velocity, and effects in real-time without pausing. This seamless interaction makes the NI404 an ideal gadget for live performances.
+---
 
-CORE COMPONENTS.
--------------
-Teensy 4.1 Microcontroller and Teensy Audio board (4.0)
-8MB PSRAM Flash Memory
-3 Rotary-push encoders
-16x16 RGB-LED Panel driven by FastLED
-3.5mm audio jack and removable SD Microcard slot
+## ✨ What this fork adds
 
-CREATIVE FLEXIBILITY.
--------------
-Etch-A-Sketch style note drawing
-On-the-fly note deletion and sample muting
-Adjustable volume, BPM (40 - 200), pattern, and note velocity
-Up to 30-second sample length with seamless looping
-Use your own samples on the SD-Card - in a simple file structure
-Load up to 8 voices / samples (Wav format) plus an additional onboard synth voice
-16-bar patterns across 8 pages, totaling 128 bars per song
-Save and load up to 100 patterns / songs on the SD card
-Autosave and autoload functions
-SAMPLES AT YOUR FINGERTIPS:
-THE BUILT-IN SAMPLE BROWSER.
-Access and manage samples while playing, with support for up to 999 samples on the SD card and the ability to predefine multiple voices as a SampleSet.
+| | Upstream NI404 | **This fork (`ichosynth`)** |
+|---|:---:|:---:|
+| Core sampler-sequencer | ✅ | ✅ (unchanged) |
+| Pin map & feature flags | scattered in the sketch | 🆕 **one file** → [`config.h`](config.h) |
+| Status display | — | 🆕 **OLED HUD** (SSD1306 128×64) — *opt-in* |
+| MIDI clock | slave only | 🆕 **master sync** (24 PPQN Start/Clock/Stop) — *opt-in* |
+| 3-encoder build switch | hard-coded | 🆕 `HAS_ENCODER4` toggle |
+| Documentation | English README | 🆕 **Italian build + usage manuals** (`.md` + `.pdf`) |
 
-FULLY INDEPENDENT.
--------------
-Operates without a computer, generating all sounds on the device itself. USB powered (5V) and Arduino code is published under the MIT License.
+> 🔒 **Zero-regression promise:** with `OLED_ENABLED 0` and `MIDI_CLOCK_OUT_ENABLED 0` (the defaults),
+> this fork compiles to the same behavior as upstream. The new files are inert until enabled.
 
-Important: The NI404 does not include speakers or Bluetooth connectivity; Headphones are recommended. Because of licensing: please use your own sample files (folder structure is included).
+<details>
+<summary><b>📂 Files changed / added by the fork</b> (click to expand)</summary>
 
-READY FOR MORE.
--------------
-Potential updates include USB-MIDI In & Out, and possible new features you are builing ;)
+```
+ichosynth/
+├── config.h                  🆕 all pins + feature switches in one place
+├── display.h                 🆕 SSD1306 OLED status HUD (no-op when disabled)
+├── soundpauli_ni404.ino      ✏️  includes config/display, MIDI-clock hooks
+├── README.md                 ✏️  this file
+├── MANUALE_COSTRUZIONE.md    🆕 Italian DIY build manual (hand-wired, no PCB)
+├── MANUALE_USO.md            🆕 Italian usage manual
+├── MANUALE_*.pdf             🆕 PDF versions of both manuals
+├── colors.h / files.h / audioinit.h   (upstream, unchanged)
+└── _DOCS/ , _SDCARD/         (upstream hardware files, unchanged)
+```
+</details>
 
+---
 
-HARDWARE LIST
--------------
-Custom PCB - to connect the encoders to the Teensy (but you can also hard wire everything): see Downloads
-1x Teensy 4.1
-1x Teensy Audio Adaptor / TEENSY4_AUDIO
-2x PSRAM Chip for Teensy 4.1
-4x Rotary Encoder KY-040 360degree + Push
+## 📑 Table of contents
 
-Jumper Wire Cables (10cm)
-1x Micro SD Card (Class 10)
-(Micro SD-Extension)
-1x 16x16 RGB LED Matrix
+- [🧠 The idea in 30 seconds](#-the-idea-in-30-seconds)
+- [🛠️ How it's wired](#️-how-its-wired)
+- [🔌 Fork feature 1 — OLED status HUD](#-fork-feature-1--oled-status-hud)
+- [🎚️ Fork feature 2 — MIDI clock OUT](#️-fork-feature-2--midi-clock-out-master-sync)
+- [⚙️ config.h at a glance](#️-configh-at-a-glance)
+- [🚀 Build & flash](#-build--flash)
+- [📚 Manuals (Italiano)](#-manuals--manuali-italiano)
+- [🧩 Hardware list](#-hardware-list)
+- [🙏 Credits & upstream](#-credits--upstream)
+- [📄 License](#-license)
 
+---
 
-USED LIBRARIES
--------------
-WS2812Serial
-Teensy Audio Library (Audio.h, v1.0.6)
-Quadrature Encoder Library from Paul Stoffregen (Encoder.h, v1.4.4)
-Mapf (v1.0.2, GPL-3.0 license)
-FastLED (v3.9.10, MIT License)
-TeensyPolyphony (v1.0.7, MIT License)
+## 🧠 The idea in 30 seconds
 
->Important notice:
-Dont forget to replace the ResamplingReader.h inside the newdigate/teensy-variable-playback library with the one from this directory - It helps a lot fighting nullptr errors ;)
+The 16×16 panel is your sheet of music. A play-head sweeps left→right; every column it touches plays
+whatever notes you drew there. Each **row is a voice** (a sample or a synth), each **column a step**.
+Up to **8 sample voices + onboard synth voices** play together; chain pages into a song.
 
-Compiler-Switches
--------------
-USB-Type: (Serial)+MIDI16X
+```mermaid
+flowchart LR
+    ENC["🎚️ 3–4 rotary<br/>encoders"] --> T["🧠 Teensy 4.1"]
+    SD[("💾 microSD<br/>samples / songs")] --> T
+    T --> LED["🟥 16×16 RGB<br/>LED matrix"]
+    T -. "🆕 fork" .-> OLED["📟 SSD1306<br/>status HUD"]
+    T --> AUDIO["🔊 Audio Shield<br/>SGTL5000"]
+    AUDIO --> JACK["🎧 3.5mm out"]
+    T <-. "USB-MIDI in/out" .-> HOST["💻 / 🎹 host & gear"]
 
+    style OLED stroke:#2ea44f,stroke-width:2px,stroke-dasharray:4 3
+```
 
-FORK ADDITIONS
--------------
-This fork adds three optional, opt-in features. All configuration lives in
-`config.h`, and every feature defaults to OFF so the firmware behaves exactly
-like upstream until you enable it.
+Draw notes → press Play → loop. Tweak samples, BPM, volume, velocity live, without stopping.
+The full playing guide is in the [usage manual](MANUALE_USO.md).
 
-1) Centralized config (`config.h`)
-   Pin assignments (LED matrix, encoders, encoder buttons) and all feature
-   switches are now in one header, so retargeting the build to a hardware
-   variant is a single-file change.
+---
 
-2) OLED status HUD (0.96" SSD1306, 128x64, I2C)
-   A small status screen showing the current mode, BPM, volume, velocity,
-   page/last-page and play/stop state. The refresh is throttled and only redraws
-   when a shown value changes, so it does not disturb the timing-sensitive audio
-   loop.
-   - Enable: set `#define OLED_ENABLED 1` in `config.h`.
-   - Extra libraries (only needed when enabled):
-       Adafruit_SSD1306
-       Adafruit_GFX
-   - Wiring: the OLED shares the same I2C bus as the Teensy Audio Shield's
-     SGTL5000 codec (different address, no conflict). Only 4 wires:
-       OLED SDA -> Teensy 18
-       OLED SCL -> Teensy 19
-       OLED VCC -> 3V3
-       OLED GND -> GND
-   - Address defaults to 0x3C (`OLED_I2C_ADDR`); some panels use 0x3D.
+## 🛠️ How it's wired
 
-3) MIDI clock OUT (master sync)
-   The sequencer can emit MIDI realtime Clock (24 PPQN), Start and Stop over
-   USB-MIDI so external gear slaves to the NI404. It only acts as master when no
-   external clock is being received, so the existing clock-slave behavior is
-   preserved.
-   - Enable: set `#define MIDI_CLOCK_OUT_ENABLED 1` in `config.h`.
-   - Note: the transport restarts from the top on play, so only Start/Stop are
-     sent (no Continue).
+Pins live in [`config.h`](config.h) — change the build for a hardware variant by editing **one file**.
 
-config.h switches at a glance:
-   OLED_ENABLED              (0/1, default 0)
-   OLED_I2C_ADDR            (default 0x3C)
-   OLED_WIDTH / OLED_HEIGHT (128 / 64)
-   OLED_FPS                 (max display refresh, default 15)
-   MIDI_CLOCK_OUT_ENABLED   (0/1, default 0)
-   HAS_ENCODER4             (0/1, default 1)
+| Function | Teensy pin(s) | Macro |
+|---|---|---|
+| LED matrix DIN | `17` | `DATA_PIN` |
+| Left encoder (CLK / DT / btn) | `5` / `22` / `15` | `ENC_LEFT_*`, `BTN_LEFT` |
+| Right encoder (CLK / DT / btn) | `4` / `2` / `3` | `ENC_RIGHT_*`, `BTN_RIGHT` |
+| Middle-left encoder (CLK / DT / btn) | `9` / `14` / `16` | `ENC_MIDL_*`, `BTN_MIDL` |
+| Middle-right encoder (CLK / DT / btn) | `32` / `33` / `41` | `ENC_MIDR_*`, `BTN_MIDR` |
+| I2C bus (codec **+ 🆕 OLED**) | `SDA 18` / `SCL 19` | shared `Wire` |
 
+> 3-encoder build? Set `HAS_ENCODER4 0` — volume moves to the left knob and the 4th-encoder
+> features disable cleanly. Full step-by-step wiring is in the [build manual](MANUALE_COSTRUZIONE.md).
 
-MANUALI (Italiano)
--------------
-This fork ships two beginner-friendly manuals in Italian:
-- Build manual (fully hand-wired DIY, no custom PCB): MANUALE_COSTRUZIONE.md
-- Usage manual (how to play the synth): MANUALE_USO.md
+---
 
+## 🔌 Fork feature 1 — OLED status HUD
 
-LICENSE
--------------
-The code is released under the MIT License, which means it's freely available for personal and commercial use, modification, distribution, and private copying. This permissive license is part of our effort to support innovation and creativity.
+A small **SSD1306 0.96" 128×64** screen showing **mode · BPM · volume · velocity · page · play/stop**.
+It shares the same I2C bus as the audio codec (different address → no conflict), so it's just **4 wires**.
 
-However, while the NI404 code itself is under the MIT License, we urge every user to be mindful of the dependencies and libraries utilized within the code. Each of these components may be governed by its own set of licenses. It's crucial for users to verify and ensure that they are in compliance with the licenses of all dependencies and libraries used in their projects. This step is important to respect the legal and ethical frameworks of open-source software.
+```mermaid
+flowchart LR
+    T["🧠 Teensy 4.1"] -- "SDA 18 / SCL 19" --> BUS{{"I2C bus"}}
+    BUS --> CODEC["🔊 SGTL5000 codec<br/>(audio shield)"]
+    BUS --> OLED["📟 SSD1306 @ 0x3C<br/>🆕 added by fork"]
 
-So, whether you're a seasoned developer or a curious beginner, feel free to dive into the code, explore, modify, and create. Just remember to stay informed and respectful of the licensing requirements of all software components you use.
+    style OLED stroke:#2ea44f,stroke-width:2px
+```
 
+| Wire | OLED → Teensy |
+|---|---|
+| SDA | `→ 18` |
+| SCL | `→ 19` |
+| VCC | `→ 3V3` |
+| GND | `→ GND` |
 
-BUY A NI404
--------------
-If you don't like to build your own NI404 (which i would recommend, it's an awesome project even for beginners), you can purchase 
-the advances project: TOERN. See toern.live or github for more information.
+- **Enable:** `#define OLED_ENABLED 1` in `config.h`.
+- **Extra libraries (only when enabled):** `Adafruit_SSD1306`, `Adafruit_GFX`.
+- **Timing-safe:** refresh is throttled to `OLED_FPS` (15) and only redraws when a shown value
+  changes (dirty-flag), so it never disturbs the audio loop. Default address `0x3C` (some panels `0x3D`).
 
-GRATITUDE
--------------
-I would like to extend my heartfelt thanks to Paul Stoffregen and everyone involved at PJRC for their incredible work in creating the Teensy environment and hardware. The innovation and dedication evident in Teensy have significantly impacted the DIY and maker communities, enabling countless creative projects and technological advancements.
+---
 
-Additionally, my gratitude goes out to the broader community of developers and enthusiasts who have contributed libraries for this remarkable piece of hardware. Your collective efforts and shared knowledge have not only enhanced the capabilities of Teensy but have also fostered a spirit of collaboration and open-source development, especially to Nic Newdigate, who contributed the awesome teensy-polyphony library, which is the "soul" of this project. Thanks!
+## 🎚️ Fork feature 2 — MIDI clock OUT (master sync)
 
-Thank you all for your hard work, ingenuity, and commitment to making the Teensy platform a powerful and accessible tool for creators around the world.
+The sequencer can emit MIDI realtime **Clock (24 PPQN), Start & Stop** over USB-MIDI so external gear
+slaves to `ichosynth`. It is a polite master — it **only** generates clock when **no external clock is
+present**, preserving upstream's clock-slave behavior.
 
-Jan from SP_
-Hamburg, January 2024
+```mermaid
+flowchart TD
+    P["▶️ Press Play"] --> Q{"External MIDI clock<br/>seen in last 750 ms?"}
+    Q -- "Yes" --> S["🟦 Stay SLAVE<br/>follow external clock<br/>(emit nothing)"]
+    Q -- "No"  --> M["🟩 Act as MASTER<br/>send Start + 24 PPQN Clock"]
+    M --> ST["⏹️ On Stop → send Stop"]
+
+    style M stroke:#2ea44f,stroke-width:2px
+    style S stroke:#3b82f6,stroke-width:2px
+```
+
+- **Enable:** `#define MIDI_CLOCK_OUT_ENABLED 1` in `config.h`.
+- The transport restarts from the top on play, so only **Start/Stop** are sent (no Continue).
+- All MIDI (in *and* out) goes through the **Teensy USB port** — set `USB Type = Serial + MIDI` when compiling.
+
+---
+
+## ⚙️ config.h at a glance
+
+| Switch | Default | Meaning |
+|---|:---:|---|
+| `OLED_ENABLED` | `0` | turn the OLED HUD on/off |
+| `OLED_I2C_ADDR` | `0x3C` | OLED address (`0x3D` on some panels) |
+| `OLED_WIDTH` / `OLED_HEIGHT` | `128` / `64` | panel size |
+| `OLED_FPS` | `15` | max display refresh (audio-safe) |
+| `MIDI_CLOCK_OUT_ENABLED` | `0` | emit MIDI clock as master |
+| `EXTERNAL_CLOCK_TIMEOUT_MS` | `750` | external-clock detection window |
+| `HAS_ENCODER4` | `1` | `0` = 3-encoder build |
+
+---
+
+## 🚀 Build & flash
+
+1. Install **Arduino IDE + [Teensyduino](https://www.pjrc.com/teensy/td_download.html)**.
+2. Set **Tools → USB Type = `Serial + MIDI`** (16× variant) and select **Teensy 4.1**.
+3. Install the libraries: `WS2812Serial`, **Teensy Audio** (`Audio.h`), `Encoder` (Paul Stoffregen),
+   `Mapf`, `FastLED`, `TeensyPolyphony` — plus `Adafruit_SSD1306` + `Adafruit_GFX` *only if* you enabled the OLED.
+4. ⚠️ Replace `ResamplingReader.h` inside `newdigate/teensy-variable-playback` with the copy in
+   [`_DOCS/ResamplingReader.h`](_DOCS/ResamplingReader.h) — it prevents nullptr crashes.
+5. (Optional) edit [`config.h`](config.h) to enable the OLED and/or MIDI clock out.
+6. Compile & upload. 🎉
+
+> Needs 16 MB of PSRAM (2× chips) soldered to the Teensy 4.1 — it's mandatory for the firmware.
+
+---
+
+## 📚 Manuals — Manuali (Italiano)
+
+Two beginner-friendly guides ship with this fork, in Italian:
+
+| 📖 Manuale | Markdown | PDF |
+|---|---|---|
+| **Costruzione** (DIY hand-wired, no custom PCB) | [MANUALE_COSTRUZIONE.md](MANUALE_COSTRUZIONE.md) | [📄 PDF](MANUALE_COSTRUZIONE.pdf) |
+| **Uso** (how to play the synth) | [MANUALE_USO.md](MANUALE_USO.md) | [📄 PDF](MANUALE_USO.pdf) |
+
+---
+
+## 🧩 Hardware list
+
+- Custom PCB *(optional — you can hand-wire everything; see the build manual)*
+- 1× **Teensy 4.1**
+- 1× **Teensy Audio Adaptor** (TEENSY4_AUDIO)
+- 2× **PSRAM** chips for Teensy 4.1 *(16 MB total — required)*
+- 4× **KY-040** rotary encoders (push + 360°) — or 3 for the compact build
+- 1× **16×16 RGB LED matrix**
+- 1× **microSD** card (Class 10)
+- *(fork option)* 1× **SSD1306 0.96" 128×64 I2C** OLED
+- Jumper wires, microSD extension *(optional)*, headphones
+
+> ℹ️ No speakers or Bluetooth on board — use **headphones**. For licensing reasons, bring your own
+> sample WAVs (mono / 16-bit / 44.1 kHz; `_SDCARD/wavmaker.py` converts them). The folder structure
+> is documented in the build manual.
+
+---
+
+## 🙏 Credits & upstream
+
+This project would not exist without **SP_ (aka soundpauli)**, creator of the original **NI404**, and
+**Paul Stoffregen / PJRC** for the Teensy platform. Special thanks to **Nic Newdigate** for the
+`teensy-polyphony` library — the *soul* of this instrument.
+
+`ichosynth` is a respectful fork: all original code, hardware files and design credit remain with the
+upstream author. The fork only **adds** opt-in features and documentation. If you like the concept,
+check out SP_'s more advanced project **TOERN** ([toern.live](https://toern.live)).
+
+### Libraries used
+`WS2812Serial` · Teensy Audio (`Audio.h` v1.0.6) · `Encoder` (Paul Stoffregen v1.4.4) ·
+`Mapf` (v1.0.2, GPL-3.0) · `FastLED` (v3.9.10, MIT) · `TeensyPolyphony` (v1.0.7, MIT) ·
+*(fork-only)* `Adafruit_SSD1306` · `Adafruit_GFX`
+
+---
+
+## 📄 License
+
+Released under the **MIT License** — free for personal and commercial use, modification, and
+distribution. Each bundled library keeps its own license (see above); please verify you comply with
+all of them in your build.
+
+<div align="center">
+
+*Made with ❤️ for beginners and makers — fork of NI404 by SP_, Hamburg.*
+
+</div>
