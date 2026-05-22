@@ -316,7 +316,7 @@ def gen_wiring():
 def gen_sd():
     W, H = 640, 470
     o = header(W, "Struttura della micro SD",
-               "Dove il NI404 cerca campioni, sample-pack e song.")
+               "Dove ichosynth cerca campioni, sample-pack e song.")
 
     def folder(x, y, w, label, accent="#FF8A1A"):
         o.append(f'<path d="M{x} {y+8} q0 -8 8 -8 h22 l8 8 h{w-46} q8 0 8 8 v22 q0 8 -8 8 h{-(w-16)} q-8 0 -8 -8 z" fill="{PANEL}" stroke="{accent}" stroke-width="1.5"/>')
@@ -354,7 +354,7 @@ def gen_sd():
 
     # packs + songs
     folder(bx, 372, 230, "1/ … 99/  →  1.wav … 12.wav", accent="#9A57E8")
-    o.append(text(bx, 366, "Sample-pack (gestiti dal NI404):", size=11, fill=SUB))
+    o.append(text(bx, 366, "Sample-pack (gestiti da ichosynth):", size=11, fill=SUB))
     file(bx, 414, 150, "1.txt … 100.txt")
     o.append(text(bx + 160, 430, "← le tue song", size=11, fill=SUB))
     file(bx, 442, 150, "autosaved.txt")
@@ -399,7 +399,7 @@ def _arrow(x1, y1, x2, y2, color=GREY, label=None):
 def gen_midi():
     W, H = 560, 360
     o = header(W, "MIDI clock: master o slave?",
-               "Il NI404 genera il proprio clock solo se non ne riceve uno esterno.")
+               "ichosynth genera il proprio clock solo se non ne riceve uno esterno.")
     o += _box(230, 104, 100, 46, "Premi Play", "#1f6feb")
     o += _box(170, 196, 220, 52, "Clock esterno", "#d29922", sub="ricevuto negli ultimi 750 ms?")
     o += _arrow(280, 150, 280, 196, GREY)

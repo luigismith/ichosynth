@@ -1,19 +1,25 @@
 <div align="center">
 
-# 🔧 NI404 — Manuale di Costruzione
+# 🔧 ichosynth — Manuale di Costruzione
 
 ### Versione DIY, cablata a mano (senza PCB stampato)
 
-Guida passo-passo per principianti: costruisci un NI404 con soli fili volanti (jumper), seguendo le tabelle dei pin.
+Guida passo-passo per principianti: costruisci il tuo **ichosynth** con soli fili volanti (jumper), seguendo le tabelle dei pin.
 
 [![Difficoltà: Media](https://img.shields.io/badge/Difficolt%C3%A0-Media%20(SMD%20PSRAM)-orange.svg)](#2--livello-di-difficoltà--leggi-prima-di-comprare)
 [![Tempo: ~mezza giornata](https://img.shields.io/badge/Tempo-~mezza%20giornata-blue.svg)](#)
+[![Fork di NI404 (SP_)](https://img.shields.io/badge/fork%20di-NI404%20%C2%B7%20SP__-blueviolet.svg)](#)
 [![Vedi anche: Uso](https://img.shields.io/badge/Vedi%20anche-Manuale%20d'Uso-2ea44f.svg)](MANUALE_USO.md)
 
 </div>
 
-> 🧠 Il NI404 è un campionatore-sequencer open-source basato su **Teensy 4.1**. Genera tutti i suoni
-> da solo: il computer serve **solo** per programmarlo la prima volta.
+> 🧠 **ichosynth** è il fork di **NI404** (di SP_ / soundpauli): un campionatore-sequencer open-source
+> basato su **Teensy 4.1**. Genera tutti i suoni da solo, il computer serve **solo** per programmarlo
+> la prima volta.
+
+> 🆕 **Cosa aggiunge questo fork** *(tutto opzionale, default = comportamento originale NI404)*:
+> configurazione centralizzata in [`config.h`](config.h) · build a **3 o 4 encoder** (`HAS_ENCODER4`) ·
+> schermo **OLED** di stato · **MIDI clock OUT** (master sync). Trovi ogni aggiunta evidenziata nelle pagine seguenti.
 
 ---
 
@@ -76,7 +82,7 @@ Tutto viene alimentato dalla porta **USB (5V)**.
 | 3–4 | Encoder rotativo **KY-040** con pulsante | 4 = versione completa; 3 = versione ridotta |
 | 1 | Micro SD Card, **Class 10**, ≤ 32 GB | formattata **FAT32** |
 | 1 | Cavo micro-USB + alimentatore 5V (≥ 2A consigliato) | alimentazione e programmazione |
-| 1 | Cuffie con jack 3,5 mm | il NI404 non ha altoparlanti |
+| 1 | Cuffie con jack 3,5 mm | ichosynth non ha altoparlanti |
 | q.b. | Cavetti jumper Dupont (~10 cm), strip di pin header | per i collegamenti |
 | 1 | 🆕 *(opzionale, fork)* OLED **SSD1306 0,96" 128×64 I2C** | schermo informazioni |
 | 1 | *(opzionale)* Contenitore stampato 3D | file STL in `_DOCS/_ENCLOSURE/` |
@@ -255,7 +261,7 @@ Apri [`config.h`](config.h) e, se vuoi, metti a `1`:
 #define OLED_ENABLED 1            // attiva lo schermo OLED
 #define MIDI_CLOCK_OUT_ENABLED 1  // invia il clock MIDI a strumenti esterni
 ```
-> 🆕 Lasciandoli a `0` (default) il NI404 si comporta **esattamente** come l'originale.
+> 🆕 Lasciandoli a `0` (default) ichosynth si comporta **esattamente** come l'originale NI404.
 
 ### 8.6 Compilare e caricare
 1. Apri `soundpauli_ni404.ino`.
@@ -297,7 +303,7 @@ Nella cartella `_SDCARD/` trovi `wavmaker.py`: converte qualsiasi WAV nel format
 4. Sposta i file `_N.wav` ottenuti nella relativa cartella `samples/<n>/`.
 
 > 📁 **Sample pack** (vedi manuale d'uso): cartelle numerate `1`..`99` sulla radice, ognuna con dentro
-> `1.wav`..`12.wav`. Le crea/usa direttamente il NI404 dal menu, non devi prepararle a mano.
+> `1.wav`..`12.wav`. Le crea/usa direttamente ichosynth dal menu, non devi prepararle a mano.
 
 ---
 
@@ -349,5 +355,7 @@ Encoder DESTRO    CLK 4  DT 2  SW 3   OLED ......... SDA 18 / SCL 19 (0x3C)
 <div align="center">
 
 Buona costruzione! 🛠️ Quando suona, passa al **[Manuale d'Uso](MANUALE_USO.md)**.
+
+*ichosynth è un fork di **NI404** di SP_ (soundpauli) · firmware open-source MIT.*
 
 </div>

@@ -1,6 +1,6 @@
 <div align="center">
 
-# 🎮 NI404 — Manuale d'Uso
+# 🎮 ichosynth — Manuale d'Uso
 
 ### Come suonare il campionatore-sequencer che si *disegna*
 
@@ -8,12 +8,17 @@ Disegni la musica su una griglia di LED 16×16 con 3–4 manopole. Niente comput
 
 [![Livello: Principiante](https://img.shields.io/badge/Livello-Principiante-2ea44f.svg)](#)
 [![Tipo: Manuale d'uso](https://img.shields.io/badge/Manuale-Uso-blue.svg)](#)
+[![Fork di NI404 (SP_)](https://img.shields.io/badge/fork%20di-NI404%20%C2%B7%20SP__-blueviolet.svg)](#)
 [![Vedi anche: Costruzione](https://img.shields.io/badge/Vedi%20anche-Manuale%20di%20Costruzione-orange.svg)](MANUALE_COSTRUZIONE.md)
 
 </div>
 
-> 🎧 **Non serve un computer per suonare**: il NI404 genera tutto da solo. Colleghi le cuffie,
-> accendi via USB e via.
+> 🎧 **Non serve un computer per suonare**: il tuo **ichosynth** genera tutto da solo. Colleghi le
+> cuffie, accendi via USB e via.
+
+> 🆕 **Novità del fork ichosynth** *(tutte opzionali — col default si comporta come l'originale NI404)*:
+> schermo **OLED** di stato · **MIDI clock OUT** (master sync) · build a **3 o 4 encoder**
+> (`HAS_ENCODER4`) · configurazione centralizzata in [`config.h`](config.h).
 
 ---
 
@@ -191,8 +196,8 @@ Un "sample pack" è un set completo di voci salvato sulla SD: richiami al volo u
 - Seleziona il numero del pack con la manopola.
 - **Click DX** = salva il set corrente in quel pack · **Click SX** = carica il pack · **Click C-SX** = esci.
 
-> 📁 Sulla SD un pack è la cartella numerata `1`..`99` con dentro `1.wav`..`12.wav` (li gestisce il
-> NI404, non serve crearli a mano).
+> 📁 Sulla SD un pack è la cartella numerata `1`..`99` con dentro `1.wav`..`12.wav` (li gestisce
+> ichosynth, non serve crearli a mano).
 
 ---
 
@@ -202,7 +207,7 @@ Un "sample pack" è un set completo di voci salvato sulla SD: richiami al volo u
 - **Click DX** = **salva** la song nello slot corrente · **Click SX** = **carica** · **Click C-SX** = esci.
 - Le song si salvano sulla radice della SD come `<numero>.txt` (fino a 100).
 
-> 💾 **Autosave/Autoload**: il NI404 salva automaticamente in `autosaved.txt` (es. quando metti in
+> 💾 **Autosave/Autoload**: ichosynth salva automaticamente in `autosaved.txt` (es. quando metti in
 > pausa) e ricarica quel contenuto all'accensione — ritrovi il lavoro dove l'avevi lasciato.
 
 ---
@@ -211,8 +216,8 @@ Un "sample pack" è un set completo di voci salvato sulla SD: richiami al volo u
 
 Tutto il MIDI passa dalla **porta USB** del Teensy (serve `USB Type = Serial + MIDI` in compilazione).
 
-- **MIDI In (USB)**: il NI404 riceve note (le mappa sulla griglia/voce corrente) e si **sincronizza** a clock/start/stop MIDI esterni (slave).
-- 🆕 **MIDI Clock Out (USB)** *(fork, se `MIDI_CLOCK_OUT_ENABLED = 1`)*: quando suoni, il NI404 invia **Clock (24 PPQN), Start e Stop**, così gli strumenti esterni si sincronizzano al NI404 (master).
+- **MIDI In (USB)**: ichosynth riceve note (le mappa sulla griglia/voce corrente) e si **sincronizza** a clock/start/stop MIDI esterni (slave).
+- 🆕 **MIDI Clock Out (USB)** *(fork, se `MIDI_CLOCK_OUT_ENABLED = 1`)*: quando suoni, ichosynth invia **Clock (24 PPQN), Start e Stop**, così gli strumenti esterni si sincronizzano a ichosynth (master).
 
 ```mermaid
 flowchart TD
@@ -295,7 +300,9 @@ centrale-destra · "click" = pressione breve · "hold" = pressione lunga · "pus
 
 Buon divertimento! 🎶
 
+*ichosynth è un fork di **NI404** di SP_ (soundpauli) · firmware open-source MIT.*
+
 *Questo firmware è dichiarato dall'autore "lontano dal completamento": alcune funzioni (filtri, alcune
-scorciatoie) sono parziali. È open-source MIT: puoi modificarlo e migliorarlo a piacere.*
+scorciatoie) sono parziali. Puoi modificarlo e migliorarlo a piacere.*
 
 </div>

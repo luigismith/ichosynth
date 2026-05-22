@@ -1,7 +1,7 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 560 360" width="560" height="360" role="img">
 <rect x="0" y="0" width="560" height="999" rx="0" ry="0" fill="#0d1117"/>
 <text x="28" y="40" font-family="'Segoe UI',Helvetica,Arial,sans-serif" font-size="22" fill="#e6edf3" text-anchor="start" font-weight="700">MIDI clock: master o slave?</text>
-<text x="28" y="64" font-family="'Segoe UI',Helvetica,Arial,sans-serif" font-size="13.5" fill="#9aa4b2" text-anchor="start" font-weight="400">Il NI404 genera il proprio clock solo se non ne riceve uno esterno.</text>
+<text x="28" y="64" font-family="'Segoe UI',Helvetica,Arial,sans-serif" font-size="13.5" fill="#9aa4b2" text-anchor="start" font-weight="400">ichosynth genera il proprio clock solo se non ne riceve uno esterno.</text>
 <line x1="28" y1="78" x2="532" y2="78" stroke="#30363d" stroke-width="1" stroke-linecap="round"/>
 <rect x="230" y="104" width="100" height="46" rx="9" ry="9" fill="#161b22" stroke="#1f6feb" stroke-width="2"/>
 <text x="280.0" y="131.5" font-family="'Segoe UI',Helvetica,Arial,sans-serif" font-size="12.5" fill="#e6edf3" text-anchor="middle" font-weight="700">Premi Play</text>
