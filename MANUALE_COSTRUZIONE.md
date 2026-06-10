@@ -1,3 +1,5 @@
+**🇮🇹 Italiano** · [🇬🇧 English](BUILD_MANUAL.md)
+
 <div align="center">
 
 # 🔧 ichosynth — Manuale di Costruzione

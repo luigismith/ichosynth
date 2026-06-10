@@ -1,3 +1,5 @@
+[🇮🇹 Italiano](README.it.md) · **🇬🇧 English**
+
 <div align="center">
 
 # 🎛️ ichosynth
@@ -18,7 +20,7 @@ You sketch music onto a 16×16 RGB LED grid with **three rotary knobs**. No comp
 > **What is this?** `ichosynth` is a friendly **fork of [NI404](#-credits--upstream)** by **SP_ (soundpauli)**,
 > wired as a **3-encoder build**. On top of upstream it adds an optional **status OLED**, **MIDI clock
 > master sync**, a single-file **hardware config**, a fully playable **3-encoder control scheme** (the
-> 4th-knob gestures remapped onto the three buttons), and two **beginner-friendly Italian manuals**.
+> 4th-knob gestures remapped onto the three buttons), and **beginner-friendly manuals in English & Italian**.
 > The OLED and MIDI-clock features are **opt-in and default to OFF**.
 
 ---
@@ -126,7 +128,7 @@ flowchart LR
 ```
 
 Draw notes → press Play → loop. Tweak samples, BPM, volume, velocity live, without stopping.
-The full playing guide is in the [usage manual](MANUALE_USO.md).
+The full playing guide is in the [usage manual](USAGE_MANUAL.md).
 
 ---
 
@@ -146,7 +148,7 @@ Pins live in [`config.h`](config.h) — change the build for a hardware variant 
 > 🎛️ This build uses **3 encoders** (`HAS_ENCODER4 0`): Left, Center, Right. Volume is on the **Left**
 > knob, BPM on the **Center** knob. The 4th-encoder pins are set to `99` (unused). To build the full
 > 4-encoder variant, set `HAS_ENCODER4 1` and restore the real `ENC_MIDR_*`/`BTN_MIDR` pins.
-> Full step-by-step wiring is in the [build manual](MANUALE_COSTRUZIONE.md).
+> Full step-by-step wiring is in the [build manual](BUILD_MANUAL.md).
 
 ---
 
@@ -242,14 +244,16 @@ Prefer to do it by hand in the IDE?
 
 ---
 
-## 📚 Manuals — Manuali (Italiano)
+## 📚 Manuals — Manuali
 
-Two beginner-friendly guides ship with this fork, in Italian:
+Three beginner-friendly guides ship with this project, each in **English** and **Italian** (a flag
+switcher sits at the top of every page). PDF versions are included too.
 
-| 📖 Manuale | Markdown | PDF |
+| 📖 Manual / Manuale | 🇬🇧 English | 🇮🇹 Italiano |
 |---|---|---|
-| **Costruzione** (DIY hand-wired, no custom PCB) | [MANUALE_COSTRUZIONE.md](MANUALE_COSTRUZIONE.md) | [📄 PDF](MANUALE_COSTRUZIONE.pdf) |
-| **Uso** (how to play the synth) | [MANUALE_USO.md](MANUALE_USO.md) | [📄 PDF](MANUALE_USO.pdf) |
+| **Build** — DIY hand-wired, no custom PCB | [BUILD_MANUAL.md](BUILD_MANUAL.md) · [PDF](BUILD_MANUAL.pdf) | [MANUALE_COSTRUZIONE.md](MANUALE_COSTRUZIONE.md) · [PDF](MANUALE_COSTRUZIONE.pdf) |
+| **Usage** — how to play the synth | [USAGE_MANUAL.md](USAGE_MANUAL.md) · [PDF](USAGE_MANUAL.pdf) | [MANUALE_USO.md](MANUALE_USO.md) · [PDF](MANUALE_USO.pdf) |
+| **Dev environment** — Windows & macOS setup | [DEV_ENVIRONMENT.md](DEV_ENVIRONMENT.md) · [PDF](DEV_ENVIRONMENT.pdf) | [MANUALE_AMBIENTE.md](MANUALE_AMBIENTE.md) · [PDF](MANUALE_AMBIENTE.pdf) |
 
 ---
 

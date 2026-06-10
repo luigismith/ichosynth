@@ -107,12 +107,25 @@ def cell_para(s, style):
     return Paragraph(inline(s), style)
 
 
-def main():
+DOCS = [
+    # (source .md, output .pdf, PDF title)
+    ("MANUALE_USO.md", "MANUALE_USO.pdf", "ichosynth - Manuale d'Uso"),
+    ("MANUALE_COSTRUZIONE.md", "MANUALE_COSTRUZIONE.pdf", "ichosynth - Manuale di Costruzione"),
+    ("MANUALE_AMBIENTE.md", "MANUALE_AMBIENTE.pdf", "ichosynth - Ambiente di sviluppo"),
+    ("USAGE_MANUAL.md", "USAGE_MANUAL.pdf", "ichosynth - Usage Manual"),
+    ("BUILD_MANUAL.md", "BUILD_MANUAL.pdf", "ichosynth - Build Manual"),
+    ("DEV_ENVIRONMENT.md", "DEV_ENVIRONMENT.pdf", "ichosynth - Dev Environment"),
+]
+
+
+def main(only=None):
     styles = make_styles()
-    for src, out, title in [
-        ("MANUALE_USO.md", "MANUALE_USO.pdf", "NI404 - Manuale d'Uso"),
-        ("MANUALE_COSTRUZIONE.md", "MANUALE_COSTRUZIONE.pdf", "NI404 - Manuale di Costruzione"),
-    ]:
+    for src, out, title in DOCS:
+        if only and src not in only and out not in only:
+            continue
+        if not os.path.exists(os.path.join(ROOT, src)):
+            print("skip (missing):", src)
+            continue
         story = build(os.path.join(ROOT, src), styles)
         doc = SimpleDocTemplate(
             os.path.join(ROOT, out), pagesize=A4,
@@ -160,16 +173,16 @@ def make_styles():
     return s
 
 
-# ---- mermaid mapping -------------------------------------------------------
+# ---- mermaid mapping (language-robust: matches both IT and EN diagrams) -----
 def mermaid_png(srclower):
     if "slave" in srclower or "master" in srclower:
         return "midi-clock"
     if "statediagram" in srclower:
         return "modes-map"
-    if "matrice" in srclower or "pronto" in srclower:
-        return "assembly-flow"
     if "resamplingreader" in srclower or "usb type" in srclower:
         return "flash-flow"
+    if "psram" in srclower:  # appears only in the assembly flow (both languages)
+        return "assembly-flow"
     return None
 
 
@@ -200,6 +213,11 @@ def build(path, st):
     while i < n:
         ln = lines[i]
         s = ln.strip()
+
+        # skip the bilingual language-switcher line (meaningless inside a single-language PDF)
+        if "Italiano" in s and "English" in s:
+            i += 1
+            continue
 
         # centered div block (hero / footer)
         if s.startswith("<div align"):

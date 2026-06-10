@@ -1,3 +1,5 @@
+**🇮🇹 Italiano** · [🇬🇧 English](USAGE_MANUAL.md)
+
 <div align="center">
 
 # 🎮 ichosynth — Manuale d'Uso
