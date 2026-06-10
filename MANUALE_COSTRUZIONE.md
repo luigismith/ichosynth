@@ -304,21 +304,26 @@ Esempi reali (vedi cartella `_SDCARD/` del progetto):
 - ⚠️ **Formato audio richiesto: WAV mono, 16 bit, 44100 Hz.**
 
 ### Convertire i tuoi campioni
-Nella cartella `_SDCARD/` trovi due strumenti che convertono qualsiasi WAV nel formato giusto e lo
-rinominano `_N.wav`:
+Nella cartella `_SDCARD/` trovi gli strumenti che convertono qualsiasi WAV nel formato giusto e lo
+rinominano `_N.wav`.
 
-- 🪟 **`wavmaker.exe`** (Windows, **nessun Python richiesto**): copia l'`.exe` nella cartella con i tuoi
-  `.wav`, fai **doppio click**, inserisci il numero di partenza, premi Invio. Fatto.
-- 🐍 **`wavmaker.py`** (Windows/macOS/Linux, serve Python): `python wavmaker.py`.
+**🪟 `wavmaker.exe` — interfaccia grafica (Windows, nessun Python richiesto), consigliato**
 
-Passi:
-1. Metti i tuoi `.wav` in una cartella insieme allo strumento.
-2. Avvialo (`.exe` con doppio click, oppure `python wavmaker.py`).
-3. Inserisci il **numero di partenza** (es. `1` per la cartella 0, `100` per la cartella 1, …).
-4. Sposta i file `_N.wav` ottenuti nella relativa cartella `samples/<n>/`.
+Doppio click: si apre una finestra. Poi:
+1. **Aggiungi file** (o **Aggiungi cartella**) con i tuoi WAV — la lista mostra il **formato attuale**
+   di ognuno e il **nome di destinazione** (`_1.wav`, `_2.wav`, …). Le righe **verdi** sono già nel
+   formato giusto.
+2. Imposta il **Numero di partenza** (es. `1` per `samples/0`, `100` per `samples/1`, …): la finestra
+   ti ricorda in quale cartella SD finiranno.
+3. Scegli la **Cartella di destinazione** (di default una nuova cartella `wav_convertiti`: gli
+   **originali NON vengono toccati**).
+4. Premi **Converti**. Barra di avanzamento + log, poi sposti i `_N.wav` in `samples/<n>/` sulla SD.
 
-> ⚠️ Lo strumento **sostituisce** gli originali nella cartella (li converte sul posto): lavora su una
-> **copia** dei tuoi campioni.
+> ✅ La GUI è **non distruttiva**: scrive i convertiti in una cartella separata. Solo se spunti
+> *"Elimina gli originali"* (con conferma) cancella i file di partenza.
+
+**🐍 Versioni Python** (Windows/macOS/Linux, serve Python): `python wavmaker_gui.py` (stessa GUI) oppure
+`python wavmaker.py` (versione da riga di comando). Su Python 3.13+ serve `pip install audioop-lts`.
 
 > 📁 **Sample pack** (vedi manuale d'uso): cartelle numerate `1`..`99` sulla radice, ognuna con dentro
 > `1.wav`..`12.wav`. Le crea/usa direttamente ichosynth dal menu, non devi prepararle a mano.
