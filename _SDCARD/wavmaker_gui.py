@@ -21,8 +21,13 @@ import sys
 import wave
 import threading
 import queue
+import webbrowser
 import tkinter as tk
 from tkinter import ttk, filedialog, messagebox
+
+APP_VERSION = "1.0"
+APP_AUTHOR = "Luigi Massari (luigismith)"
+REPO_URL = "https://github.com/luigismith/ichosynth"
 
 try:
     import audioop
@@ -134,6 +139,9 @@ class WavMakerApp(ttk.Frame):
         st.configure("Accent.TButton", background=ACCENT, foreground="#06210f",
                      font=("Segoe UI", 11, "bold"), padding=9)
         st.map("Accent.TButton", background=[("active", "#2bbd5a"), ("disabled", LINE)])
+        st.configure("Info.TButton", background=PANEL, foreground=ACCENT2,
+                     font=("Segoe UI", 13, "bold"), padding=2)
+        st.map("Info.TButton", background=[("active", "#21262d")])
         st.configure("TCheckbutton", background=PANEL, foreground=INK)
         st.map("TCheckbutton", background=[("active", PANEL)])
         st.configure("TEntry", fieldbackground="#0b0f14", foreground=INK)
@@ -151,11 +159,15 @@ class WavMakerApp(ttk.Frame):
         self.master.title("ichosynth — WAV Maker")
         self.master.minsize(720, 560)
 
-        # header
+        # header (title block on the left, info button top-right)
         head = ttk.Frame(self, padding=(18, 14, 18, 6))
         head.pack(fill="x")
-        ttk.Label(head, text="🎵  ichosynth — WAV Maker", style="Title.TLabel").pack(anchor="w")
-        ttk.Label(head, text="Converte i tuoi WAV in  mono · 16-bit · 44100 Hz  e li rinomina _<n>.wav",
+        info_btn = ttk.Button(head, text="ⓘ", width=3, style="Info.TButton", command=self.show_about)
+        info_btn.pack(side="right", anchor="n")
+        titlebox = ttk.Frame(head)
+        titlebox.pack(side="left", anchor="w")
+        ttk.Label(titlebox, text="🎵  ichosynth — WAV Maker", style="Title.TLabel").pack(anchor="w")
+        ttk.Label(titlebox, text="Converte i tuoi WAV in  mono · 16-bit · 44100 Hz  e li rinomina _<n>.wav",
                   style="Sub.TLabel").pack(anchor="w", pady=(2, 0))
 
         if audioop is None:
@@ -315,6 +327,44 @@ class WavMakerApp(ttk.Frame):
         d = filedialog.askdirectory(title="Cartella di destinazione")
         if d:
             self.out_var.set(d)
+
+    # ---- about / info ----
+    def show_about(self):
+        win = tk.Toplevel(self.master)
+        win.title("Informazioni")
+        win.configure(bg=BG)
+        win.resizable(False, False)
+        win.transient(self.master)
+
+        frm = ttk.Frame(win, padding=22)
+        frm.pack(fill="both", expand=True)
+        ttk.Label(frm, text="🎵  ichosynth — WAV Maker", style="Title.TLabel").pack(anchor="w")
+        ttk.Label(frm, text=f"Versione {APP_VERSION}", style="Sub.TLabel").pack(anchor="w", pady=(0, 14))
+
+        ttk.Label(frm, text="Sviluppato da", style="Sub.TLabel").pack(anchor="w")
+        ttk.Label(frm, text=APP_AUTHOR, style="H2.TLabel").pack(anchor="w", pady=(0, 12))
+
+        ttk.Label(frm, text="Prepara i campioni audio per il sampler ichosynth:\n"
+                            "li converte in mono · 16-bit · 44100 Hz e li rinomina _<n>.wav.",
+                  style="Sub.TLabel", justify="left").pack(anchor="w", pady=(0, 12))
+
+        link = tk.Label(frm, text=REPO_URL.replace("https://", ""), bg=BG, fg=ACCENT2,
+                        cursor="hand2", font=("Segoe UI", 9, "underline"))
+        link.pack(anchor="w")
+        link.bind("<Button-1>", lambda e: webbrowser.open(REPO_URL))
+
+        ttk.Label(frm, text="Parte del progetto ichosynth · fork di NI404 (SP_) · licenza MIT",
+                  style="Sub.TLabel").pack(anchor="w", pady=(12, 16))
+        ttk.Button(frm, text="Chiudi", command=win.destroy).pack(anchor="e")
+
+        # center over the main window
+        win.update_idletasks()
+        px, py = self.master.winfo_rootx(), self.master.winfo_rooty()
+        pw, ph = self.master.winfo_width(), self.master.winfo_height()
+        w, h = win.winfo_width(), win.winfo_height()
+        win.geometry(f"+{px + (pw - w) // 2}+{py + (ph - h) // 3}")
+        win.grab_set()
+        win.focus_set()
 
     # ---- conversion (threaded) ----
     def start_convert(self):
