@@ -491,7 +491,47 @@ def gen_flash():
     write("flash-flow.svg", svg(W, H, o))
 
 
+def gen_ichos():
+    steps = [
+        ("Ascolto", "i fondamenti", "#1f6feb"),
+        ("Field recording", "i suoni dei luoghi", "#2AD4B8"),
+        ("ichosynth", "lo costruisci · Teensy", GREEN),
+        ("Performance", "elettroacustica", "#FF7A1A"),
+        ("Documentario", "Vicoli Corti, 2026", "#9A57E8"),
+    ]
+    bw, bh, gap = 152, 60, 24
+    W = 28 * 2 + len(steps) * bw + (len(steps) - 1) * gap
+    H = 280
+    o = header(W, "ICHOS 2026 — Taranto",
+               "Workshop di sound ecology di Francesco Giannico — l'ichosynth e' lo strumento che i partecipanti costruiscono.")
+    x = 28
+    y = 100
+    for i, (t, s, c) in enumerate(steps):
+        dash = "6 4" if t == "ichosynth" else None
+        o += _box(x, y, bw, bh, t, c, sub=s, dash=dash)
+        if i < len(steps) - 1:
+            o += _arrow(x + bw, y + bh / 2, x + bw + gap, y + bh / 2, GREY)
+        x += bw + gap
+
+    sy = 206
+    o.append(text(28, sy - 8, "I luoghi \"marginali\" del field recording:", size=12, fill=SUB, weight="600"))
+    sites = [
+        ("Circummarpiccolo", "ex itticoltura abbandonata"),
+        ("Fiume Galeso", "ex stabilimenti balneari"),
+        ("Punta Pizzone", "sito neolitico"),
+    ]
+    sx = 28
+    for nm, desc in sites:
+        wsite = 22 + max(len(nm), len(desc)) * 6.8
+        o.append(rrect(sx, sy, wsite, 44, 8, PANEL, "#E83AA6", 1.5))
+        o.append(text(sx + 12, sy + 19, nm, size=12, fill=INK, weight="700"))
+        o.append(text(sx + 12, sy + 35, desc, size=10, fill=SUB))
+        sx += wsite + 16
+    write("ichos-project.svg", svg(W, H, o))
+
+
 if __name__ == "__main__":
+    gen_ichos()
     gen_grid()
     gen_encoders()
     gen_voices()

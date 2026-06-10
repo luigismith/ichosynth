@@ -9,6 +9,7 @@ You sketch music onto a 16×16 RGB LED grid with **three rotary knobs**. No comp
 [![License: MIT](https://img.shields.io/badge/License-MIT-2ea44f.svg)](#-license)
 [![Platform: Teensy 4.1](https://img.shields.io/badge/Platform-Teensy%204.1-ee6611.svg)](https://www.pjrc.com/store/teensy41.html)
 [![Build: 3 encoders](https://img.shields.io/badge/Build-3%20encoders-orange.svg)](#-how-its-wired)
+[![ICHOS 2026 · Taranto](https://img.shields.io/badge/ICHOS%202026-Taranto-E83AA6.svg)](#-part-of-the-ichos-project)
 [![Fork of: NI404](https://img.shields.io/badge/Fork%20of-NI404%20by%20SP__-blueviolet.svg)](#-credits--upstream)
 [![Manuali: Italiano](https://img.shields.io/badge/Manuali-🇮🇹%20Italiano-008C45.svg)](#-manuals--manuali-italiano)
 
@@ -19,6 +20,38 @@ You sketch music onto a 16×16 RGB LED grid with **three rotary knobs**. No comp
 > master sync**, a single-file **hardware config**, a fully playable **3-encoder control scheme** (the
 > 4th-knob gestures remapped onto the three buttons), and two **beginner-friendly Italian manuals**.
 > The OLED and MIDI-clock features are **opt-in and default to OFF**.
+
+---
+
+## 🌍 Part of the ICHOS project
+
+`ichosynth` is more than a fork — it's the instrument participants **build with their own hands** during
+**[ICHOS 2026](https://www.francescogiannico.com/ichos-2026/)**, a residential *sound-ecology* workshop
+in **Taranto, Italy** (12–14 June 2026), conceived and led by sound artist **Francesco Giannico**.
+
+<p align="center">
+  <img src="assets/ichos-project.svg" alt="ICHOS 2026: ascolto → field recording → costruzione dell'ichosynth → performance e documentario" width="900">
+</p>
+
+> *ichos* — from the ancient Greek **ἦχος**, *"sound"* — is described as a **"non-project"**: three days
+> of **listening**, field recording and sonic transformation in Taranto's *marginal* places — border
+> zones left out of the postcard, yet dense with sonic and human identity.
+
+The workshop flows from **listening** → **field recording** → **building the instrument** → a **collective
+electroacoustic performance**. The sounds captured on site become the raw material this little groovebox
+plays back: **you record a place, then perform it as music on an instrument you soldered yourself.**
+
+| Field-recording site | What it is |
+|---|---|
+| **Circummarpiccolo** | an abandoned 20th-century fish-aquaculture complex |
+| **Fiume Galeso** | derelict bathing facilities amid environmental decline |
+| **Punta Pizzone** | a Neolithic archaeological site, layered with history |
+
+The synth/sampler build is led by **Luigi Massari** (who also maintains this repository). The experience
+culminates in a **sonic documentary** by **Roberta Trani**, premiering at the **Vicoli Corti Festival**
+(August 2026); each participant keeps the instrument they built.
+
+> 🔗 Full details & enrolment: **[francescogiannico.com/ichos-2026](https://www.francescogiannico.com/ichos-2026/)**
 
 ---
 
@@ -59,6 +92,7 @@ ichosynth/
 
 ## 📑 Table of contents
 
+- [🌍 Part of the ICHOS project](#-part-of-the-ichos-project)
 - [🧠 The idea in 30 seconds](#-the-idea-in-30-seconds)
 - [🔧 How it's wired](#-how-its-wired)
 - [🔌 Fork feature 1 — OLED status HUD](#-fork-feature-1--oled-status-hud)
@@ -239,9 +273,13 @@ Two beginner-friendly guides ship with this fork, in Italian:
 
 ## 🙏 Credits & upstream
 
-This project would not exist without **SP_ (aka soundpauli)**, creator of the original **NI404**, and
-**Paul Stoffregen / PJRC** for the Teensy platform. Special thanks to **Nic Newdigate** for the
-`teensy-polyphony` library — the *soul* of this instrument.
+**ICHOS 2026** is conceived and led by **[Francesco Giannico](https://www.francescogiannico.com/ichos-2026/)**
+(sound designer & electroacoustic musician). The `ichosynth` build is led by **Luigi Massari**, with a
+sonic documentary by **Roberta Trani**.
+
+On the technical side, this instrument would not exist without **SP_ (aka soundpauli)**, creator of the
+original **NI404**, and **Paul Stoffregen / PJRC** for the Teensy platform. Special thanks to **Nic
+Newdigate** for the `teensy-polyphony` library — the *soul* of this instrument.
 
 `ichosynth` is a respectful fork: all original code, hardware files and design credit remain with the
 upstream author. The fork only **adds** opt-in features and documentation. If you like the concept,
@@ -262,6 +300,9 @@ all of them in your build.
 
 <div align="center">
 
-*Made with ❤️ for beginners and makers — fork of NI404 by SP_, Hamburg.*
+*Made with ❤️ in Taranto for the **[ICHOS 2026](https://www.francescogiannico.com/ichos-2026/)** workshop —
+listen to a place, then play it back.*
+
+*A fork of NI404 by SP_ (Hamburg). Built by Luigi Massari · led by Francesco Giannico.*
 
 </div>
