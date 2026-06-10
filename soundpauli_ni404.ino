@@ -12,11 +12,14 @@
 #define TargetFPS 27
 
 #include "Arduino.h"
-#include "config.h"
 #include <Mapf.h>
 #include <WS2812Serial.h>  // leds
 #define USE_WS2812SERIAL   // leds
 #include <FastLED.h>       // leds
+// config.h MUST come after FastLED.h: it defines DATA_PIN / NUM_LEDS, which are
+// also the names of FastLED's WS2812Serial template parameters. Including it
+// earlier would macro-expand those parameter names and break FastLED.
+#include "config.h"
 #include <Audio.h>
 #include <Encoder.h>
 #include "avdweb_Switch.h"

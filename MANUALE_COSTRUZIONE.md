@@ -304,11 +304,21 @@ Esempi reali (vedi cartella `_SDCARD/` del progetto):
 - ⚠️ **Formato audio richiesto: WAV mono, 16 bit, 44100 Hz.**
 
 ### Convertire i tuoi campioni
-Nella cartella `_SDCARD/` trovi `wavmaker.py`: converte qualsiasi WAV nel formato giusto e li rinomina `_N.wav`.
-1. Metti i tuoi `.wav` in una cartella insieme a `wavmaker.py`.
-2. Esegui `python wavmaker.py`.
+Nella cartella `_SDCARD/` trovi due strumenti che convertono qualsiasi WAV nel formato giusto e lo
+rinominano `_N.wav`:
+
+- 🪟 **`wavmaker.exe`** (Windows, **nessun Python richiesto**): copia l'`.exe` nella cartella con i tuoi
+  `.wav`, fai **doppio click**, inserisci il numero di partenza, premi Invio. Fatto.
+- 🐍 **`wavmaker.py`** (Windows/macOS/Linux, serve Python): `python wavmaker.py`.
+
+Passi:
+1. Metti i tuoi `.wav` in una cartella insieme allo strumento.
+2. Avvialo (`.exe` con doppio click, oppure `python wavmaker.py`).
 3. Inserisci il **numero di partenza** (es. `1` per la cartella 0, `100` per la cartella 1, …).
 4. Sposta i file `_N.wav` ottenuti nella relativa cartella `samples/<n>/`.
+
+> ⚠️ Lo strumento **sostituisce** gli originali nella cartella (li converte sul posto): lavora su una
+> **copia** dei tuoi campioni.
 
 > 📁 **Sample pack** (vedi manuale d'uso): cartelle numerate `1`..`99` sulla radice, ognuna con dentro
 > `1.wav`..`12.wav`. Le crea/usa direttamente ichosynth dal menu, non devi prepararle a mano.

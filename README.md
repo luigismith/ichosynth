@@ -183,6 +183,18 @@ flowchart TD
 
 ## 🚀 Build & flash
 
+> ⚡ **One-shot setup:** install [`arduino-cli`](https://arduino.github.io/arduino-cli/) and run the
+> bundled script — it installs the Teensy core + every library (with the right versions), applies the
+> ResamplingReader patch, and compile-checks the firmware:
+> - Windows: `powershell -ExecutionPolicy Bypass -File scripts\setup-dev-env.ps1`
+> - macOS/Linux: `./scripts/setup-dev-env.sh`
+>
+> ⚠️ Two version notes the script handles for you: **FastLED must be 3.9.10** (3.10.x breaks on the
+> Teensy WS2812Serial path), and the two **newdigate** libraries (`teensy-variable-playback`,
+> `teensy-polyphony`) must come from GitHub HEAD — the registry copies are version-skewed.
+
+Prefer to do it by hand in the IDE?
+
 1. Install **Arduino IDE + [Teensyduino](https://www.pjrc.com/teensy/td_download.html)**.
 2. Set **Tools → USB Type = `Serial + MIDI`** (16× variant) and select **Teensy 4.1**.
 3. Install the libraries: `WS2812Serial`, **Teensy Audio** (`Audio.h`), `Encoder` (Paul Stoffregen),

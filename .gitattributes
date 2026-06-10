@@ -13,6 +13,7 @@
 *.hex   binary
 *.elf   binary
 *.bin   binary
+*.exe   binary
 
 # 3D / CAD / fabrication (treat as binary blobs)
 *.stl   binary
@@ -26,3 +27,5 @@
 *.h     text eol=lf
 *.ino   text eol=lf
 *.py    text eol=lf
+*.sh    text eol=lf
+*.ps1   text eol=crlf

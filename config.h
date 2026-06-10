@@ -39,7 +39,7 @@
  *     Menu, Note-Shift) are remapped onto the three remaining buttons — see the
  *     `!isEncoder4Defined` branches in checkMode(). Filtering/seeking disabled.
  * 1 = full 4-encoder build (filtering + sample-end seeking + volume on the
- *     middle-right knob). Restore the real ENC_MIDR_*/BTN_MIDR pins above.
+ *     middle-right knob). Restore the real ENC_MIDR and BTN_MIDR pins above.
  */
 #define HAS_ENCODER4 0
 
