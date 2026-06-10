@@ -73,6 +73,10 @@ arduino-cli lib install "${REGISTRY_LIBS[@]}"
 ok "registry libraries installed"
 
 say "Installing libraries from GitHub (named in the project README)"
+# Remove any registry copies first so we don't end up with two libraries that
+# both provide TeensyPolyphony.h / the variable-playback headers (duplicate
+# library = header conflict). The registry copies are also version-skewed.
+arduino-cli lib uninstall "TeensyAudioSampler" "TeensyVariablePlayback" >/dev/null 2>&1 || true
 for url in "${GIT_LIBS[@]}"; do
   echo "   $url"
   arduino-cli lib install --git-url "$url"
