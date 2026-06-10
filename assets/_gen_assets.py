@@ -168,23 +168,21 @@ def gen_grid():
 # 2) ENCODERS
 # =========================================================================
 def gen_encoders():
-    W, H = 760, 384
-    o = header(W, "Le manopole (encoder): gira e premi",
-               "Ogni manopola si gira (cursore/valori) e si preme (azioni). Versione a 4 encoder.")
+    W, H = 760, 420
+    o = header(W, "Le 3 manopole (encoder): gira e premi",
+               "Versione a 3 encoder. Ogni manopola si gira (cursore/valori) e si preme (azioni).")
 
     knobs = [
-        ("SX", "SINISTRA", "cursore ↑↓", "#3A6BE8",
-         ["click → cancella nota", "2× click → modalità Single"]),
-        ("C-SX", "CENTRALE-SX", "pagina / BPM", "#36C24A",
-         ["push → disegna nota", "hold → disegno continuo"]),
-        ("C-DX", "CENTRALE-DX", "filtro / seek", "#FF7A1A",
-         ["click → Play / Pausa", "hold → Volume / BPM"]),
+        ("SX", "SINISTRA", "cursore ↑↓ · Volume", "#3A6BE8",
+         ["click → cancella nota", "hold → cancella continuo", "2× click → Single"]),
+        ("C", "CENTRALE", "pagina · BPM", "#36C24A",
+         ["push → disegna · hold → paint", "2× click → Play / Pausa", "click → indietro/Vol·BPM"]),
         ("DX", "DESTRA", "cursore ←→", "#E83AA6",
-         ["click → mute voce", "2× click → velocity"]),
+         ["click → mute voce", "hold → mute tutto", "2× click → velocity"]),
     ]
     n = len(knobs)
     colw = (W - 56) / n
-    cy = 168
+    cy = 172
     r = 46
     for i, (tag, name, turn, col, gestures) in enumerate(knobs):
         cx = 28 + colw * i + colw / 2
@@ -273,18 +271,17 @@ def gen_wiring():
     conn(430, 164, 420, 250, DATA, "DIN 17", 470, 205)
     conn(400, 164, 360, 250, RED, "5V", 360, 205)
 
-    # Encoders (left)
+    # Encoders (left) — 3-encoder build
     encs = [
-        ("SINISTRO", "5 / 22 / 15", "#3A6BE8", 96),
-        ("CENTRALE-SX", "9 / 14 / 16", "#36C24A", 188),
-        ("CENTRALE-DX", "32 / 33 / 41", "#FF7A1A", 280),
-        ("DESTRO", "4 / 2 / 3", "#E83AA6", 372),
+        ("SINISTRO", "5 / 22 / 15", "#3A6BE8", 112),
+        ("CENTRALE", "9 / 14 / 16", "#36C24A", 232),
+        ("DESTRO", "4 / 2 / 3", "#E83AA6", 352),
     ]
     for name, pins, col, y in encs:
         node(40, y, 200, 68, "Encoder " + name, "CLK / DT / SW", col)
         o.append(text(140, y + 58, pins, size=12, fill=INK, anchor="middle", family=MONO))
         conn(240, y + 34, tx, min(max(y + 34, ty + 20), ty + th - 20), col, None)
-    o.append(text(285, 232, "CLK·DT·SW + 3V3 + GND", size=10.5, fill=SUB, anchor="middle"))
+    o.append(text(287, 240, "CLK·DT·SW + 3V3 + GND", size=10.5, fill=SUB, anchor="middle"))
 
     # Audio shield power note (right top)
     node(620, 250, 200, 70, "Teensy Audio Shield", "SGTL5000 · jack 3.5mm", "#2AD4B8")
@@ -415,16 +412,16 @@ def gen_midi():
 # =========================================================================
 def gen_modes():
     W, H = 740, 560
-    o = header(W, "Mappa delle modalità",
-               "Da DRAW raggiungi ogni modalità con una combinazione di gesti. Ritorno: click C-SX / rilascia.")
+    o = header(W, "Mappa delle modalità (3 encoder)",
+               "Da DRAW raggiungi ogni modalità con un gesto. Ritorno: click CENTRALE.")
     # DRAW
     o += _box(36, 250, 150, 60, "DRAW", "#e6edf3", sub="schermata principale")
     sat = [
-        (320, 94, "Volume / BPM", "#FF7A1A", "hold C-DX", "rilascia"),
+        (320, 94, "Volume / BPM", "#FF7A1A", "hold DX + CENTRO", "click CENTRO"),
         (320, 172, "Velocity", "#E83AA6", "2× click DX", "rilascia"),
         (320, 255, "SINGLE", "#3A6BE8", "2× click SX", "2× click SX"),
-        (320, 394, "Sample Pack", "#9A57E8", "hold SX + DX", "click C-SX"),
-        (320, 478, "Menu salva/carica", "#2AD4B8", "hold C-DX + C-SX", "click C-SX"),
+        (320, 394, "Sample Pack", "#9A57E8", "hold SX + DX", "click CENTRO"),
+        (320, 478, "Menu salva/carica", "#2AD4B8", "click SX + hold CENTRO", "click CENTRO"),
     ]
     for x, y, name, col, g, _back in sat:
         o += _box(x, y, 190, 54, name, col)
@@ -432,7 +429,7 @@ def gen_modes():
     # SINGLE children
     children = [
         (560, 178, "Sample Browser", "hold SX + DX"),
-        (560, 336, "Note Shift", "hold DX + C-DX"),
+        (560, 336, "Note Shift", "click DX + hold CENTRO"),
     ]
     for x, y, name, g in children:
         o += _box(x, y, 160, 50, name, "#3A6BE8")
@@ -448,7 +445,7 @@ def gen_assembly():
         ("1 · Teensy", "PSRAM + header", "#1f6feb"),
         ("2 · Audio", "scheda audio", "#2AD4B8"),
         ("3 · Matrice", "LED 16×16", "#E83A3A"),
-        ("4 · Encoder", "×3–4", "#E8D23A"),
+        ("4 · Encoder", "×3", "#E8D23A"),
         ("5 · OLED", "fork (opz.)", GREEN),
         ("6 · Check", "multimetro", "#FF7A1A"),
         ("✅ Pronto", "firmware", GREEN),

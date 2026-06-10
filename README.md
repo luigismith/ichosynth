@@ -4,21 +4,21 @@
 
 ### A DIY, open-source sampler-sequencer you *draw* like an Etch-A-Sketch™
 
-You sketch music onto a 16×16 RGB LED grid with a few rotary knobs. No computer, no screen menus to memorize — just turn, push, and listen.
+You sketch music onto a 16×16 RGB LED grid with **three rotary knobs**. No computer, no screen menus to memorize — just turn, push, and listen.
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-2ea44f.svg)](#-license)
 [![Platform: Teensy 4.1](https://img.shields.io/badge/Platform-Teensy%204.1-ee6611.svg)](https://www.pjrc.com/store/teensy41.html)
-[![Language: C++ / Arduino](https://img.shields.io/badge/Code-C%2B%2B%20%2F%20Arduino-00599C.svg)](#)
+[![Build: 3 encoders](https://img.shields.io/badge/Build-3%20encoders-orange.svg)](#-how-its-wired)
 [![Fork of: NI404](https://img.shields.io/badge/Fork%20of-NI404%20by%20SP__-blueviolet.svg)](#-credits--upstream)
 [![Manuali: Italiano](https://img.shields.io/badge/Manuali-🇮🇹%20Italiano-008C45.svg)](#-manuals--manuali-italiano)
 
 </div>
 
-> **What is this?** `ichosynth` is a friendly **fork of [NI404](#-credits--upstream)** by **SP_ (soundpauli)**.
-> The original is a brilliant standalone instrument; this fork keeps it 100% compatible and adds a
-> few quality-of-life things — an optional **status OLED**, **MIDI clock master sync**, a single-file
-> **hardware config**, and two **beginner-friendly Italian manuals**. Every new feature is **opt-in and
-> defaults to OFF**, so the firmware behaves *exactly* like upstream until you flip a switch.
+> **What is this?** `ichosynth` is a friendly **fork of [NI404](#-credits--upstream)** by **SP_ (soundpauli)**,
+> wired as a **3-encoder build**. On top of upstream it adds an optional **status OLED**, **MIDI clock
+> master sync**, a single-file **hardware config**, a fully playable **3-encoder control scheme** (the
+> 4th-knob gestures remapped onto the three buttons), and two **beginner-friendly Italian manuals**.
+> The OLED and MIDI-clock features are **opt-in and default to OFF**.
 
 ---
 
@@ -30,11 +30,13 @@ You sketch music onto a 16×16 RGB LED grid with a few rotary knobs. No computer
 | Pin map & feature flags | scattered in the sketch | 🆕 **one file** → [`config.h`](config.h) |
 | Status display | — | 🆕 **OLED HUD** (SSD1306 128×64) — *opt-in* |
 | MIDI clock | slave only | 🆕 **master sync** (24 PPQN Start/Clock/Stop) — *opt-in* |
-| 3-encoder build switch | hard-coded | 🆕 `HAS_ENCODER4` toggle |
+| 3-encoder build | partial (rotation only) | 🆕 **fully playable**: Play/Pause, Volume/BPM, Menu & Note-Shift remapped to 3 buttons |
 | Documentation | English README | 🆕 **Italian build + usage manuals** (`.md` + `.pdf`) |
 
-> 🔒 **Zero-regression promise:** with `OLED_ENABLED 0` and `MIDI_CLOCK_OUT_ENABLED 0` (the defaults),
-> this fork compiles to the same behavior as upstream. The new files are inert until enabled.
+> 🎛️ **This is a 3-encoder build** (`HAS_ENCODER4 0`). Upstream's 3-encoder mode only remapped the
+> *rotation* (volume → left knob), leaving Play/Pause, Volume/BPM, Menu and Note-Shift on the missing
+> 4th button. This fork remaps those gestures onto the three available buttons so the instrument is
+> fully playable with three knobs. Set `HAS_ENCODER4 1` to restore the original 4-encoder layout.
 
 <details>
 <summary><b>📂 Files changed / added by the fork</b> (click to expand)</summary>
@@ -43,7 +45,7 @@ You sketch music onto a 16×16 RGB LED grid with a few rotary knobs. No computer
 ichosynth/
 ├── config.h                  🆕 all pins + feature switches in one place
 ├── display.h                 🆕 SSD1306 OLED status HUD (no-op when disabled)
-├── soundpauli_ni404.ino      ✏️  includes config/display, MIDI-clock hooks
+├── soundpauli_ni404.ino      ✏️  config/display, MIDI-clock hooks, 3-encoder gesture remap
 ├── README.md                 ✏️  this file
 ├── MANUALE_COSTRUZIONE.md    🆕 Italian DIY build manual (hand-wired, no PCB)
 ├── MANUALE_USO.md            🆕 Italian usage manual
@@ -78,7 +80,7 @@ Up to **8 sample voices + onboard synth voices** play together; chain pages into
 
 ```mermaid
 flowchart LR
-    ENC["🎚️ 3–4 rotary<br/>encoders"] --> T["🧠 Teensy 4.1"]
+    ENC["🎚️ 3 rotary<br/>encoders"] --> T["🧠 Teensy 4.1"]
     SD[("💾 microSD<br/>samples / songs")] --> T
     T --> LED["🟥 16×16 RGB<br/>LED matrix"]
     T -. "🆕 fork" .-> OLED["📟 SSD1306<br/>status HUD"]
@@ -101,14 +103,16 @@ Pins live in [`config.h`](config.h) — change the build for a hardware variant 
 | Function | Teensy pin(s) | Macro |
 |---|---|---|
 | LED matrix DIN | `17` | `DATA_PIN` |
-| Left encoder (CLK / DT / btn) | `5` / `22` / `15` | `ENC_LEFT_*`, `BTN_LEFT` |
-| Right encoder (CLK / DT / btn) | `4` / `2` / `3` | `ENC_RIGHT_*`, `BTN_RIGHT` |
-| Middle-left encoder (CLK / DT / btn) | `9` / `14` / `16` | `ENC_MIDL_*`, `BTN_MIDL` |
-| Middle-right encoder (CLK / DT / btn) | `32` / `33` / `41` | `ENC_MIDR_*`, `BTN_MIDR` |
+| **Left** encoder (CLK / DT / btn) | `5` / `22` / `15` | `ENC_LEFT_*`, `BTN_LEFT` |
+| **Center** encoder (CLK / DT / btn) | `9` / `14` / `16` | `ENC_MIDL_*`, `BTN_MIDL` |
+| **Right** encoder (CLK / DT / btn) | `4` / `2` / `3` | `ENC_RIGHT_*`, `BTN_RIGHT` |
 | I2C bus (codec **+ 🆕 OLED**) | `SDA 18` / `SCL 19` | shared `Wire` |
+| ~~4th encoder~~ *(not fitted)* | `99` / `99` / `99` | `ENC_MIDR_*`, `BTN_MIDR` |
 
-> 3-encoder build? Set `HAS_ENCODER4 0` — volume moves to the left knob and the 4th-encoder
-> features disable cleanly. Full step-by-step wiring is in the [build manual](MANUALE_COSTRUZIONE.md).
+> 🎛️ This build uses **3 encoders** (`HAS_ENCODER4 0`): Left, Center, Right. Volume is on the **Left**
+> knob, BPM on the **Center** knob. The 4th-encoder pins are set to `99` (unused). To build the full
+> 4-encoder variant, set `HAS_ENCODER4 1` and restore the real `ENC_MIDR_*`/`BTN_MIDR` pins.
+> Full step-by-step wiring is in the [build manual](MANUALE_COSTRUZIONE.md).
 
 ---
 
@@ -173,7 +177,7 @@ flowchart TD
 | `OLED_FPS` | `15` | max display refresh (audio-safe) |
 | `MIDI_CLOCK_OUT_ENABLED` | `0` | emit MIDI clock as master |
 | `EXTERNAL_CLOCK_TIMEOUT_MS` | `750` | external-clock detection window |
-| `HAS_ENCODER4` | `1` | `0` = 3-encoder build |
+| `HAS_ENCODER4` | `0` | **this build = 3 encoders**; `1` = original 4-encoder layout |
 
 ---
 
@@ -209,7 +213,7 @@ Two beginner-friendly guides ship with this fork, in Italian:
 - 1× **Teensy 4.1**
 - 1× **Teensy Audio Adaptor** (TEENSY4_AUDIO)
 - 2× **PSRAM** chips for Teensy 4.1 *(16 MB total — required)*
-- 4× **KY-040** rotary encoders (push + 360°) — or 3 for the compact build
+- 3× **KY-040** rotary encoders (push + 360°) — Left, Center, Right
 - 1× **16×16 RGB LED matrix**
 - 1× **microSD** card (Class 10)
 - *(fork option)* 1× **SSD1306 0.96" 128×64 I2C** OLED

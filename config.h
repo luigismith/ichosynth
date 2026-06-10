@@ -20,24 +20,28 @@
 #define ENC_LEFT_DT 22  // Left knob DT
 #define ENC_RIGHT_CLK 4 // Right knob CLK
 #define ENC_RIGHT_DT 2  // Right knob DT
-#define ENC_MIDL_CLK 9  // Middle-left knob CLK
-#define ENC_MIDL_DT 14  // Middle-left knob DT
-#define ENC_MIDR_CLK 32 // Middle-right knob CLK
-#define ENC_MIDR_DT 33  // Middle-right knob DT
+#define ENC_MIDL_CLK 9  // Middle (center) knob CLK
+#define ENC_MIDL_DT 14  // Middle (center) knob DT
+#define ENC_MIDR_CLK 99 // 4th knob — UNUSED in this 3-encoder build (99 = not wired)
+#define ENC_MIDR_DT 99  // 4th knob — UNUSED in this 3-encoder build (99 = not wired)
 
 /* ===================== ENCODER PUSH-BUTTONS ===================== */
 #define BTN_LEFT 15 // Left knob switch
 #define BTN_RIGHT 3 // Right knob switch
-#define BTN_MIDL 16 // Middle-left knob switch
-#define BTN_MIDR 41 // Middle-right knob switch
+#define BTN_MIDL 16 // Middle (center) knob switch
+#define BTN_MIDR 99 // 4th knob switch — UNUSED in this 3-encoder build (99 = not wired)
 
 /*
  * 4th encoder present?
- * 1 = full 4-encoder build (filtering + sample-end seeking + volume on middle).
- * 0 = 3-encoder build (set unused encoder pins to 99 above; volume moves to
- *     the left knob, filtering/seeking disabled — matches isEncoder4Defined).
+ * 0 = 3-encoder build (THIS BUILD): three KY-040 encoders only (LEFT, CENTER,
+ *     RIGHT). Volume moves to the LEFT knob, BPM to the CENTER knob, and the
+ *     button gestures that upstream put on the 4th knob (Play/Pause, Volume/BPM,
+ *     Menu, Note-Shift) are remapped onto the three remaining buttons — see the
+ *     `!isEncoder4Defined` branches in checkMode(). Filtering/seeking disabled.
+ * 1 = full 4-encoder build (filtering + sample-end seeking + volume on the
+ *     middle-right knob). Restore the real ENC_MIDR_*/BTN_MIDR pins above.
  */
-#define HAS_ENCODER4 1
+#define HAS_ENCODER4 0
 
 /* ===================== OLED STATUS DISPLAY ===================== *
  * SSD1306 0.96" 128x64 over I2C. It shares the Wire bus with the Teensy Audio

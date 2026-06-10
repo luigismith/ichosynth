@@ -541,12 +541,18 @@ void buttonCallbackFunction(void *s) {
 void checkMode() {
   // Create the button string combination
 
-  //if (!isEncoder4Defined) buttons[4] = 0;
+  // 3-encoder build: there is no 4th knob/button, so force its slot to 0.
+  // This neutralizes any floating input on the unused pin and makes the
+  // remapped !isEncoder4Defined gestures below the only reachable ones.
+  if (!isEncoder4Defined) buttons[4] = 0;
 
+  // buttonString positions: [LEFT][RIGHT][C-DX (4th knob)][C-CENTER]
   buttonString = String(buttons[1]) + String(buttons[2]) + String(buttons[4]) + String(buttons[3]);
   Serial.println(buttonString);
   // Toggle play/pause in draw or single mode
-  if ((currentMode == &draw || currentMode == &singleMode || currentMode == &noteShift) && buttonString == "0010") {
+  // 4-enc: click middle-right knob ("0010"). 3-enc: double-click center knob ("0003").
+  if ((currentMode == &draw || currentMode == &singleMode || currentMode == &noteShift)
+      && (buttonString == "0010" || (!isEncoder4Defined && buttonString == "0003"))) {
     togglePlay(isPlaying);
   }
 
@@ -564,8 +570,10 @@ void checkMode() {
     if (tmpMute) tmpMuteAll(false);
   }
 
-  // Shift notes around in single mode after dblclick of button 4
-  if (currentMode == &singleMode && buttonString == "0220") {
+  // Shift notes around in single mode.
+  // 4-enc: hold right + hold middle-right ("0220"). 3-enc: click right + hold center ("0102").
+  if (currentMode == &singleMode
+      && (buttonString == "0220" || (!isEncoder4Defined && buttonString == "0102"))) {
 
     SMP.shiftX = 8;
     encoders[2].write(8 * 4);
@@ -612,8 +620,10 @@ void checkMode() {
     SMP.singleMode = true;
   }
 
-  // Switch to volume mode in draw or single mode
-  if ((currentMode == &draw || currentMode == &singleMode) && buttonString == "0020") {
+  // Switch to volume mode in draw or single mode.
+  // 4-enc: hold middle-right ("0020"). 3-enc: hold right + hold center ("0202").
+  if ((currentMode == &draw || currentMode == &singleMode)
+      && (buttonString == "0020" || (!isEncoder4Defined && buttonString == "0202"))) {
     switchMode(&volume_bpm);
   }
 
@@ -666,8 +676,10 @@ void checkMode() {
     switchMode(&draw);
   }
 
-  // Switch to draw mode from volume mode
-  if (currentMode == &volume_bpm && buttonString == "0090") {
+  // Switch to draw mode from volume mode.
+  // 4-enc: release middle-right ("0090"). 3-enc: click center ("0001") = back.
+  if (currentMode == &volume_bpm
+      && (buttonString == "0090" || (!isEncoder4Defined && buttonString == "0001"))) {
     switchMode(&draw);
     // setvol = false;
   }
@@ -690,8 +702,10 @@ void checkMode() {
     paintMode = false;
   }
 
-  // Menu Load/Save
-  if ((currentMode == &draw) && buttonString == "0022") {
+  // Menu Load/Save.
+  // 4-enc: hold middle-right + hold center ("0022"). 3-enc: click left + hold center ("1002").
+  if ((currentMode == &draw)
+      && (buttonString == "0022" || (!isEncoder4Defined && buttonString == "1002"))) {
     switchMode(&menu);
   } else if ((currentMode == &menu) && buttonString == "0001") {
     paintMode = false;

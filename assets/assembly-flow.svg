@@ -20,7 +20,7 @@
 <polygon points="406.0,120.0 397.3,125.0 397.3,115.0" fill="#8a8f98"/>
 <rect x="406" y="92" width="104" height="56" rx="9" ry="9" fill="#161b22" stroke="#E8D23A" stroke-width="2"/>
 <text x="458.0" y="118.0" font-family="'Segoe UI',Helvetica,Arial,sans-serif" font-size="12.5" fill="#e6edf3" text-anchor="middle" font-weight="700">4 · Encoder</text>
-<text x="458.0" y="135.0" font-family="'Segoe UI',Helvetica,Arial,sans-serif" font-size="10.5" fill="#9aa4b2" text-anchor="middle" font-weight="400">×3–4</text>
+<text x="458.0" y="135.0" font-family="'Segoe UI',Helvetica,Arial,sans-serif" font-size="10.5" fill="#9aa4b2" text-anchor="middle" font-weight="400">×3</text>
 <line x1="510" y1="120.0" x2="523.0" y2="120.0" stroke="#8a8f98" stroke-width="2" stroke-linecap="round"/>
 <polygon points="532.0,120.0 523.3,125.0 523.3,115.0" fill="#8a8f98"/>
 <rect x="532" y="92" width="104" height="56" rx="9" ry="9" fill="#161b22" stroke="#2ea44f" stroke-width="2" stroke-dasharray="6 4"/>

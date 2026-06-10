@@ -4,28 +4,29 @@
 
 ### Come suonare il campionatore-sequencer che si *disegna*
 
-Disegni la musica su una griglia di LED 16×16 con 3–4 manopole. Niente computer, niente menù da memorizzare: giri, premi, ascolti.
+Disegni la musica su una griglia di LED 16×16 con **3 manopole**. Niente computer, niente menù da memorizzare: giri, premi, ascolti.
 
 [![Livello: Principiante](https://img.shields.io/badge/Livello-Principiante-2ea44f.svg)](#)
-[![Tipo: Manuale d'uso](https://img.shields.io/badge/Manuale-Uso-blue.svg)](#)
+[![Build: 3 encoder](https://img.shields.io/badge/Build-3%20encoder-orange.svg)](#)
 [![Fork di NI404 (SP_)](https://img.shields.io/badge/fork%20di-NI404%20%C2%B7%20SP__-blueviolet.svg)](#)
-[![Vedi anche: Costruzione](https://img.shields.io/badge/Vedi%20anche-Manuale%20di%20Costruzione-orange.svg)](MANUALE_COSTRUZIONE.md)
+[![Vedi anche: Costruzione](https://img.shields.io/badge/Vedi%20anche-Manuale%20di%20Costruzione-blue.svg)](MANUALE_COSTRUZIONE.md)
 
 </div>
 
 > 🎧 **Non serve un computer per suonare**: il tuo **ichosynth** genera tutto da solo. Colleghi le
 > cuffie, accendi via USB e via.
 
-> 🆕 **Novità del fork ichosynth** *(tutte opzionali — col default si comporta come l'originale NI404)*:
-> schermo **OLED** di stato · **MIDI clock OUT** (master sync) · build a **3 o 4 encoder**
-> (`HAS_ENCODER4`) · configurazione centralizzata in [`config.h`](config.h).
+> 🆕 **Questa è la build a 3 encoder.** Rispetto all'originale NI404 a 4 manopole, il **volume** si
+> regola con la manopola **SINISTRA**, il **BPM** con la **CENTRALE**, e i comandi che l'originale
+> metteva sul 4° encoder (Play/Pausa, Volume/BPM, Menu, Note-Shift) sono stati **rimappati** sui 3
+> pulsanti disponibili. Novità del fork: schermo **OLED** opzionale e **MIDI clock OUT** (master sync).
 
 ---
 
 ## 📑 Indice
 
 - [1 · Concetto in 30 secondi](#1--concetto-in-30-secondi)
-- [2 · Le manopole (encoder)](#2--le-manopole-encoder)
+- [2 · Le 3 manopole (encoder)](#2--le-3-manopole-encoder)
 - [3 · Leggere la griglia](#3--leggere-la-griglia)
 - [4 · Modalità DRAW (disegno)](#4--modalità-draw-disegno)
 - [5 · Pagine e pattern](#5--pagine-e-pattern)
@@ -60,25 +61,27 @@ destra: ogni colonna che tocca, suona le note che ci hai messo.
 
 ---
 
-## 2 · Le manopole (encoder)
+## 2 · Le 3 manopole (encoder)
 
-Ogni manopola si **gira** (muove cursore o regola valori) e si **preme** (azioni). Riconosce gesti
-diversi: *click* singolo, *doppio click*, *hold* (pressione lunga) e *push* (tieni premuto).
+Ci sono **3 manopole**: **SINISTRA (SX)**, **CENTRALE (C)** e **DESTRA (DX)**. Ognuna si **gira** (muove
+il cursore o regola i valori) e si **preme**. Riconosce gesti diversi: *click* singolo, *doppio click*,
+*hold* (pressione lunga) e *push* (tieni premuto).
 
 <p align="center">
-  <img src="assets/encoders.svg" alt="Le 4 manopole: SINISTRA, CENTRALE-SX, CENTRALE-DX, DESTRA con i gesti" width="720">
+  <img src="assets/encoders.svg" alt="Le 3 manopole: SINISTRA, CENTRALE, DESTRA con i gesti" width="720">
 </p>
 
 | Manopola | Girando | Premendo (funzioni principali) |
 |----------|---------|--------------------------------|
-| **SINISTRA** (SX) | cursore **su/giù** (Y) | click = cancella nota · doppio click = modalità Single |
+| **SINISTRA** (SX) | cursore **su/giù** (Y) · *in Volume/BPM: regola il **Volume*** | click = cancella nota · doppio click = modalità Single |
+| **CENTRALE** (C) | seleziona la **pagina** · *in Volume/BPM: regola il **BPM*** | push = disegna nota · hold = disegno continuo · **doppio click = Play/Pausa** · click = indietro/uscita |
 | **DESTRA** (DX) | cursore **sin/destra** (X) | click = muto voce · hold = muto tutto · doppio click = velocity |
-| **CENTRALE-SX** (C-SX) | seleziona la **pagina** | push = disegna nota · hold = disegno continuo · (in Volume/BPM regola il BPM) |
-| **CENTRALE-DX** (C-DX) | filtro / seek (4° encoder) | click = **Play/Pausa** · hold = **Volume/BPM** · (in Volume/BPM regola il Volume) |
-
-> ℹ️ **Versione a 3 encoder**: niente centrale-destra; il volume si regola con la manopola sinistra.
 
 Il **cursore** è il puntino bianco che pulsa: indica dove stai per agire.
+
+> 💡 La manopola **CENTRALE** è la più "ricca": gira per la pagina, **premi** (push) per disegnare,
+> **tieni** (hold) per disegnare in continuo, **doppio click** per Play/Pausa, **click singolo** per
+> tornare indietro dai menù.
 
 ---
 
@@ -102,23 +105,23 @@ Il **cursore** è il puntino bianco che pulsa: indica dove stai per agire.
 | Azione | Gesto |
 |---|---|
 | 🧭 **Muovere il cursore** | gira **SX** (su/giù) e **DX** (sin/destra) |
-| ✏️ **Aggiungere una nota** | **push C-SX** sul punto del cursore (senti subito il suono). Ripremendo su una nota, la voce **cambia** (cicla) |
-| 🎨 **Disegno continuo** *(Etch-A-Sketch)* | **hold C-SX** per attivare il *paint mode*, poi muovi le manopole per disegnare una scia di note. Rilascia/clicca per smettere |
+| ✏️ **Aggiungere una nota** | **push C** (centrale) sul punto del cursore (senti subito il suono). Ripremendo su una nota, la voce **cambia** (cicla) |
+| 🎨 **Disegno continuo** *(Etch-A-Sketch)* | **hold C** per attivare il *paint mode*, poi muovi le manopole per disegnare una scia di note. Rilascia/clicca per smettere |
 | 🧽 **Cancellare** | **click SX** = cancella la nota sotto il cursore · **hold SX** = cancellazione continua |
-| ▶️ **Play / Pausa** | **click C-DX** |
+| ▶️ **Play / Pausa** | **doppio click C** (centrale) |
 
 ---
 
 ## 5 · Pagine e pattern
 
 - La griglia mostra **una pagina** (16 step) per volta.
-- Gira **C-SX** per cambiare pagina (fino a **8 pagine → 128 step** per song).
+- Gira **C** per cambiare pagina (fino a **8 pagine → 128 step** per song).
 - In Play, le pagine con note vengono suonate in sequenza in loop.
 
 | Azione su pagina | Gesto |
 |---|---|
 | 📋 **Copia / incolla pagina** | **click SX + click DX** insieme: copia; ripeti su un'altra pagina per incollare |
-| 🗑️ **Cancellare l'intera pagina** | **hold SX + hold C-SX** insieme |
+| 🗑️ **Cancellare l'intera pagina** | **hold SX + hold C** insieme |
 
 ---
 
@@ -131,16 +134,19 @@ Il **cursore** è il puntino bianco che pulsa: indica dove stai per agire.
 
 ## 7 · Volume e BPM
 
-- **Hold C-DX**: apre la schermata **Volume/BPM**.
-- Dentro: **BPM** = gira **C-SX** (range ~40–240) · **Volume** = gira **C-DX** (o **SX** nella versione a 3 encoder).
-- Per uscire: **rilascia** C-DX (torni a DRAW).
+- **Hold DX + hold C** (insieme): apre la schermata **Volume/BPM**.
+- Dentro: **Volume** = gira **SX** · **BPM** = gira **C** (range ~40–240).
+- Per uscire: **click C** (torni a DRAW).
+
+> 💡 Promemoria della build a 3 encoder: non c'è la 4ª manopola, quindi il volume è "passato" sulla
+> **SINISTRA** e il BPM sulla **CENTRALE**.
 
 ---
 
 ## 8 · Velocity
 
 - **Doppio click DX**: apre la modalità velocity per la nota sotto il cursore.
-- Regola con **C-SX**.
+- Regola con **C** (gira la centrale).
 - Esci con il **rilascio**.
 
 ---
@@ -154,9 +160,9 @@ Utile per lavorare in dettaglio su un singolo campione (es. melodie su più alte
 - In SINGLE valgono gli stessi gesti di disegno/cancellazione di DRAW, ma agisci solo sulla voce selezionata.
 
 ### Spostare le note (Note Shift, in SINGLE)
-- **Hold DX + hold C-DX**: entra in Note Shift.
+- **Click DX + hold C**: entra in Note Shift.
 - Muovi le note con le manopole.
-- **Click C-SX** = conferma · **click SX** = annulla.
+- **Click C** = conferma · **click SX** = annulla.
 
 ---
 
@@ -168,7 +174,7 @@ Per assegnare un file WAV diverso a una voce:
 2. **Hold SX + hold DX**: apre il **browser dei campioni** (SET_WAV).
 3. Naviga con la manopola: cambia **cartella** e **campione** (sfogli i file della SD); vedi l'anteprima della forma d'onda / lunghezza.
 4. **Click SX** = carica il campione selezionato sulla voce.
-5. **Click C-SX** = esci.
+5. **Click C** = esci.
 
 > 📁 I campioni vengono letti dalla SD nella struttura `/samples/<cartella>/_<numero>.wav`
 > (vedi [manuale di costruzione, cap. 9](MANUALE_COSTRUZIONE.md#9--preparare-la-micro-sd-campioni)).
@@ -194,7 +200,7 @@ Un "sample pack" è un set completo di voci salvato sulla SD: richiami al volo u
 
 - In DRAW: **hold SX + hold DX** apre la schermata **Sample Pack**.
 - Seleziona il numero del pack con la manopola.
-- **Click DX** = salva il set corrente in quel pack · **Click SX** = carica il pack · **Click C-SX** = esci.
+- **Click DX** = salva il set corrente in quel pack · **Click SX** = carica il pack · **Click C** = esci.
 
 > 📁 Sulla SD un pack è la cartella numerata `1`..`99` con dentro `1.wav`..`12.wav` (li gestisce
 > ichosynth, non serve crearli a mano).
@@ -203,8 +209,8 @@ Un "sample pack" è un set completo di voci salvato sulla SD: richiami al volo u
 
 ## 13 · Salvare e caricare le tue song
 
-- In DRAW: **hold C-DX + hold C-SX** apre il **Menu**.
-- **Click DX** = **salva** la song nello slot corrente · **Click SX** = **carica** · **Click C-SX** = esci.
+- In DRAW: **click SX + hold C** apre il **Menu**.
+- **Click DX** = **salva** la song nello slot corrente · **Click SX** = **carica** · **Click C** = esci.
 - Le song si salvano sulla radice della SD come `<numero>.txt` (fino a 100).
 
 > 💾 **Autosave/Autoload**: ichosynth salva automaticamente in `autosaved.txt` (es. quando metti in
@@ -237,50 +243,38 @@ flowchart TD
 
 Da DRAW (la schermata principale) raggiungi tutte le altre modalità con combinazioni di gesti:
 
-```mermaid
-stateDiagram-v2
-    direction LR
-    [*] --> DRAW
-    DRAW --> SINGLE: 2× click SX
-    SINGLE --> DRAW: 2× click SX
-    DRAW --> VolumeBPM: hold C-DX
-    VolumeBPM --> DRAW: rilascia
-    DRAW --> Velocity: 2× click DX
-    Velocity --> DRAW: rilascia
-    DRAW --> SamplePack: hold SX + hold DX
-    SamplePack --> DRAW: click C-SX
-    DRAW --> Menu: hold C-DX + hold C-SX
-    Menu --> DRAW: click C-SX
-    SINGLE --> SampleBrowser: hold SX + hold DX
-    SampleBrowser --> SINGLE: click C-SX
-    SINGLE --> NoteShift: hold DX + hold C-DX
-    NoteShift --> SINGLE: click C-SX
-```
+<p align="center">
+  <img src="assets/modes-map.svg" alt="Mappa delle modalità a 3 encoder e dei gesti per raggiungerle" width="720">
+</p>
 
-Legenda: **SX** = sinistra · **DX** = destra · **C-SX** = centrale-sinistra · **C-DX** =
-centrale-destra · "click" = pressione breve · "hold" = pressione lunga · "push" = tieni premuto.
+Legenda: **SX** = sinistra · **C** = centrale · **DX** = destra · "click" = pressione breve · "hold" =
+pressione lunga · "push" = tieni premuto · "2× click" = doppio click.
 
 | Vuoi… | Gesto |
 |-------|-------|
 | Muovere cursore su/giù | gira **SX** |
 | Muovere cursore sin/destra | gira **DX** |
-| Aggiungere una nota | **push C-SX** |
-| Disegno continuo (Etch-A-Sketch) | **hold C-SX**, poi muovi |
+| Aggiungere una nota | **push C** |
+| Disegno continuo (Etch-A-Sketch) | **hold C**, poi muovi |
 | Cancellare una nota | **click SX** |
 | Cancellazione continua | **hold SX**, poi muovi |
-| Play / Pausa | **click C-DX** |
+| **Play / Pausa** | **doppio click C** |
 | Mute voce corrente | **click DX** |
 | Mute tutto (momentaneo) | **hold DX** |
-| Cambiare pagina | gira **C-SX** |
+| Cambiare pagina | gira **C** |
 | Copia/incolla pagina | **click SX + click DX** |
-| Cancellare la pagina | **hold SX + hold C-SX** |
-| Volume / BPM | **hold C-DX** (BPM=C-SX, Vol=C-DX) |
-| Velocity nota | **doppio click DX** |
+| Cancellare la pagina | **hold SX + hold C** |
+| Volume / BPM (entra) | **hold DX + hold C** → Vol = gira **SX**, BPM = gira **C** |
+| Volume / BPM (esci) | **click C** |
+| Velocity nota | **doppio click DX** (regola con **C**) |
 | Entrare/uscire modalità Single | **doppio click SX** |
-| Note Shift (in Single) | **hold DX + hold C-DX** |
+| Note Shift (in Single) | **click DX + hold C** |
 | Sample browser (in Single) | **hold SX + hold DX** |
 | Sample Pack (in Draw) | **hold SX + hold DX** |
-| Menu salva/carica (in Draw) | **hold C-DX + hold C-SX** |
+| Menu salva/carica (in Draw) | **click SX + hold C** |
+
+> ⚠️ **Attenzione a due gesti simili**: *Cancella pagina* = **hold** SX + hold C; *Menu salva/carica*
+> = **click** SX + hold C. Cambia solo SX (tieni premuto vs tocca).
 
 ---
 
@@ -288,7 +282,8 @@ centrale-destra · "click" = pressione breve · "hold" = pressione lunga · "pus
 
 | Sintomo | Rimedio |
 |---|---|
-| 🔇 **Non sento nulla** | controlla volume (hold C-DX), che la voce non sia in mute (click DX), e che il campione esista sulla SD nel formato giusto |
+| 🔇 **Non sento nulla** | controlla volume (hold DX + hold C, poi gira SX), che la voce non sia in mute (click DX), e che il campione esista sulla SD nel formato giusto |
+| ▶️ **Non parte / non va in Play** | Play è **doppio click** sulla CENTRALE (due tocchi rapidi), non un click singolo |
 | ↩️ **Una manopola va al contrario** | è un'inversione CLK/DT in fase di cablaggio (vedi manuale di costruzione) |
 | 🚫 **I campioni non partono** | percorso/struttura SD errati, o WAV non mono/16-bit/44,1 kHz → usa `wavmaker.py` |
 | 💾 **Ho perso il lavoro** | c'è l'autosave (`autosaved.txt`), ma salva spesso anche manualmente in uno slot dal Menu |
@@ -300,7 +295,7 @@ centrale-destra · "click" = pressione breve · "hold" = pressione lunga · "pus
 
 Buon divertimento! 🎶
 
-*ichosynth è un fork di **NI404** di SP_ (soundpauli) · firmware open-source MIT.*
+*ichosynth è un fork (build a 3 encoder) di **NI404** di SP_ (soundpauli) · firmware open-source MIT.*
 
 *Questo firmware è dichiarato dall'autore "lontano dal completamento": alcune funzioni (filtri, alcune
 scorciatoie) sono parziali. Puoi modificarlo e migliorarlo a piacere.*
