@@ -32,6 +32,8 @@ import webbrowser
 import tkinter as tk
 from tkinter import ttk, filedialog, messagebox
 
+import teensy_native  # built-in pure-Python Teensy 4.1 HID loader (no external tools)
+
 APP_VERSION = "1.0"
 APP_AUTHOR  = "Luigi Massari (luigismith)"
 REPO_URL    = "https://github.com/luigismith/ichosynth"
@@ -115,6 +117,10 @@ def _run(cmd, timeout=120):
 def find_backend():
     """Locate a flashing backend. Returns a dict describing it."""
     here = app_dir()
+    # 0) preferred on Windows: the built-in pure-Python HID loader — fully
+    #    self-contained, needs no Teensyduino / external binaries at all.
+    if IS_WIN and teensy_native.IS_WIN:
+        return {"kind": "native", "label": "loader integrato (HID nativo)"}
     # 1) standalone teensy_loader_cli (preferred): next to the app or on PATH
     for cand in (os.path.join(here, "teensy_loader_cli.exe"),
                  shutil.which("teensy_loader_cli") or "",
@@ -385,13 +391,22 @@ class FlasherApp(ttk.Frame):
 
     def _flash_worker(self, fw):
         try:
-            if self.backend["kind"] == "cli":
+            if self.backend["kind"] == "native":
+                ok, msg = self._flash_native(fw)
+            elif self.backend["kind"] == "cli":
                 ok, msg = self._flash_cli(fw)
             else:
                 ok, msg = self._flash_teensyduino(fw)
         except Exception as e:
             ok, msg = False, f"errore inatteso: {e}"
         self.q.put(("flash_done", (ok, msg)))
+
+    # backend 0: built-in pure-Python HID loader (no external tools)
+    def _flash_native(self, fw):
+        self._emit("Premi il pulsante PROGRAM sul Teensy per avviare la scrittura…", WARN)
+        return teensy_native.native_flash(
+            fw, emit=lambda m: self._emit("  " + m),
+            reboot_tool=None, cancel=lambda: not self.flashing, wait=120)
 
     def _emit(self, msg, color=None):
         self.q.put(("log", (msg, color)))
