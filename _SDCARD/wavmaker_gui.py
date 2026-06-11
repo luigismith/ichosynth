@@ -324,6 +324,7 @@ class WavMakerApp(ttk.Frame):
         self.sd_root = None        # set when an SD has been scanned & chosen as target
         self.sd_info = None        # last volume_info()
         self.sd_scan = None        # last scan_samples()
+        self.deduced_start = 1     # next free number deduced from the SD scan
         self._sd_inflight = 0
         self._last_out = ""
 
@@ -459,30 +460,48 @@ class WavMakerApp(ttk.Frame):
         # both start hidden; scan decides what to show
         self._show_sd_actions(struct=False, fmt=False)
 
-        # options
+        # destination summary (derived from the SD scan) + collapsible advanced
         opt = ttk.Frame(self, style="Panel.TFrame", padding=12)
         opt.pack(fill="x", padx=18, pady=(0, 6))
-        opt.columnconfigure(1, weight=1)
+        opt.columnconfigure(0, weight=1)
 
-        ttk.Label(opt, text="Numero di partenza", style="Panel.TLabel").grid(row=0, column=0, sticky="w")
+        self.target_lbl = ttk.Label(opt, text="", style="Panel.TLabel", justify="left")
+        self.target_lbl.grid(row=0, column=0, sticky="w")
+        self.adv_btn = ttk.Button(opt, text="▸ Avanzate", width=14, command=self._toggle_adv)
+        self.adv_btn.grid(row=0, column=1, sticky="e")
+
+        # state vars (no longer shown as primary fields — deduced from the scan)
         self.start_var = tk.IntVar(value=1)
-        sp = ttk.Spinbox(opt, from_=0, to=999, textvariable=self.start_var, width=8,
-                         command=self._refresh_targets)
-        sp.grid(row=0, column=0, sticky="w", padx=(150, 0))
-        sp.bind("<KeyRelease>", lambda e: self._refresh_targets())
-        self.sd_hint = ttk.Label(opt, text="", style="PanelSub.TLabel")
-        self.sd_hint.grid(row=0, column=1, sticky="w", padx=12)
-
-        ttk.Label(opt, text="Cartella di destinazione", style="Panel.TLabel").grid(row=1, column=0, sticky="w", pady=(10, 0))
+        self.force_start_var = tk.BooleanVar(value=False)
+        self.local_mode_var = tk.BooleanVar(value=False)
         self.out_var = tk.StringVar(value="")
-        oe = ttk.Entry(opt, textvariable=self.out_var)
-        oe.grid(row=1, column=1, sticky="ew", padx=(12, 6), pady=(10, 0))
-        ttk.Button(opt, text="Sfoglia…", command=self.pick_output).grid(row=1, column=2, sticky="e", pady=(10, 0))
-
         self.delete_var = tk.BooleanVar(value=False)
-        dc = ttk.Checkbutton(opt, text="Elimina gli originali dopo la conversione (attenzione!)",
-                             variable=self.delete_var)
-        dc.grid(row=2, column=0, columnspan=3, sticky="w", pady=(10, 0))
+        self.adv_open = False
+
+        self.adv = ttk.Frame(opt, style="Panel.TFrame")
+        self.adv.grid(row=1, column=0, columnspan=2, sticky="ew", pady=(10, 0))
+        self.adv.columnconfigure(1, weight=1)
+        self.adv.grid_remove()  # hidden until toggled
+
+        ttk.Checkbutton(self.adv, text="Forza numero di partenza", variable=self.force_start_var,
+                        command=self._on_adv_change).grid(row=0, column=0, sticky="w")
+        self.start_sp = ttk.Spinbox(self.adv, from_=0, to=999, textvariable=self.start_var, width=8,
+                                    command=self._on_adv_change)
+        self.start_sp.grid(row=0, column=1, sticky="w", padx=(12, 0))
+        self.start_sp.bind("<KeyRelease>", lambda e: self._on_adv_change())
+
+        ttk.Checkbutton(self.adv, text="Scrivi in una cartella locale invece che sulla SD",
+                        variable=self.local_mode_var, command=self._on_adv_change
+                        ).grid(row=1, column=0, columnspan=3, sticky="w", pady=(8, 0))
+        self.out_entry = ttk.Entry(self.adv, textvariable=self.out_var)
+        self.out_entry.grid(row=2, column=1, sticky="ew", padx=(12, 6), pady=(4, 0))
+        self.out_btn = ttk.Button(self.adv, text="Sfoglia…", command=self.pick_output)
+        self.out_btn.grid(row=2, column=2, sticky="e", pady=(4, 0))
+
+        ttk.Checkbutton(self.adv, text="Elimina gli originali dopo la conversione (attenzione!)",
+                        variable=self.delete_var).grid(row=3, column=0, columnspan=3, sticky="w", pady=(8, 0))
+
+        self._on_adv_change()  # set initial enabled/disabled states + target label
 
         # action + progress
         act = ttk.Frame(self, padding=(18, 4, 18, 4))
@@ -519,25 +538,51 @@ class WavMakerApp(ttk.Frame):
             return os.path.join(os.path.dirname(self.items[0]["path"]), "wav_convertiti")
         return os.path.join(os.path.expanduser("~"), "Desktop", "wav_convertiti")
 
-    def _refresh_targets(self):
+    def _effective_target(self):
+        """Return (root_or_None, start_number, mode) where mode is 'sd' | 'local' | 'none'."""
         try:
-            start = int(self.start_var.get())
+            forced = int(self.start_var.get())
         except (tk.TclError, ValueError):
-            start = 0
+            forced = 0
+        use_force = self.force_start_var.get()
+        if self.local_mode_var.get():
+            root = self.out_var.get().strip() or self._default_output()
+            return root, (forced if use_force else 1), "local"
         if self.sd_root:
-            self.sd_hint.configure(text=f"→ scrive in  {SD_DIRNAME}/<bank>/  sulla SD (modalità SD attiva)")
+            return self.sd_root, (forced if use_force else self.deduced_start), "sd"
+        return None, (forced if use_force else 1), "none"
+
+    def _refresh_targets(self):
+        root, start, mode = self._effective_target()
+        if mode == "sd":
+            self.target_lbl.configure(
+                text=f"🎯  Scrivo sulla SD in  {SD_DIRNAME}/  —  i campioni partono da  _{start}")
+        elif mode == "local":
+            self.target_lbl.configure(
+                text=f"🎯  Scrivo in  {os.path.join(root, SD_DIRNAME)}  —  partono da  _{start}")
         else:
-            folder = start // 100
-            self.sd_hint.configure(text=f"→ va in  {SD_DIRNAME}/{folder}/  sulla SD")
-            if not self.out_var.get():
-                self.out_var.set(self._default_output())
+            self.target_lbl.configure(
+                text="🎯  Scansiona una SD  (oppure scegli una cartella locale in «Avanzate»)")
         for i, iid in enumerate(self.tree.get_children()):
             n = start + i
-            if self.sd_root:
-                self.tree.set(iid, "dst", f"{SD_DIRNAME}/{n // 100}/_{n}.wav")
-            else:
-                self.tree.set(iid, "dst", f"_{n}.wav")
+            self.tree.set(iid, "dst", f"{SD_DIRNAME}/{n // 100}/_{n}.wav")
         self.count_lbl.configure(text=f"{len(self.items)} file")
+
+    def _toggle_adv(self):
+        self.adv_open = not self.adv_open
+        if self.adv_open:
+            self.adv.grid()
+            self.adv_btn.configure(text="▾ Avanzate")
+        else:
+            self.adv.grid_remove()
+            self.adv_btn.configure(text="▸ Avanzate")
+
+    def _on_adv_change(self):
+        self.start_sp.configure(state="normal" if self.force_start_var.get() else "disabled")
+        st = "normal" if self.local_mode_var.get() else "disabled"
+        self.out_entry.configure(state=st)
+        self.out_btn.configure(state=st)
+        self._refresh_targets()
 
     def _add_paths(self, paths):
         existing = {it["path"] for it in self.items}
@@ -586,10 +631,11 @@ class WavMakerApp(ttk.Frame):
         self._refresh_targets()
 
     def pick_output(self):
-        d = filedialog.askdirectory(title="Cartella di destinazione")
+        d = filedialog.askdirectory(title="Cartella di destinazione locale")
         if d:
             self.out_var.set(d)
-            self._clear_sd_mode("Destinazione manuale scelta: modalità SD disattivata.")
+            self.local_mode_var.set(True)
+            self._on_adv_change()
 
     # =====================================================================
     # SD card  (scan / structure / format)
@@ -735,11 +781,12 @@ class WavMakerApp(ttk.Frame):
 
     def _set_sd_mode(self, root, next_num):
         self.sd_root = root
-        self.out_var.set(os.path.join(root, SD_DIRNAME))
         try:
-            self.start_var.set(int(next_num))
+            self.deduced_start = int(next_num)
         except Exception:
-            pass
+            self.deduced_start = 1
+        if not self.force_start_var.get():
+            self.start_var.set(self.deduced_start)
         self._refresh_targets()
 
     def _clear_sd_mode(self, msg=None, log=True):
@@ -941,29 +988,25 @@ class WavMakerApp(ttk.Frame):
             messagebox.showinfo("Niente da fare", "Aggiungi prima qualche file WAV.")
             return
 
-        start = int(self.start_var.get())
-        if self.sd_root:
-            base = os.path.join(self.sd_root, SD_DIRNAME)
-            jobs = []
-            try:
-                for i, it in enumerate(self.items):
-                    n = start + i
-                    bank = os.path.join(base, str(n // 100))
-                    os.makedirs(bank, exist_ok=True)
-                    jobs.append((it["path"], os.path.join(bank, f"_{n}.wav")))
-            except Exception as e:
-                messagebox.showerror("SD non scrivibile", f"Impossibile preparare le cartelle sulla SD:\n{e}")
-                return
-            self._last_out = base
-        else:
-            out = self.out_var.get().strip() or self._default_output()
-            try:
-                os.makedirs(out, exist_ok=True)
-            except Exception as e:
-                messagebox.showerror("Cartella non valida", f"Impossibile creare:\n{out}\n\n{e}")
-                return
-            jobs = [(it["path"], os.path.join(out, f"_{start + i}.wav")) for i, it in enumerate(self.items)]
-            self._last_out = out
+        root, start, mode = self._effective_target()
+        if mode == "none":
+            messagebox.showinfo(
+                "Destinazione mancante",
+                "Scansiona prima una scheda SD, oppure attiva «Scrivi in una cartella locale» in «Avanzate».")
+            return
+        base = os.path.join(root, SD_DIRNAME)
+        jobs = []
+        try:
+            for i, it in enumerate(self.items):
+                n = start + i
+                bank = os.path.join(base, str(n // 100))
+                os.makedirs(bank, exist_ok=True)
+                jobs.append((it["path"], os.path.join(bank, f"_{n}.wav")))
+        except Exception as e:
+            messagebox.showerror("Destinazione non scrivibile",
+                                 f"Impossibile preparare le cartelle:\n{e}")
+            return
+        self._last_out = base
 
         if self.delete_var.get():
             if not messagebox.askyesno("Confermi?",
