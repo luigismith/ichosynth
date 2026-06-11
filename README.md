@@ -66,6 +66,7 @@ culminates in a **sonic documentary** by **Roberta Trani**, premiering at the **
 | Status display | — | 🆕 **OLED HUD** (SSD1306 128×64) — *opt-in* |
 | MIDI clock | slave only | 🆕 **master sync** (24 PPQN Start/Clock/Stop) — *opt-in* |
 | 3-encoder build | partial (rotation only) | 🆕 **fully playable**: Play/Pause, Volume/BPM, Menu & Note-Shift remapped to 3 buttons |
+| Per-voice lowpass filter | in chain but uncontrolled | 🆕 **finished**: cutoff on a 1-button + CENTER knob gesture (ported from TOERN, MIT) |
 | Documentation | English README | 🆕 **Italian build + usage manuals** (`.md` + `.pdf`) |
 
 > 🎛️ **This is a 3-encoder build** (`HAS_ENCODER4 0`). Upstream's 3-encoder mode only remapped the
@@ -214,6 +215,7 @@ flowchart TD
 | `MIDI_CLOCK_OUT_ENABLED` | `0` | emit MIDI clock as master |
 | `EXTERNAL_CLOCK_TIMEOUT_MS` | `750` | external-clock detection window |
 | `HAS_ENCODER4` | `0` | **this build = 3 encoders**; `1` = original 4-encoder layout |
+| `FILTER_ENABLED` | `1` | per-voice lowpass on the FILTER button (pin 41); `0` = exact upstream sound |
 
 ---
 

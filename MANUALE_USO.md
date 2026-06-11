@@ -41,8 +41,9 @@ Disegni la musica su una griglia di LED 16×16 con **3 manopole**. Niente comput
 - [12 · Sample Pack](#12--sample-pack)
 - [13 · Salvare e caricare](#13--salvare-e-caricare-le-tue-song)
 - [14 · MIDI](#14--midi)
-- [15 · Mappa modalità & comandi](#15--mappa-modalità--comandi)
-- [16 · Problemi comuni](#16--problemi-comuni)
+- [15 · Filtro lowpass (fork)](#15--filtro-lowpass-fork)
+- [16 · Mappa modalità & comandi](#16--mappa-modalità--comandi)
+- [17 · Problemi comuni](#17--problemi-comuni)
 
 ---
 
@@ -241,7 +242,30 @@ flowchart TD
 
 ---
 
-## 15 · Mappa modalità & comandi
+## 15 · Filtro lowpass (fork)
+
+🆕 *Funzione del fork* (se `FILTER_ENABLED = 1`, già attivo). Aggiunge un **filtro passa-basso per voce**:
+ogni voce ha un suo cutoff, che addolcisce o "chiude" il suono (taglia gli acuti).
+
+> 🎛️ Serve un piccolo **pulsante momentaneo** in più (vedi manuale di costruzione): un comune bottone
+> tra il **pin 41** e **GND**. Non è un encoder, solo un pulsante — l'hardware a 3 manopole resta tale.
+
+**Come si usa:**
+1. Porta il cursore sulla **voce** che vuoi filtrare (la riga, come per il mute).
+2. **Tieni premuto il pulsante FILTRO** e **gira la manopola CENTRALE**:
+   - verso destra = filtro **aperto** (suono brillante, fino a 9 kHz);
+   - verso sinistra = filtro **chiuso** (suono scuro/ovattato, giù fino a ~280 Hz).
+3. Una **barra luminosa** a metà griglia mostra il cutoff, col colore della voce. **Rilascia** per uscire.
+
+Il valore è **per voce** e viene **salvato con la song** (torna identico al ricaricamento).
+
+> 💡 All'accensione i filtri partono **aperti** (9 kHz): il suono "dry" è più brillante dell'originale
+> NI404 (che lasciava i filtri a un default di ~1 kHz, leggermente ovattato). Per il comportamento
+> identico all'originale, imposta `FILTER_ENABLED 0` in `config.h` (e non serve il pulsante).
+
+---
+
+## 16 · Mappa modalità & comandi
 
 Da DRAW (la schermata principale) raggiungi tutte le altre modalità con combinazioni di gesti:
 
@@ -269,6 +293,7 @@ pressione lunga · "push" = tieni premuto · "2× click" = doppio click.
 | Volume / BPM (entra) | **hold DX + hold C** → Vol = gira **SX**, BPM = gira **C** |
 | Volume / BPM (esci) | **click C** |
 | Velocity nota | **doppio click DX** (regola con **C**) |
+| 🆕 Filtro lowpass (voce corrente) | **tieni il pulsante FILTRO + gira C** |
 | Entrare/uscire modalità Single | **doppio click SX** |
 | Note Shift (in Single) | **click DX + hold C** |
 | Sample browser (in Single) | **hold SX + hold DX** |
@@ -280,7 +305,7 @@ pressione lunga · "push" = tieni premuto · "2× click" = doppio click.
 
 ---
 
-## 16 · Problemi comuni
+## 17 · Problemi comuni
 
 | Sintomo | Rimedio |
 |---|---|

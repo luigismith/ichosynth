@@ -66,6 +66,7 @@ culmina in un **documentario sonoro** di **Roberta Trani**, in anteprima al **Vi
 | Display di stato | — | 🆕 **HUD OLED** (SSD1306 128×64) — *opzionale* |
 | MIDI clock | solo slave | 🆕 **sync come master** (24 PPQN Start/Clock/Stop) — *opzionale* |
 | Build a 3 encoder | parziale (solo rotazione) | 🆕 **pienamente suonabile**: Play/Pause, Volume/BPM, Menu e Note-Shift rimappati su 3 pulsanti |
+| Filtro lowpass per voce | in catena ma non controllato | 🆕 **completato**: cutoff con un gesto a 1 pulsante + manopola CENTRALE (mutuato da TOERN, MIT) |
 | Documentazione | README in inglese | 🆕 **manuali italiani di costruzione + uso** (`.md` + `.pdf`) |
 
 > 🎛️ **Questa è una build a 3 encoder** (`HAS_ENCODER4 0`). La modalità a 3 encoder del progetto originale rimappava solo la
@@ -214,6 +215,7 @@ flowchart TD
 | `MIDI_CLOCK_OUT_ENABLED` | `0` | emette il MIDI clock come master |
 | `EXTERNAL_CLOCK_TIMEOUT_MS` | `750` | finestra di rilevamento del clock esterno |
 | `HAS_ENCODER4` | `0` | **questa build = 3 encoder**; `1` = layout originale a 4 encoder |
+| `FILTER_ENABLED` | `1` | lowpass per voce sul pulsante FILTRO (pin 41); `0` = suono identico all'originale |
 
 ---
 

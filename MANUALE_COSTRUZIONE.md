@@ -83,6 +83,7 @@ Tutto viene alimentato dalla porta **USB (5V)**.
 | 1 | Teensy Audio Adaptor Board, **Rev D (per Teensy 4.x)** | codec SGTL5000 + jack 3,5 mm + slot SD (non usato) |
 | 1 | Matrice LED **WS2812B 16×16** (256 LED) | rigida o flessibile |
 | **3** | Encoder rotativo **KY-040** con pulsante | SINISTRA, CENTRALE, DESTRA (build a 3 encoder) |
+| 1 | 🆕 *(fork)* Pulsante momentaneo (tactile/push) | filtro lowpass — tra pin 41 e GND (vedi 6.5) |
 | 1 | Micro SD Card, **Class 10**, ≤ 32 GB | formattata **FAT32** |
 | 1 | Cavo micro-USB + alimentatore 5V (≥ 2A consigliato) | alimentazione e programmazione |
 | 1 | Cuffie con jack 3,5 mm | ichosynth non ha altoparlanti |
@@ -161,9 +162,10 @@ destra come in tabella.
 
 Inoltre, per ogni encoder: il pin **"+"** va a **3,3V**, il pin **GND** va a **GND**.
 
-> 🆕 **Il 4° encoder non si monta.** Nel firmware è già impostato `#define HAS_ENCODER4 0` e i suoi pin
-> (CLK 32 / DT 33 / SW 41) sono posti a `99` = non usati. I comandi che l'originale metteva sul 4°
-> encoder sono rimappati sui 3 pulsanti (vedi manuale d'uso, cap. 15). Filtro e seek sono disattivati.
+> 🆕 **Il 4° encoder non si monta.** Nel firmware è già impostato `#define HAS_ENCODER4 0`; i pin di
+> rotazione del 4° encoder (CLK 32 / DT 33) sono a `99` = non usati. I comandi che l'originale metteva
+> sul 4° encoder sono rimappati sui 3 pulsanti (vedi manuale d'uso, cap. 16). Il **seek** resta
+> disattivato; il **filtro lowpass** è invece disponibile tramite un piccolo pulsante (vedi 6.5).
 
 ### 6.4 OLED opzionale (fork)
 Condivide lo **stesso bus I2C dell'audio** (nessun pin extra: stesso SDA/SCL).
@@ -176,6 +178,19 @@ Condivide lo **stesso bus I2C dell'audio** (nessun pin extra: stesso SDA/SCL).
 | GND | **GND** |
 
 > ℹ️ Indirizzo I2C predefinito **0x3C** (alcuni pannelli usano 0x3D).
+
+### 6.5 Pulsante FILTRO (fork) 🆕
+Un **comune pulsante momentaneo** (tipo tactile/push), che abilita il **filtro lowpass per voce** (vedi
+manuale d'uso, cap. 15). Non è un encoder: due soli fili.
+
+| Segnale pulsante | Pin Teensy |
+|------------------|-----------|
+| un capo | **41** |
+| altro capo | **GND** |
+
+> ℹ️ Si usa la resistenza di **pull-up interna** del Teensy (pin attivo-basso): nessuna resistenza
+> esterna. Il pin **41** è esattamente dove starebbe il pulsante del 4° encoder dell'originale.
+> Non vuoi il filtro? Imposta `#define FILTER_ENABLED 0` in `config.h` e ometti il pulsante.
 
 ---
 
@@ -211,7 +226,7 @@ flowchart LR
 1. Per ciascuno dei **3 encoder** collega CLK, DT, SW secondo la [tabella 6.3](#63-encoder-clk-dt-sw--pulsante), più "+" (3,3V) e GND.
 2. Disponili da sinistra a destra: **SINISTRA → CENTRALE → DESTRA**.
 3. Tieni i fili ordinati ed etichettali: incrociare CLK/DT è l'errore più comune (si corregge anche via software, vedi troubleshooting).
-4. I pin del **4° encoder** (32/33/41) restano **liberi**: non si monta nulla lì.
+4. I pin di rotazione del **4° encoder** (32/33) restano **liberi**. *(Il pin 41 ospita il pulsante FILTRO opzionale — vedi 6.5.)*
 
 ### Fase 5 — OLED (opzionale) 🆕
 1. Collega i 4 fili della [tabella 6.4](#64-oled-opzionale-fork). Essendo sullo stesso bus dell'audio, basta collegarsi in parallelo a SDA/SCL.
@@ -355,7 +370,8 @@ Doppio click: si apre una finestra. Poi:
 | 🌫️ Solo alcuni LED accesi a caso | Alimentazione insufficiente alla matrice; GND comune mancante |
 | ↩️ Un encoder gira "al contrario" | Inverti i fili **CLK e DT** di quell'encoder |
 | 🔇 Un encoder non fa nulla | Pulsante/segnali sui pin sbagliati; ricontrolla [tabella 6.3](#63-encoder-clk-dt-sw--pulsante) |
-| ▶️ Non riesco a fare Play | nella build a 3 encoder è **doppio click** sulla CENTRALE (vedi manuale d'uso, cap. 15) |
+| ▶️ Non riesco a fare Play | nella build a 3 encoder è **doppio click** sulla CENTRALE (vedi manuale d'uso, cap. 16) |
+| 🎛️ Il filtro non cambia il suono | controlla il pulsante tra pin **41** e **GND**; il filtro agisce sulla **voce sotto il cursore** (cap. 6.5) |
 | 🎧 Nessun suono in cuffia | Scheda audio non collegata bene (7,8,20,21,23,18,19); `USB Type` non impostato; volume a 0 |
 | ❌ Compilazione: errori nullptr / ResamplingReader | Non hai sostituito `ResamplingReader.h` (vedi [8.3](#83-passo-obbligatorio-resamplingreaderh)) |
 | 🚫 Campioni non partono / canale muto | Struttura/percorso SD errati; WAV non mono-16bit-44.1k (usa `wavmaker.py`) |
@@ -372,7 +388,8 @@ Encoder SINISTRA  CLK 5  DT 22 SW 15  Audio LRCLK .. 20
 Encoder CENTRALE  CLK 9  DT 14 SW 16  Audio TX ..... 7
 Encoder DESTRA    CLK 4  DT 2  SW 3   Audio RX ..... 8
                                       OLED ......... SDA 18 / SCL 19 (0x3C)
-4° encoder ....... NON montato (pin 32/33/41 liberi)
+4° encoder ....... NON montato (pin 32/33 liberi)
+Pulsante FILTRO .. pin 41  ->  GND   (fork, lowpass per voce)
 ```
 
 > ⚡ Alimentazioni: matrice = **5V**; encoder, OLED e audio = **3,3V**; **GND sempre in comune** tra tutto.

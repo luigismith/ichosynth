@@ -88,6 +88,14 @@ void sendMidiClockPulse();
 void midiClockTransport(bool playing);
 void midiClockUpdateTempo();
 #endif
+#if FILTER_ENABLED
+bool filterHold = false;     // true while the FILTER button is held
+int filterEncBase = 0;       // CENTER encoder count when the hold started
+int filterKnobBase = 0;      // filter_knob value when the hold started
+unsigned int filterVoice();
+void applyFilter(unsigned int v);
+void applyAllFilters();
+#endif
 unsigned int lastPage = 1;
 unsigned int lastButtonPressTime = 0;
 bool resetTimerActive = false;
@@ -195,6 +203,9 @@ bool isEncoder4Defined = HAS_ENCODER4;
   Switch multiresponseButton3 = Switch(BTN_MIDL);  // Middle-Left: VOLUME / BPM
   Switch multiresponseButton4 = Switch(BTN_MIDR);  // Middle-Right:
   Switch multiresponseButton2 = Switch(BTN_RIGHT); // right-Knob:  (double-tab+hold: set Accents), Long hold(+l/r knob): Select BPM OR VOLUME
+#if FILTER_ENABLED
+  Switch filterButton = Switch(BTN_FILTER);  // plain momentary pushbutton to GND (INPUT_PULLUP, active LOW)
+#endif
 
 
 
@@ -283,6 +294,46 @@ void setVelocity() {
   }
   drawVelocity(CRGB(0, 40, 0));
 }
+
+#if FILTER_ENABLED
+/* Per-voice lowpass filter (fork) — mapping mutuated from TOERN (MIT).
+ * The AudioFilterStateVariable objects are already in the audio graph
+ * (envelope -> filter -> mixer, lowpass output); upstream just never set
+ * their cutoff. These helpers drive them from SMP.filter_knob[], which is
+ * part of the SMP struct and therefore already persisted with each song. */
+
+// Voice under the cursor: row - 1, the same indexing mute and the original
+// (commented-out) filter code use. In SINGLE mode, the isolated channel.
+unsigned int filterVoice() {
+  unsigned int v = SMP.singleMode ? SMP.currentChannel : (SMP.y - 1);
+  if (v >= 1 && v < maxFilters) return v;
+  return 0;  // 0 = preview channel / out of range -> no-op
+}
+
+void applyFilter(unsigned int v) {
+  if (v < 1 || v >= maxFilters) return;
+  float f = mapf(SMP.filter_knob[v], 1, maxfilterResolution, FILTER_MIN_HZ, FILTER_MAX_HZ);
+  filters[v]->frequency(f);
+  filters[v]->resonance(FILTER_RES);
+}
+
+void applyAllFilters() {
+  for (unsigned int v = 1; v < maxFilters; v++) applyFilter(v);
+}
+
+// Two-row bar overlay while the FILTER button is held: length = cutoff,
+// color = the voice's grid color (same palette as the notes).
+void drawFilterBar(unsigned int v) {
+  if (v < 1 || v >= maxFilters) return;
+  unsigned int len = round(mapf(SMP.filter_knob[v], 1, maxfilterResolution, 1, maxX));
+  CRGB c = col[v] * 8;
+  for (unsigned int x = 1; x <= maxX; x++) {
+    CRGB px = (x <= len) ? c : CRGB(2, 2, 2);
+    light(x, 8, px);
+    light(x, 9, px);
+  }
+}
+#endif
 
 void setup() {
   delay(200);
@@ -457,6 +508,12 @@ void setup() {
   sgtl5000_1.lineOutLevel(1);
 
   AudioMemory(64);
+
+#if FILTER_ENABLED
+  // Open every voice's lowpass (9 kHz) instead of the library's accidental
+  // 1 kHz default — see config.h. Knob values come from SMP.filter_knob[].
+  applyAllFilters();
+#endif
 
   // OLED HUD shares the I2C bus the codec just brought up (no-op if disabled).
   oledInit();
@@ -1586,8 +1643,33 @@ void loop() {
   multiresponseButton2.poll();
   multiresponseButton3.poll();
   multiresponseButton4.poll();
+
+#if FILTER_ENABLED
+  // FILTER button: hold + turn CENTER = lowpass cutoff of the voice under
+  // the cursor. While held, the encoders are detached from the cursor (the
+  // CENTER count is restored on release so nothing jumps).
+  filterButton.poll();
+  if (filterButton.pushed() && !filterHold
+      && (currentMode == &draw || currentMode == &singleMode)) {
+    unsigned int v = filterVoice();
+    if (v) {
+      filterHold = true;
+      filterEncBase = encoders[2].read();
+      filterKnobBase = SMP.filter_knob[v];
+    }
+  }
+  if (filterButton.released() && filterHold) {
+    filterHold = false;
+    encoders[2].write(filterEncBase);  // restore CENTER so the cursor doesn't move
+  }
+#endif
+
   // getEncoders
+#if FILTER_ENABLED
+  if (!filterHold) checkPositions();
+#else
   checkPositions();
+#endif
 
   // Set stateMashine
   if (currentMode->name == "DRAW") {
@@ -1640,6 +1722,21 @@ void loop() {
     envelope13.noteOff();
     noteOnTriggered = false;
   }
+
+#if FILTER_ENABLED
+  if (filterHold) {
+    unsigned int v = filterVoice();
+    if (v) {
+      int delta = (encoders[2].read() - filterEncBase) / 4;  // 4 counts per detent
+      int k = constrain(filterKnobBase + delta, 1, (int)maxfilterResolution);
+      if ((unsigned int)k != SMP.filter_knob[v]) {
+        SMP.filter_knob[v] = k;
+        applyFilter(v);  // safe here: loop context, not an ISR
+      }
+      drawFilterBar(v);  // overlay on top of this frame
+    }
+  }
+#endif
 
   FastLEDshow();  // draw!
 
@@ -2521,10 +2618,11 @@ void loadPattern(bool autoload) {
     float vol = float(SMP.vol / 10.0);
     if (vol <= 1.0)
       sgtl5000_1.volume(vol);
-    // set all Filters
-    for (unsigned int i = 0; i < maxFilters; i++) {
-      //filters[i]->frequency(100 * SMP.filter_knob[i]);
-    }
+    // set all Filters (fork: finishes what upstream left commented out —
+    // SMP.filter_knob[] was just restored from the song file)
+#if FILTER_ENABLED
+    applyAllFilters();
+#endif
     SMP.singleMode = false;
 
     // Display the loaded SMP data

@@ -60,6 +60,29 @@
 #define OLED_RESET_PIN -1 // -1 = no dedicated reset pin (shared with Teensy)
 #define OLED_FPS 15       // max display refresh rate (audio loop is timing-sensitive)
 
+/* ===================== PER-VOICE LOWPASS FILTER (fork) ===================== *
+ * Finishes the filter feature the upstream firmware left half-built: every
+ * voice already passes through an AudioFilterStateVariable (lowpass output),
+ * but stock code never sets its cutoff, leaving the library default (1 kHz!).
+ * Mapping mutuated from TOERN (soundpauli, MIT): cutoff 281.25..9000 Hz.
+ *
+ * Control: a plain momentary PUSHBUTTON (to GND) on BTN_FILTER — wired where
+ * the 4th encoder's switch would sit. HOLD the button and TURN the CENTER
+ * knob to sweep the lowpass of the voice under the cursor (row - 1, same
+ * indexing as mute). Release = back to normal. Settings persist per song.
+ *
+ * FILTER_ENABLED 1 also opens all filters at boot (9 kHz instead of the
+ * accidental 1 kHz default), so the dry sound is brighter than stock. Set to
+ * 0 for byte-identical upstream behavior (and no button needed).
+ */
+#ifndef FILTER_ENABLED
+#define FILTER_ENABLED 1
+#endif
+#define BTN_FILTER 41          // momentary pushbutton to GND (4th knob's SW spot)
+#define FILTER_MIN_HZ 281.25f  // TOERN 'PASS' lowpass mapping
+#define FILTER_MAX_HZ 9000.0f
+#define FILTER_RES 0.7f        // neutral resonance
+
 /* ===================== MIDI CLOCK OUT (master sync) ===================== *
  * When enabled, the sequencer emits MIDI realtime Clock/Start/Stop/Continue so
  * external gear can slave to the NI404. Defaults to 0 to preserve original

@@ -41,8 +41,9 @@ You draw music on a 16×16 LED grid with **3 knobs**. No computer, no menus to m
 - [12 · Sample Pack](#12--sample-pack-sample-set)
 - [13 · Saving and loading](#13--saving-and-loading-your-songs)
 - [14 · MIDI](#14--midi)
-- [15 · Mode & command map](#15--mode--command-map)
-- [16 · Common problems](#16--common-problems)
+- [15 · Lowpass filter (fork)](#15--lowpass-filter-fork)
+- [16 · Mode & command map](#16--mode--command-map)
+- [17 · Common problems](#17--common-problems)
 
 ---
 
@@ -242,7 +243,30 @@ flowchart TD
 
 ---
 
-## 15 · Mode & command map
+## 15 · Lowpass filter (fork)
+
+🆕 *Fork feature* (if `FILTER_ENABLED = 1`, on by default). Adds a **per-voice lowpass filter**: each
+voice gets its own cutoff that softens or "closes" the sound (rolls off the highs).
+
+> 🎛️ It needs one extra **momentary pushbutton** (see the build manual): a plain button between **pin
+> 41** and **GND**. It's not an encoder, just a button — the 3-knob hardware stays as it is.
+
+**How to use it:**
+1. Move the cursor onto the **voice** you want to filter (the row, just like for mute).
+2. **Hold the FILTER button** and **turn the CENTER knob**:
+   - clockwise = filter **open** (bright sound, up to 9 kHz);
+   - counter-clockwise = filter **closed** (dark/muffled, down to ~280 Hz).
+3. A **light bar** across the middle of the grid shows the cutoff, in the voice's color. **Release** to exit.
+
+The value is **per voice** and is **saved with the song** (it comes back identical on reload).
+
+> 💡 At power-on the filters start **open** (9 kHz): the dry sound is brighter than the original NI404
+> (which left the filters at a ~1 kHz default, slightly muffled). For behavior identical to the
+> original, set `FILTER_ENABLED 0` in `config.h` (and skip the button).
+
+---
+
+## 16 · Mode & command map
 
 From DRAW (the main screen) you reach all the other modes with combinations of gestures:
 
@@ -270,6 +294,7 @@ Legend: **L** = left · **C** = center · **R** = right · "click" = short press
 | Volume / BPM (enter) | **hold R + hold C** → Vol = turn **L**, BPM = turn **C** |
 | Volume / BPM (exit) | **click C** |
 | Note velocity | **double-click R** (adjust with **C**) |
+| 🆕 Lowpass filter (current voice) | **hold the FILTER button + turn C** |
 | Enter/exit Single mode | **double-click L** |
 | Note Shift (in Single) | **click R + hold C** |
 | Sample browser (in Single) | **hold L + hold R** |
@@ -281,7 +306,7 @@ Legend: **L** = left · **C** = center · **R** = right · "click" = short press
 
 ---
 
-## 16 · Common problems
+## 17 · Common problems
 
 | Symptom | Fix |
 |---|---|

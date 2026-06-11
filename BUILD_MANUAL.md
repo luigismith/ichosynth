@@ -83,6 +83,7 @@ Everything is powered from the **USB (5V)** port.
 | 1 | Teensy Audio Adaptor Board, **Rev D (for Teensy 4.x)** | SGTL5000 codec + 3.5 mm jack + SD slot (not used) |
 | 1 | **WS2812B 16×16** LED matrix (256 LEDs) | rigid or flexible |
 | **3** | **KY-040** rotary encoder with push-button | LEFT, CENTER, RIGHT (3-encoder build) |
+| 1 | 🆕 *(fork)* Momentary pushbutton (tactile/push) | lowpass filter — between pin 41 and GND (see 6.5) |
 | 1 | Micro SD Card, **Class 10**, ≤ 32 GB | formatted **FAT32** |
 | 1 | Micro-USB cable + 5V power supply (≥ 2A recommended) | power and programming |
 | 1 | Headphones with 3.5 mm jack | ichosynth has no speakers |
@@ -161,9 +162,10 @@ right as shown in the table.
 
 In addition, for each encoder: the **"+"** pin goes to **3.3V**, the **GND** pin goes to **GND**.
 
-> 🆕 **The 4th encoder is not fitted.** In the firmware it's already set to `#define HAS_ENCODER4 0` and its pins
-> (CLK 32 / DT 33 / SW 41) are set to `99` = unused. The commands that the original placed on the 4th
-> encoder are remapped onto the 3 push-buttons (see Usage Manual, ch. 15). Filter and seek are disabled.
+> 🆕 **The 4th encoder is not fitted.** In the firmware it's already set to `#define HAS_ENCODER4 0`; the
+> 4th encoder's rotation pins (CLK 32 / DT 33) are `99` = unused. The commands the original placed on the
+> 4th encoder are remapped onto the 3 push-buttons (see Usage Manual, ch. 16). **Seek** stays disabled;
+> the **lowpass filter** is instead available through a small pushbutton (see 6.5).
 
 ### 6.4 Optional OLED (fork)
 It shares the **same I2C bus as the audio** (no extra pins: same SDA/SCL).
@@ -176,6 +178,19 @@ It shares the **same I2C bus as the audio** (no extra pins: same SDA/SCL).
 | GND | **GND** |
 
 > ℹ️ Default I2C address **0x3C** (some panels use 0x3D).
+
+### 6.5 FILTER button (fork) 🆕
+A **plain momentary pushbutton** (tactile/push type) that enables the **per-voice lowpass filter** (see
+Usage Manual, ch. 15). Not an encoder: just two wires.
+
+| Button signal | Teensy pin |
+|---------------|-----------|
+| one leg | **41** |
+| other leg | **GND** |
+
+> ℹ️ It uses the Teensy's **internal pull-up** (active-low pin): no external resistor. Pin **41** is
+> exactly where the original's 4th-encoder button would sit. Don't want the filter? Set
+> `#define FILTER_ENABLED 0` in `config.h` and omit the button.
 
 ---
 
@@ -211,7 +226,7 @@ flowchart LR
 1. For each of the **3 encoders**, connect CLK, DT, SW per [table 6.3](#63-encoders-clk-dt-sw--push-button), plus "+" (3.3V) and GND.
 2. Arrange them from left to right: **LEFT → CENTER → RIGHT**.
 3. Keep the wires tidy and label them: crossing CLK/DT is the most common mistake (it can also be fixed in software, see troubleshooting).
-4. The **4th encoder's** pins (32/33/41) stay **free**: nothing is fitted there.
+4. The **4th encoder's** rotation pins (32/33) stay **free**: nothing is fitted there. *(Pin 41 hosts the optional FILTER button — see 6.5.)*
 
 ### Step 5 — OLED (optional) 🆕
 1. Connect the 4 wires from [table 6.4](#64-optional-oled-fork). Since it's on the same bus as the audio, you just connect it in parallel to SDA/SCL.
@@ -355,7 +370,8 @@ Double-click: a window opens. Then:
 | 🌫️ Only some LEDs light up randomly | Insufficient power to the matrix; missing common GND |
 | ↩️ An encoder turns "backwards" | Swap the **CLK and DT** wires on that encoder |
 | 🔇 An encoder does nothing | Button/signals on the wrong pins; recheck [table 6.3](#63-encoders-clk-dt-sw--push-button) |
-| ▶️ I can't trigger Play | in the 3-encoder build it's a **double-click** on the CENTER (see Usage Manual, ch. 15) |
+| ▶️ I can't trigger Play | in the 3-encoder build it's a **double-click** on the CENTER (see Usage Manual, ch. 16) |
+| 🎛️ The filter doesn't change the sound | check the button between pin **41** and **GND**; the filter acts on the **voice under the cursor** (6.5) |
 | 🎧 No sound in the headphones | Audio board not connected properly (7,8,20,21,23,18,19); `USB Type` not set; volume at 0 |
 | ❌ Compilation: nullptr / ResamplingReader errors | You didn't replace `ResamplingReader.h` (see [8.3](#83-mandatory-step-resamplingreaderh)) |
 | 🚫 Samples won't play / channel muted | Wrong SD structure/path; WAV not mono-16bit-44.1k (use `wavmaker.py`) |
@@ -372,7 +388,8 @@ Encoder LEFT      CLK 5  DT 22 SW 15  Audio LRCLK .. 20
 Encoder CENTER    CLK 9  DT 14 SW 16  Audio TX ..... 7
 Encoder RIGHT     CLK 4  DT 2  SW 3   Audio RX ..... 8
                                       OLED ......... SDA 18 / SCL 19 (0x3C)
-4th encoder ...... NOT fitted (pins 32/33/41 free)
+4th encoder ...... NOT fitted (pins 32/33 free)
+FILTER button .... pin 41  ->  GND   (fork, per-voice lowpass)
 ```
 
 > ⚡ Power rails: matrix = **5V**; encoders, OLED and audio = **3.3V**; **GND always common** across everything.
