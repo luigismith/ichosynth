@@ -1,0 +1,13 @@
+build/
+eeprom.bin
+*.obj
+*.exe
+*.dll
+# external clone (MIT, separate project) — fetched for the toern emulator build
+toern-src/
+# local ready-to-run snapshots (binaries/DLLs) — distributables come from CI
+playable-*/
+# runtime files written next to the exe
+settings.txt
+midi-log.txt
+*.log

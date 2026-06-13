@@ -1,0 +1,337 @@
+// main.cpp — SDL2 frontend for the NI404 emulator: opens a window that renders
+// the 16x16 LED matrix, opens the default audio device and drives the audio
+// graph from its callback, and maps the computer keyboard onto the device's 3
+// encoders + buttons. It calls the firmware's setup() once and loop() every
+// frame (via ni404_setup/ni404_loop).
+//
+// `--selftest` runs headless: no window/audio device, just exercises setup(),
+// a few loop() ticks, audio rendering and the LED bridge, then prints stats and
+// exits — so the pipeline can be verified in CI / headless shells.
+#define NOMINMAX
+#define WIN32_LEAN_AND_MEAN
+
+#include <SDL.h>
+#include <cstdio>
+#include <cstring>
+#include <cmath>
+#include <string>
+#include <vector>
+#include <cstdint>
+#include <thread>
+#include <chrono>
+#include "FastLED.h"        // CRGB
+#include "ni404_host.h"
+#include "menu.h"
+#ifdef _WIN32
+#include <windows.h>        // AttachConsole (GUI subsystem: no console window pops up)
+#endif
+
+// MIDI backend (src/midi_in.cpp)
+int  ni404_midi_list(std::vector<std::string> *names);
+bool ni404_midi_open(int index);
+void ni404_midi_close();
+void ni404_midi_feed(uint8_t status, uint8_t d1, uint8_t d2);
+
+static void open_midi(int requested) {
+    std::vector<std::string> names;
+    int n = ni404_midi_list(&names);
+    if (n == 0) { std::printf("[midi] no MIDI input devices found.\n"); return; }
+    std::printf("[midi] %d input device(s):\n", n);
+    for (int i = 0; i < (int)names.size(); i++)
+        std::printf("   [%d] %s\n", i, names[i].c_str());
+    int dev = (requested >= 0 && requested < n) ? requested : 0;
+    if (ni404_midi_open(dev)) std::printf("[midi] opened device [%d] %s\n", dev,
+                                          dev < (int)names.size() ? names[dev].c_str() : "");
+    else std::printf("[midi] failed to open device %d\n", dev);
+}
+
+static const int GRID = 16;
+static const int CELL = 30;
+static const int MARGIN = 16;
+// OLED panel (SSD1306 128x64) drawn below the LED grid.
+static const int OLED_W = 128, OLED_H = 64, OLED_SCALE = 3;
+static const int GRID_BOTTOM = MARGIN + GRID * CELL;
+static const int WIN_W = GRID * CELL + 2 * MARGIN;
+static const int WIN_H = GRID_BOTTOM + MARGIN + OLED_H * OLED_SCALE + MARGIN;
+
+// ---- audio callback -------------------------------------------------------
+static void audio_cb(void * /*ud*/, Uint8 *stream, int len) {
+    int frames = len / (int)(2 * sizeof(float));
+    ni404_audio_render(reinterpret_cast<float *>(stream), frames);
+}
+
+// ---- keyboard -> encoders/buttons ----------------------------------------
+// Turn keys fire a detent per keydown (and repeat). Button keys latch down/up.
+static void handle_key(SDL_Scancode sc, bool down, bool repeat) {
+    // One detent = 4 quadrature counts (the firmware maps over max*4 and /4s).
+    const long DETENT = 4;
+    switch (sc) {
+        // --- 4 encoders: turn ---
+        case SDL_SCANCODE_Q: if (down) ni404_host_encoder_add(ENC_LEFT, -DETENT); break;
+        case SDL_SCANCODE_A: if (down) ni404_host_encoder_add(ENC_LEFT, +DETENT); break;
+        case SDL_SCANCODE_W: if (down) ni404_host_encoder_add(ENC_CENTER, -DETENT); break;
+        case SDL_SCANCODE_S: if (down) ni404_host_encoder_add(ENC_CENTER, +DETENT); break;
+        case SDL_SCANCODE_E: if (down) ni404_host_encoder_add(ENC_RIGHT, -DETENT); break;
+        case SDL_SCANCODE_D: if (down) ni404_host_encoder_add(ENC_RIGHT, +DETENT); break;
+        case SDL_SCANCODE_R: if (down) ni404_host_encoder_add(ENC_4TH, -DETENT); break;
+        case SDL_SCANCODE_F: if (down) ni404_host_encoder_add(ENC_4TH, +DETENT); break;
+        // --- encoder push-buttons (latch) ---
+        case SDL_SCANCODE_Z: if (!repeat) ni404_host_button_set(BTN_L, down); break;
+        case SDL_SCANCODE_X: if (!repeat) ni404_host_button_set(BTN_C, down); break;
+        case SDL_SCANCODE_C: if (!repeat) ni404_host_button_set(BTN_R, down); break;
+        case SDL_SCANCODE_V: if (!repeat) ni404_host_button_set(BTN_4, down); break;
+        // --- NI404 filter button ---
+        case SDL_SCANCODE_B: if (!repeat) ni404_host_button_set(BTN_FILT, down); break;
+        // --- toern touch switches (SWITCH_1/2/3) ---
+        case SDL_SCANCODE_1: if (!repeat) ni404_host_button_set(BTN_TOUCH1, down); break;
+        case SDL_SCANCODE_2: if (!repeat) ni404_host_button_set(BTN_TOUCH2, down); break;
+        case SDL_SCANCODE_3: if (!repeat) ni404_host_button_set(BTN_TOUCH3, down); break;
+        default: break;
+    }
+}
+
+// ---- selftest -------------------------------------------------------------
+static int run_selftest() {
+    std::printf("[selftest] ni404_setup()...\n");
+    ni404_setup();
+
+    // Inject MIDI to exercise the input -> dispatch -> control-map path:
+    // knob CC#71 (center encoder) swept, then a pad (note 36 = BTN_L) press.
+    long encBefore = ni404_host_encoder_get(ENC_CENTER);
+    ni404_midi_feed(0xB0, 25, 5);    // knob 2 (CC25, relative +5) -> CENTER encoder
+    ni404_midi_feed(0x90, 36, 100);  // pad 1 (note 36) -> BTN_L down
+    ni404_loop();                    // loop() drains usbMIDI.read()
+    long encAfter = ni404_host_encoder_get(ENC_CENTER);
+    std::printf("[selftest] midi: center encoder %ld -> %ld (%+ld), BTN_L=%d\n",
+                encBefore, encAfter, encAfter - encBefore, (int)ni404_host_button_get(BTN_L));
+    ni404_midi_feed(0x80, 36, 0);    // pad release
+
+    float buf[256 * 2];
+    double asum = 0; float apeak = 0;
+    CRGB frame[GRID * GRID];
+    uint64_t lastgen = 0; int litframes = 0;
+    for (int t = 0; t < 120; t++) {
+        ni404_loop();
+        ni404_audio_render(buf, 256);
+        for (int i = 0; i < 512; i++) { float a = std::fabs(buf[i]); asum += a; if (a > apeak) apeak = a; }
+        int n = 0;
+        uint64_t g = ni404_get_leds(frame, GRID * GRID, &n);
+        if (g != lastgen) { lastgen = g;
+            for (int i = 0; i < n; i++) if (frame[i].r || frame[i].g || frame[i].b) { litframes++; break; }
+        }
+        // Advance real time a little so millis()-gated redraws (toern LED draw,
+        // OLED HUD) actually fire during the headless test.
+        std::this_thread::sleep_for(std::chrono::milliseconds(3));
+    }
+    std::printf("[selftest] audio: peak=%.4f avg=%.5f | led generations seen, frames-with-lit=%d\n",
+                apeak, asum / (512.0 * 120), litframes);
+    // OLED panel check
+    static uint8_t oled[128 * 64]; int ow = 0, oh = 0; int olit = 0;
+    uint64_t ogen = ni404_get_oled(oled, sizeof(oled), &ow, &oh);
+    for (int i = 0; i < ow * oh; i++) if (oled[i]) olit++;
+    std::printf("[selftest] oled: %dx%d gen=%llu lit-pixels=%d\n",
+                ow, oh, (unsigned long long)ogen, olit);
+    std::printf("[selftest] OK\n");
+    return 0;
+}
+
+// Headless audio-path verification: boot the firmware (which loads the sample
+// pack from _SDCARD), then trigger each sample channel like a MIDI note and
+// measure the audio it produces. Proves SD load -> resampling voice -> graph.
+static int run_verify() {
+    std::printf("[verify] ni404_setup() (loads sample pack from _SDCARD)...\n");
+    ni404_setup();
+    float buf[256 * 2];
+    int sounding = 0;
+    for (int ch = 1; ch <= 8; ch++) {
+        ni404_test_trigger(ch);
+        int playing = ni404_test_sample_len(ch);   // voice playing after trigger?
+        double sum = 0; float peak = 0;
+        for (int k = 0; k < 16; k++) {
+            ni404_audio_render(buf, 256);
+            for (int i = 0; i < 512; i++) { float a = std::fabs(buf[i]); sum += a; if (a > peak) peak = a; }
+        }
+        bool snd = peak > 0.001f;
+        if (snd) sounding++;
+        std::printf("[verify] channel %d: voice_playing=%d  audio peak=%.4f  %s\n",
+                    ch, playing, peak, snd ? "SOUND" : "(silent)");
+    }
+    std::printf("[verify] %d/8 channels produced audio.\n", sounding);
+    std::printf("[verify] %s\n", sounding > 0 ? "OK — sample playback path works."
+                                              : "no audio — check _SDCARD samples / paths.");
+    return sounding > 0 ? 0 : 2;
+}
+
+// Headless check that the demo song actually produces music.
+static float measurePeak(int blocks) {
+    float buf[256 * 2]; float peak = 0;
+    for (int t = 0; t < blocks; t++) { ni404_audio_render(buf, 256);
+        for (int i = 0; i < 512; i++) { float a = std::fabs(buf[i]); if (a > peak) peak = a; } }
+    return peak;
+}
+static int run_demotest() {
+    ni404_setup();
+    ni404_demo();
+    // Render the full 4-page loop (~8 s at 122 BPM) so every page/voice plays,
+    // tracking the peak, any clipping and any non-finite output.
+    float buf[256 * 2]; float peak = 0; long clip = 0, bad = 0;
+    const int blocks = 1500;   // 1500 * 256 / 44100 ~= 8.7 s
+    for (int t = 0; t < blocks; t++) {
+        ni404_loop();                       // advance the sequencer clock
+        ni404_audio_render(buf, 256);
+        for (int i = 0; i < 512; i++) {
+            float a = std::fabs(buf[i]);
+            if (!std::isfinite(buf[i])) { bad++; continue; }
+            if (a > peak) peak = a;
+            if (a >= 0.999f) clip++;
+        }
+    }
+    std::printf("[demotest] full-loop peak=%.4f  clipped=%ld/%d  non-finite=%ld\n",
+                peak, clip, blocks * 512, bad);
+    return (bad == 0) ? 0 : 2;
+}
+
+int main(int argc, char **argv) {
+    SDL_SetMainReady();
+#ifdef _WIN32
+    // Built as a GUI app so double-clicking shows NO console window. When launched
+    // from a terminal (and stdout isn't already redirected to a file/pipe), reattach
+    // to that console so --selftest/--verify/--import logs appear. If stdout is a
+    // file or pipe (e.g. `> out.txt`), leave it alone so capture still works.
+    {
+        DWORD ft = GetFileType(GetStdHandle(STD_OUTPUT_HANDLE));
+        if (ft != FILE_TYPE_DISK && ft != FILE_TYPE_PIPE && AttachConsole(ATTACH_PARENT_PROCESS)) {
+            freopen("CONOUT$", "w", stdout);
+            freopen("CONOUT$", "w", stderr);
+        }
+    }
+#endif
+    // Tell the SD shim where we live, so a distributed binary finds _SDCARD next
+    // to it (the compile-time path points at the build machine).
+    { std::string a0 = (argc > 0 && argv[0]) ? argv[0] : "";
+      size_t sl = a0.find_last_of("/\\");
+      ni404_set_base_dir(sl == std::string::npos ? "." : a0.substr(0, sl).c_str()); }
+
+    int midiDev = 0;
+    bool demo = false;
+    for (int i = 1; i < argc; i++) {
+        if (std::strcmp(argv[i], "--selftest") == 0) return run_selftest();
+        if (std::strcmp(argv[i], "--verify") == 0) return run_verify();
+        if (std::strcmp(argv[i], "--demotest") == 0) return run_demotest();
+        if (std::strcmp(argv[i], "--import") == 0 && i + 1 < argc) {
+            ni404_setup();
+            std::printf("[import] %s\n", ni404_import_sample(argv[++i]));
+            return 0;
+        }
+        if (std::strcmp(argv[i], "--demo") == 0) demo = true;
+        if (std::strcmp(argv[i], "--midi") == 0 && i + 1 < argc) midiDev = std::atoi(argv[++i]);
+    }
+
+    if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO) != 0) {
+        std::fprintf(stderr, "SDL_Init failed: %s\n", SDL_GetError());
+        return 1;
+    }
+
+    SDL_Window *win = SDL_CreateWindow("NI404 emulator",
+        SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, WIN_W, WIN_H, SDL_WINDOW_SHOWN);
+    SDL_Renderer *ren = SDL_CreateRenderer(win, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
+    if (!ren) ren = SDL_CreateRenderer(win, -1, SDL_RENDERER_SOFTWARE);  // fall back to software
+    if (!ren) {
+        std::fprintf(stderr, "SDL_CreateRenderer failed: %s\n", SDL_GetError());
+        SDL_DestroyWindow(win); SDL_Quit();
+        return 1;
+    }
+
+    // Audio device + settings are owned by the menu (TAB to change devices/volume).
+    menu_init(audio_cb);
+
+    ni404_setup();
+    if (demo) ni404_demo();          // load kit + paint a beat + start playing
+    open_midi(midiDev);
+
+    std::printf(
+        "\n== Emulatore NI404/toern - tasti ==\n"
+        "  Encoder (ruota -/+):  Q/A  W/S  E/D  R/F   (4 manopole)\n"
+        "  Premi encoder:        Z    X    C    V\n"
+        "  Filtro (NI404):       B          Touch (toern): 1 2 3\n"
+        "  TAB = menu impostazioni (audio, volume, MIDI)   Esci: Esc\n"
+        "  Trascina un file .wav nella finestra per caricarlo come campione.\n\n");
+
+    CRGB frame[GRID * GRID];
+    bool running = true;
+    while (running) {
+        SDL_Event e;
+        while (SDL_PollEvent(&e)) {
+            if (e.type == SDL_QUIT) { running = false; continue; }
+            if (e.type == SDL_DROPFILE) {          // drag-and-drop a .wav to import a sample
+                const char *path = e.drop.file;
+                const char *res = ni404_import_sample(path);
+                std::printf("[import] %s\n", res);
+                menu_toast(res);                   // on-window feedback (no console needed)
+                SDL_free((void *)path);
+                continue;
+            }
+            if (menu_handle_event(e)) continue;   // consumed by the settings menu
+            if (e.type == SDL_KEYDOWN) {
+                if (e.key.keysym.scancode == SDL_SCANCODE_ESCAPE) running = false;
+                else handle_key(e.key.keysym.scancode, true, e.key.repeat != 0);
+            } else if (e.type == SDL_KEYUP) {
+                handle_key(e.key.keysym.scancode, false, false);
+            }
+        }
+
+        ni404_loop();
+
+        // Render the LED frame.
+        int n = 0;
+        ni404_get_leds(frame, GRID * GRID, &n);
+        SDL_SetRenderDrawColor(ren, 12, 12, 14, 255);
+        SDL_RenderClear(ren);
+        for (int i = 0; i < n && i < GRID * GRID; i++) {
+            // The 16x16 WS2812 panel is serpentine-wired and the firmware's
+            // light() encodes that: LED-memory row (y-1), even rows left->right,
+            // odd rows right->left. Undo the serpentine to recover the column.
+            int row = i / GRID;
+            int k = i % GRID;
+            int col = (row % 2 == 0) ? k : (GRID - 1 - k);
+            // The firmware's logical y increases UPWARD (showNumber/logo draw the
+            // top of a glyph at the highest y, via maxY - y), so y=1 is the BOTTOM
+            // physical row. Flip vertically so on-grid text/digits read upright.
+            int srow = (GRID - 1) - row;
+            SDL_Rect r{ MARGIN + col * CELL + 1, MARGIN + srow * CELL + 1, CELL - 2, CELL - 2 };
+            // brighten for visibility (panel values are intentionally low).
+            int rr = frame[i].r, gg = frame[i].g, bb = frame[i].b;
+            auto bump = [](int v) { v = v * 4; return v > 255 ? 255 : v; };
+            SDL_SetRenderDrawColor(ren, bump(rr), bump(gg), bump(bb), 255);
+            SDL_RenderFillRect(ren, &r);
+        }
+
+        // OLED panel (SSD1306) below the grid.
+        static uint8_t oled[OLED_W * OLED_H];
+        int ow = 0, oh = 0;
+        uint64_t ogen = ni404_get_oled(oled, sizeof(oled), &ow, &oh);
+        int panelX = MARGIN, panelY = GRID_BOTTOM + MARGIN;
+        // panel background (dark blue, like an OLED bezel)
+        SDL_Rect bg{ panelX - 2, panelY - 2, OLED_W * OLED_SCALE + 4, OLED_H * OLED_SCALE + 4 };
+        SDL_SetRenderDrawColor(ren, 8, 10, 24, 255);
+        SDL_RenderFillRect(ren, &bg);
+        if (ogen != 0 && ow == OLED_W && oh == OLED_H) {
+            SDL_SetRenderDrawColor(ren, 180, 210, 255, 255);   // OLED-blue "on" pixels
+            for (int y = 0; y < OLED_H; y++)
+                for (int x = 0; x < OLED_W; x++)
+                    if (oled[y * OLED_W + x]) {
+                        SDL_Rect p{ panelX + x * OLED_SCALE, panelY + y * OLED_SCALE, OLED_SCALE, OLED_SCALE };
+                        SDL_RenderFillRect(ren, &p);
+                    }
+        }
+        menu_render(ren, WIN_W, WIN_H);   // settings overlay (TAB)
+        SDL_RenderPresent(ren);
+    }
+
+    ni404_midi_close();
+    menu_shutdown();
+    SDL_DestroyRenderer(ren);
+    SDL_DestroyWindow(win);
+    SDL_Quit();
+    return 0;
+}

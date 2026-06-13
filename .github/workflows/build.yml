@@ -1,0 +1,145 @@
+name: Build emulator (macOS + Windows)
+
+# Builds the NI404 desktop emulator on GitHub's runners and publishes ready-to-run
+# binaries as artifacts and a rolling "emulator-latest" pre-release — so you can
+# download the macOS build without compiling anything locally.
+
+on:
+  push:
+    branches: [ master ]
+    paths:
+      - 'emulator/**'
+      - 'soundpauli_ni404.ino'
+      - '*.h'
+      - '.github/workflows/build.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write   # needed to publish the release
+
+jobs:
+  # ---------------------------------------------------------------- macOS ----
+  macos:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install toolchain (SDL2 + dylibbundler)
+        run: brew install sdl2 dylibbundler
+
+      - name: Fetch TŒRN source (optional second target)
+        continue-on-error: true
+        run: git clone --depth 1 https://github.com/soundpauli/toern.git emulator/toern-src
+
+      - name: Configure
+        run: >
+          cmake -S emulator -B emulator/build
+          -DCMAKE_BUILD_TYPE=Release
+          -DCMAKE_PREFIX_PATH="$(brew --prefix sdl2)"
+          -DNI404_SDCARD_PATH=_SDCARD
+
+      - name: Build ni404emu
+        run: cmake --build emulator/build --target ni404emu -j3
+
+      - name: Build toernemu (best effort)
+        continue-on-error: true
+        run: cmake --build emulator/build --target toernemu -j3
+
+      - name: Package (bundle SDL2 dylib, copy samples)
+        run: |
+          DIST="dist-macos/NI404-emulator-macOS"
+          mkdir -p "$DIST"
+          cp emulator/build/ni404emu "$DIST/" || true
+          cp emulator/build/toernemu "$DIST/" 2>/dev/null || true
+          cp emulator/MANUALE.md "$DIST/" 2>/dev/null || true
+          cp emulator/playable-2026-06-13/midi-map.txt "$DIST/" 2>/dev/null || true
+          # Bundle the SDL2 dylib next to the binaries so no brew install is needed.
+          mkdir -p "$DIST/libs"
+          for b in "$DIST"/ni404emu "$DIST"/toernemu; do
+            [ -f "$b" ] && dylibbundler -od -b -x "$b" -d "$DIST/libs" -p @executable_path/libs/ || true
+          done
+          # Ship the sample card alongside (the binary looks for ./_SDCARD).
+          cp -R _SDCARD "$DIST/_SDCARD"
+          rm -f "$DIST/_SDCARD/wavmaker.exe"
+          cat > "$DIST/LEGGIMI.txt" <<'TXT'
+          Emulatore NI404 — build macOS
+          ==============================
+          1) Apri il Terminale in questa cartella.
+          2) La prima volta togli la quarantena di Gatekeeper:
+               xattr -dr com.apple.quarantine .
+          3) Avvia:   ./ni404emu        (oppure ./ni404emu --demo)
+          Trascina un file .wav nella finestra per caricarlo come campione.
+          Manuale completo: MANUALE.md
+          TXT
+          ( cd dist-macos && zip -r ../NI404-emulator-macOS.zip NI404-emulator-macOS )
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: NI404-emulator-macOS
+          path: NI404-emulator-macOS.zip
+
+  # -------------------------------------------------------------- Windows ----
+  windows:
+    runs-on: windows-latest
+    defaults:
+      run: { shell: msys2 {0} }
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: msys2/setup-msys2@v2
+        with:
+          msystem: MINGW64
+          update: true
+          install: >-
+            mingw-w64-x86_64-gcc
+            mingw-w64-x86_64-cmake
+            mingw-w64-x86_64-make
+            mingw-w64-x86_64-SDL2
+            git
+
+      - name: Fetch TŒRN source (optional second target)
+        continue-on-error: true
+        run: git clone --depth 1 https://github.com/soundpauli/toern.git emulator/toern-src
+
+      - name: Configure
+        run: cmake -S emulator -B emulator/build -G "MinGW Makefiles" -DCMAKE_BUILD_TYPE=Release -DNI404_SDCARD_PATH=_SDCARD
+
+      - name: Build ni404emu
+        run: cmake --build emulator/build --target ni404emu -j3
+
+      - name: Build toernemu (best effort)
+        continue-on-error: true
+        run: cmake --build emulator/build --target toernemu -j3
+
+      - name: Package (copy SDL2.dll, samples)
+        run: |
+          DIST="dist-windows/NI404-emulator-Windows"
+          mkdir -p "$DIST"
+          cp emulator/build/ni404emu.exe "$DIST/" || true
+          cp emulator/build/toernemu.exe "$DIST/" 2>/dev/null || true
+          cp /mingw64/bin/SDL2.dll "$DIST/"
+          cp emulator/MANUALE.md "$DIST/" 2>/dev/null || true
+          cp emulator/playable-2026-06-13/midi-map.txt "$DIST/" 2>/dev/null || true
+          cp -R _SDCARD "$DIST/_SDCARD"
+          ( cd dist-windows && powershell -Command "Compress-Archive -Path NI404-emulator-Windows -DestinationPath ../NI404-emulator-Windows.zip -Force" )
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: NI404-emulator-Windows
+          path: NI404-emulator-Windows.zip
+
+  # --------------------------------------------------------------- release ---
+  release:
+    needs: [ macos, windows ]
+    if: github.ref == 'refs/heads/master'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with: { path: artifacts }
+      - name: Publish rolling pre-release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: emulator-latest
+          name: NI404 emulator (latest build)
+          prerelease: true
+          files: artifacts/**/*.zip

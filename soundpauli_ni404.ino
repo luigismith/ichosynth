@@ -33,7 +33,7 @@
 
 #define SD_SLOT BUILTIN_SDCARD
 // NUM_LEDS and DATA_PIN are defined in config.h
-int lastFile[9] = { 0 };
+int lastFile[10] = { 0 };  // [emu] was [9]: setLastFile() loops folders 0..maxFolders(9) = 10 slots; [9] overflowed by one (out-of-bounds on hardware too)
 bool tmpMute = false;
 const unsigned int defaultVelocity = 63;
 const unsigned int maxX = 16;
@@ -2597,6 +2597,16 @@ void loadPattern(bool autoload) {
       // Load SMP struct after marker
       if (loadFile.available()) {
         loadFile.read((uint8_t *)&SMP, sizeof(SMP));
+      }
+      // [emu] Sanitize filter_knob[]: the valid knob range is 1..maxfilterResolution
+      // (see constrain() in the filter-hold handler). A 0 / out-of-range value only
+      // appears in pre-filter-era or corrupt save files; left as-is it maps below
+      // FILTER_MIN_HZ and applyAllFilters() clamps the cutoff to 20 Hz, silencing the
+      // voice. Default such values to fully-open, matching "FILTER_ENABLED opens all
+      // filters at boot". Hardware-safe.
+      for (unsigned int i = 0; i < maxFilters; i++) {
+        if (SMP.filter_knob[i] < 1 || SMP.filter_knob[i] > maxfilterResolution)
+          SMP.filter_knob[i] = maxfilterResolution;
       }
     }
     loadFile.close();
