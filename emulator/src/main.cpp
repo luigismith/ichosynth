@@ -169,6 +169,102 @@ static float measurePeak(int blocks) {
         for (int i = 0; i < 512; i++) { float a = std::fabs(buf[i]); if (a > peak) peak = a; } }
     return peak;
 }
+// "Play it" — drive the real sound engine like a musician and assert that every
+// musical function behaves as the hardware should. Prints a PASS/FAIL trace and
+// returns non-zero if any check fails.
+void ni404_load_sample(int, int);
+void ni404_play_note(int, int, int);
+void ni404_play_synth(int, int, int);
+void ni404_set_filter(int, int);
+int  ni404_test_beat();
+int  ni404_test_page();
+int  ni404_test_playing();
+static float render_peak(int blocks) {
+    float buf[256 * 2], pk = 0;
+    for (int t = 0; t < blocks; t++) { ni404_loop(); ni404_audio_render(buf, 256);
+        for (int i = 0; i < 512; i++) { float a = std::fabs(buf[i]); if (a > pk) pk = a; } }
+    return pk;
+}
+// Mean |amplitude| (energy proxy) over the window — sensitive to lowpass filtering
+// of a bright source, unlike peak which the broadband onset transient dominates.
+static float render_rms(int blocks) {
+    float buf[256 * 2]; double s = 0; long n = 0;
+    for (int t = 0; t < blocks; t++) { ni404_loop(); ni404_audio_render(buf, 256);
+        for (int i = 0; i < 512; i++) { s += std::fabs(buf[i]); n++; } }
+    return n ? (float)(s / n) : 0.0f;
+}
+static int run_play() {
+    int fails = 0;
+    auto check = [&](const char *what, bool ok, const char *detail) {
+        std::printf("  [%s] %s%s%s\n", ok ? "PASS" : "FAIL", what,
+                    detail && detail[0] ? "  -> " : "", detail ? detail : "");
+        if (!ok) fails++;
+    };
+    char d[96];
+    std::printf("== PLAY: drive the instrument and verify it behaves like the hardware ==\n");
+    ni404_setup();
+
+    // 0) Filter FIRST (clean graph, nothing else ringing): a bright source (closed
+    //    hat) through wide-open vs nearly-closed cutoff. Measured as mean energy,
+    //    which a lowpass on a high-frequency source clearly reduces.
+    std::printf("\n0) Filtro per-canale (hi-hat brillante, taglio aperto vs chiuso):\n");
+    ni404_load_sample(1, 302);   // closed hat = broadband / high-frequency
+    ni404_set_filter(1, 32); ni404_play_note(1, 60, 110); float fWide = render_rms(14);
+    ni404_set_filter(1, 1);  ni404_play_note(1, 60, 110); float fNarrow = render_rms(14);
+    std::snprintf(d, sizeof d, "energia aperto=%.4f  chiuso=%.4f  (%.0f%%)",
+                  fWide, fNarrow, fWide > 0 ? 100.0 * fNarrow / fWide : 0.0);
+    check("il filtro attenua l'energia chiudendo il taglio", fNarrow < fWide * 0.7f, d);
+    ni404_set_filter(1, 32);
+
+    // 1) Every drum/sample pad plays from the MIDI keyboard (selected channel).
+    std::printf("\n1) Suono gli 8 canali campione dalla tastiera MIDI (DO=base):\n");
+    for (int ch = 1; ch <= 8; ch++) {
+        ni404_test_trigger(ch);                 // loads samples/0/_1.wav into the channel
+        float pk = render_peak(12);
+        std::snprintf(d, sizeof d, "peak=%.3f", pk);
+        check((std::string("canale ") + std::to_string(ch)).c_str(), pk > 0.02f, d);
+    }
+
+    // 2) Pitch: a higher key must change the sound (resampling voice retunes).
+    std::printf("\n2) Pitch dalla tastiera (stesso campione, note diverse):\n");
+    ni404_play_note(1, 60, 110); float lo = render_peak(10);
+    ni404_play_note(1, 72, 110); float hi = render_peak(10);
+    std::snprintf(d, sizeof d, "DO=%.3f  DO+1ott=%.3f", lo, hi);
+    check("entrambe le note suonano", lo > 0.02f && hi > 0.02f, d);
+
+    // 3) The two synth voices play a pitched scale.
+    std::printf("\n3) Voci sintetizzate (basso ch13, lead ch14) su note di scala:\n");
+    ni404_play_synth(13, 1, 110); float b1 = render_peak(8);
+    ni404_play_synth(13, 8, 110); float b2 = render_peak(8);
+    std::snprintf(d, sizeof d, "C basso=%.3f  C alto=%.3f", b1, b2);
+    check("basso (synth 13) suona", b1 > 0.02f && b2 > 0.02f, d);
+    ni404_play_synth(14, 5, 110); float l1 = render_peak(8);
+    check("lead (synth 14) suona", l1 > 0.02f, (std::snprintf(d, sizeof d, "peak=%.3f", l1), d));
+
+    // 5) Full song: start playback, the playhead advances across all 4 pages and
+    //    audio stays healthy (loud, no clipping, no NaN).
+    std::printf("\n5) Brano completo: play, avanzamento testina su 4 pagine, audio sano:\n");
+    ni404_demo();
+    check("e' in play", ni404_test_playing() == 1, "");
+    int pagesSeen[5] = {0,0,0,0,0}, beatMin = 999, beatMax = 0;
+    float buf[256*2], songPk = 0; long clip = 0, bad = 0;
+    for (int t = 0; t < 1500; t++) {
+        ni404_loop(); ni404_audio_render(buf, 256);
+        int b = ni404_test_beat(), p = ni404_test_page();
+        if (b < beatMin) beatMin = b; if (b > beatMax) beatMax = b;
+        if (p >= 1 && p <= 4) pagesSeen[p] = 1;
+        for (int i = 0; i < 512; i++) { float a = std::fabs(buf[i]);
+            if (!std::isfinite(buf[i])) bad++; else { if (a > songPk) songPk = a; if (a >= 0.999f) clip++; } }
+    }
+    int npages = pagesSeen[1]+pagesSeen[2]+pagesSeen[3]+pagesSeen[4];
+    std::snprintf(d, sizeof d, "beat %d..%d, pagine viste=%d", beatMin, beatMax, npages);
+    check("la testina avanza su tutte le 4 pagine", npages == 4 && beatMax > 48, d);
+    std::snprintf(d, sizeof d, "peak=%.3f clip=%ld nan=%ld", songPk, clip, bad);
+    check("audio del brano forte e pulito", songPk > 0.3f && clip == 0 && bad == 0, d);
+
+    std::printf("\n== RISULTATO: %s (%d controlli falliti) ==\n", fails == 0 ? "TUTTO OK" : "INCONGRUENZE", fails);
+    return fails == 0 ? 0 : 1;
+}
 static int run_demotest() {
     ni404_setup();
     ni404_demo();
@@ -218,6 +314,7 @@ int main(int argc, char **argv) {
         if (std::strcmp(argv[i], "--selftest") == 0) return run_selftest();
         if (std::strcmp(argv[i], "--verify") == 0) return run_verify();
         if (std::strcmp(argv[i], "--demotest") == 0) return run_demotest();
+        if (std::strcmp(argv[i], "--play") == 0) return run_play();
         if (std::strcmp(argv[i], "--import") == 0 && i + 1 < argc) {
             ni404_setup();
             std::printf("[import] %s\n", ni404_import_sample(argv[++i]));

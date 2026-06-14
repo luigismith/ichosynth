@@ -55,6 +55,15 @@ void ni404_loop()  { loop(); ni404_pump_timers(); toern_oled_update(); }
 void ni404_test_trigger(int) {}
 int  ni404_test_sample_len(int) { return 0; }
 void ni404_demo() {}   // demo song is implemented for the NI404 build (ni404emu)
+// "play it" hooks are NI404-specific; no-op stubs keep the toern target linking.
+void ni404_load_sample(int, int) {}
+void ni404_play_note(int, int, int) {}
+void ni404_play_synth(int, int, int) {}
+void ni404_set_filter(int, int) {}
+int  ni404_test_beat()    { return 0; }
+int  ni404_test_page()    { return 0; }
+int  ni404_test_playing() { return 0; }
+int  ni404_test_bpm()     { return 0; }
 
 // Drag-and-drop sample loader (toern build): convert the dropped WAV to the kit
 // format and install it on the virtual SD under folder 9 (_900.._999). toern's

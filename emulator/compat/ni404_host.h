@@ -45,6 +45,15 @@ void ni404_set_base_dir(const char *dir);
 void ni404_test_trigger(int channel);    // play channel's sample like a MIDI note
 int  ni404_test_sample_len(int channel); // loaded sample length in bytes (0 = none)
 
+// ---- "play it" hooks: drive the real sound engine for verification ---------
+void ni404_play_note(int channel, int pitch, int vel);  // sample ch 1..8, pitch 60=base
+void ni404_play_synth(int voice, int row, int vel);     // synth 13/14 at pianoFrequencies[row]
+void ni404_set_filter(int channel, int knob);           // cutoff knob 1..32
+int  ni404_test_beat();
+int  ni404_test_page();
+int  ni404_test_playing();
+int  ni404_test_bpm();
+
 // ---- demo: load the kit, paint a beat, and start playing -------------------
 void ni404_demo();
 

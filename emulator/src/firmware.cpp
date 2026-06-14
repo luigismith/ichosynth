@@ -70,6 +70,40 @@ const char *ni404_import_sample(const char *srcPath) {
     return status;
 }
 
+// ---- "play it" verification hooks (drive the real sound engine) ------------
+// Load a kit sample id (e.g. 302 = closed hat) into a channel.
+void ni404_load_sample(int channel, int id) {
+    if (channel < 1 || channel > 8) return;
+    SMP.currentChannel = (unsigned int)channel; SMP.seek = 0; SMP.seekEnd = 0;
+    loadSample(0, id);
+    SMP.mute[channel] = false;
+}
+// Play a sample channel (1..8) like a MIDI keyboard note (pitch 60 = base).
+void ni404_play_note(int channel, int pitch, int vel) {
+    if (channel < 1 || channel > 8) return;
+    SMP.y = (unsigned int)(channel + 1);   // handleNoteOn plays _samplers[SMP.y-1]
+    handleNoteOn(1, (uint8_t)pitch, (uint8_t)vel);
+}
+// Play a synth voice (13 or 14) at pianoFrequencies[row] (row 1..16).
+void ni404_play_synth(int voice, int row, int vel) {
+    if (row < 1 || row > 16) return;
+    float amp = mapf(vel, 1, 127, 0.0, 1.0);
+    if (voice == 13) { sound13.frequency(pianoFrequencies[(row - 1) & 15] / 2.0f); sound13.amplitude(amp); envelope13.noteOn(); }
+    else if (voice == 14) { sound14.frequency(pianoFrequencies[row & 15] / 2.0f); sound14.amplitude(amp); envelope14.noteOn(); }
+    startTime = millis(); noteOnTriggered = true;
+}
+// Set a channel's filter cutoff knob (1..maxfilterResolution) and apply it.
+void ni404_set_filter(int channel, int knob) {
+    if (channel < 1 || channel >= (int)maxFilters) return;
+    if (knob < 1) knob = 1; if (knob > (int)maxfilterResolution) knob = (int)maxfilterResolution;
+    SMP.filter_knob[channel] = (unsigned int)knob;
+    applyFilter((unsigned int)channel);
+}
+int  ni404_test_beat()    { return (int)beat; }
+int  ni404_test_page()    { return (int)SMP.page; }
+int  ni404_test_playing() { return isPlaying ? 1 : 0; }
+int  ni404_test_bpm()     { return (int)SMP.bpm; }
+
 void ni404_setup() {
     setup();
 }
