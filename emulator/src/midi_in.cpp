@@ -64,7 +64,11 @@ void ni404_midi_close() {
 }
 
 // ===========================================================================
-#elif defined(__APPLE__)
+// CoreMIDI only under Clang: Apple's CoreMIDI/CoreFoundation headers declare
+// block (^) APIs that Homebrew GCC cannot parse, and the firmware needs GCC's
+// -fpermissive. So a GCC macOS build falls through to the no-MIDI stub below
+// (keyboard + audio + drag-drop samples still work); a Clang build keeps CoreMIDI.
+#elif defined(__APPLE__) && defined(__clang__)
 #include <CoreMIDI/CoreMIDI.h>
 
 static MIDIClientRef g_client = 0;
