@@ -64,6 +64,11 @@ int  ni404_test_beat()    { return 0; }
 int  ni404_test_page()    { return 0; }
 int  ni404_test_playing() { return 0; }
 int  ni404_test_bpm()     { return 0; }
+int  ni404_test_cursor_x()  { return 0; }
+int  ni404_test_cursor_y()  { return 0; }
+int  ni404_test_edit_page() { return 0; }
+const char *ni404_test_mode() { return ""; }
+int  ni404_test_note_at(int, int) { return 0; }
 
 // Drag-and-drop sample loader (toern build): convert the dropped WAV to the kit
 // format and install it on the virtual SD under folder 9 (_900.._999). toern's

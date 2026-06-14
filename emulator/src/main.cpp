@@ -179,6 +179,11 @@ void ni404_set_filter(int, int);
 int  ni404_test_beat();
 int  ni404_test_page();
 int  ni404_test_playing();
+int  ni404_test_cursor_x();
+int  ni404_test_cursor_y();
+int  ni404_test_edit_page();
+const char *ni404_test_mode();
+int  ni404_test_note_at(int step, int row);
 static float render_peak(int blocks) {
     float buf[256 * 2], pk = 0;
     for (int t = 0; t < blocks; t++) { ni404_loop(); ni404_audio_render(buf, 256);
@@ -203,6 +208,41 @@ static int run_play() {
     char d[96];
     std::printf("== PLAY: drive the instrument and verify it behaves like the hardware ==\n");
     ni404_setup();
+
+    // 6) Editing workflow FIRST (clean boot grid, stopped): move the grid cursor
+    //    with the encoders and place notes with the centre button (the real paint()
+    //    path), then read the grid back. (Run before the demo, which fills the grid.)
+    std::printf("\n* Editing dalla griglia (encoder = cursore, pulsante centro = piazza):\n");
+    auto tick = [&](int n){ for (int i = 0; i < n; i++) ni404_loop(); };
+    tick(2);
+    std::snprintf(d, sizeof d, "modo=%s", ni404_test_mode());
+    check("avvio in un modo di editing (DRAW)", std::strcmp(ni404_test_mode(), "DRAW") == 0, d);
+    // ENC_LEFT = row (SMP.y), ENC_CENTER = column (SMP.x); ENC_RIGHT = page.
+    int x0 = ni404_test_cursor_x(), y0 = ni404_test_cursor_y();
+    ni404_host_encoder_add(ENC_CENTER, 12); tick(3);
+    ni404_host_encoder_add(ENC_LEFT, 12);   tick(3);
+    int xm = ni404_test_cursor_x(), ym = ni404_test_cursor_y();
+    std::snprintf(d, sizeof d, "X %d->%d, Y %d->%d (1..16)", x0, xm, y0, ym);
+    check("il cursore si muove (X e Y) e resta nei limiti",
+          xm >= 1 && xm <= 16 && ym >= 1 && ym <= 16 && xm != x0 && ym != y0, d);
+    for (int t = 0; t < 40; t++) { int y = ni404_test_cursor_y(); if (y >= 2 && y <= 10) break;
+        ni404_host_encoder_add(ENC_LEFT, 4); tick(2); }
+    int erow = ni404_test_cursor_y(), eedit = ni404_test_edit_page();
+    int placed = 0, got[3] = {-9,-9,-9};
+    for (int k = 0; k < 3; k++) {
+        ni404_host_encoder_add(ENC_CENTER, 8); tick(4);    // move to a new column
+        int cx = ni404_test_cursor_x();
+        // A button gesture is only acted on ~80 ms after it changes (the firmware's
+        // reset-timer fires checkMode() then clears the buttons), so HOLD centre
+        // ~110 ms (>80 ms to register, <300 ms so it stays a tap, not a long-press).
+        ni404_host_button_set(BTN_C, true);  tick(24);     // press centre -> paint()
+        ni404_host_button_set(BTN_C, false); tick(4);      // release
+        got[k] = ni404_test_note_at((eedit - 1) * 16 + cx, erow);
+        if (got[k] == erow - 1) placed++;
+    }
+    std::snprintf(d, sizeof d, "riga %d (canale %d): piazzate %d/3 (note lette %d,%d,%d, atteso %d)",
+                  erow, erow - 1, placed, got[0], got[1], got[2], erow - 1);
+    check("piazzo note sulla griglia col pulsante centrale", placed == 3, d);
 
     // 0) Filter FIRST (clean graph, nothing else ringing): a bright source (closed
     //    hat) through wide-open vs nearly-closed cutoff. Measured as mean energy,

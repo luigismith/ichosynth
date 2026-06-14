@@ -103,6 +103,15 @@ int  ni404_test_beat()    { return (int)beat; }
 int  ni404_test_page()    { return (int)SMP.page; }
 int  ni404_test_playing() { return isPlaying ? 1 : 0; }
 int  ni404_test_bpm()     { return (int)SMP.bpm; }
+// Editing state read-back (the grid-cursor + placed notes the firmware sees).
+int  ni404_test_cursor_x()  { return (int)SMP.x; }
+int  ni404_test_cursor_y()  { return (int)SMP.y; }
+int  ni404_test_edit_page() { return (int)SMP.edit; }
+const char *ni404_test_mode() { static std::string s; s = currentMode->name.c_str(); return s.c_str(); }
+int  ni404_test_note_at(int step, int row) {
+    if (step < 1 || step >= (int)maxlen || row < 1 || row > (int)maxY) return -1;
+    return (int)note[step][row][0];
+}
 
 void ni404_setup() {
     setup();
