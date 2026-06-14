@@ -14,8 +14,10 @@ if ! xcode-select -p >/dev/null 2>&1; then
   xcode-select --install || true
 fi
 
-echo "Installing cmake and SDL2..."
-brew install cmake sdl2
+echo "Installing gcc, cmake, SDL2, dylibbundler..."
+# gcc (not just clang): the firmware needs -fpermissive, which Clang lacks.
+# dylibbundler: makes the built app self-contained (bundles SDL2).
+brew install gcc cmake sdl2 dylibbundler
 
 echo ""
-echo "Toolchain ready. Now build with:  ./build.sh"
+echo "Toolchain ready. Build a ready-to-run app with:  ./mac-build.sh"

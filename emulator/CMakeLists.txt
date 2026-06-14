@@ -70,6 +70,11 @@ if(WIN32 AND CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
   target_link_options(ni404emu PRIVATE
     -static-libgcc -static-libstdc++ -Wl,-Bstatic -lwinpthread -Wl,-Bdynamic)
 endif()
+# On macOS with Homebrew GCC, statically link the GCC runtime so the binary does
+# not depend on Homebrew's libstdc++/libgcc dylibs (only SDL2 is bundled).
+if(APPLE AND CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+  target_link_options(ni404emu PRIVATE -static-libgcc -static-libstdc++)
+endif()
 
 # ===========================================================================
 # TŒRN emulator target — runs the real toern firmware (emulator/toern-src/).
@@ -113,5 +118,8 @@ if(EXISTS "${TOERN_SRC}/toern.ino")
     endif()
   elseif(APPLE)
     target_link_libraries(toernemu PRIVATE "-framework CoreMIDI" "-framework CoreFoundation")
+    if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+      target_link_options(toernemu PRIVATE -static-libgcc -static-libstdc++)
+    endif()
   endif()
 endif()

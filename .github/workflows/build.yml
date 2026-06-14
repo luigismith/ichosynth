@@ -24,19 +24,26 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install toolchain (SDL2 + dylibbundler)
-        run: brew install sdl2 dylibbundler
+      - name: Install toolchain (GCC + SDL2 + dylibbundler)
+        # GCC, not Clang: the firmware compiles with -fpermissive (assigns to a
+        # const String[] element, etc.) which Clang has no equivalent for.
+        run: brew install gcc sdl2 dylibbundler
 
       - name: Fetch TŒRN source (optional second target)
         continue-on-error: true
         run: git clone --depth 1 https://github.com/soundpauli/toern.git emulator/toern-src
 
-      - name: Configure
-        run: >
-          cmake -S emulator -B emulator/build
-          -DCMAKE_BUILD_TYPE=Release
-          -DCMAKE_PREFIX_PATH="$(brew --prefix sdl2)"
-          -DNI404_SDCARD_PATH=_SDCARD
+      - name: Configure (Homebrew GCC)
+        run: |
+          GXX="$(ls "$(brew --prefix)"/bin/g++-* | sort -V | tail -n1)"
+          GCC="${GXX/g++/gcc}"
+          echo "Using C++ compiler: $GXX"
+          cmake -S emulator -B emulator/build \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_C_COMPILER="$GCC" \
+            -DCMAKE_CXX_COMPILER="$GXX" \
+            -DCMAKE_PREFIX_PATH="$(brew --prefix sdl2)" \
+            -DNI404_SDCARD_PATH=_SDCARD
 
       - name: Build ni404emu
         run: cmake --build emulator/build --target ni404emu -j3
@@ -82,7 +89,8 @@ jobs:
   windows:
     runs-on: windows-latest
     defaults:
-      run: { shell: msys2 {0} }
+      run:
+        shell: msys2 {0}
     steps:
       - uses: actions/checkout@v4
 
