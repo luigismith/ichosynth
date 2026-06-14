@@ -53,7 +53,12 @@ cp "$build/ni404emu" "$dist/"
 [ -f "$root/playable-2026-06-13/midi-map.txt" ] && cp "$root/playable-2026-06-13/midi-map.txt" "$dist/" || true
 
 for b in "$dist"/ni404emu "$dist"/toernemu; do
-  [ -f "$b" ] && dylibbundler -od -b -x "$b" -d "$dist/libs" -p @executable_path/libs/ || true
+  [ -f "$b" ] || continue
+  dylibbundler -od -b -x "$b" -d "$dist/libs" -p @executable_path/libs/ || true
+  # dylibbundler can add the @executable_path/libs/ rpath once per relocated
+  # dependency; duplicate LC_RPATH entries make dyld abort. Collapse to one.
+  while install_name_tool -delete_rpath @executable_path/libs/ "$b" 2>/dev/null; do :; done
+  install_name_tool -add_rpath @executable_path/libs/ "$b"
 done
 
 # Ship the sample card next to the binary (it looks for ./_SDCARD at runtime).

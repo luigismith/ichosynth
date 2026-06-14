@@ -63,7 +63,11 @@ jobs:
           # Bundle the SDL2 dylib next to the binaries so no brew install is needed.
           mkdir -p "$DIST/libs"
           for b in "$DIST"/ni404emu "$DIST"/toernemu; do
-            [ -f "$b" ] && dylibbundler -od -b -x "$b" -d "$DIST/libs" -p @executable_path/libs/ || true
+            [ -f "$b" ] || continue
+            dylibbundler -od -b -x "$b" -d "$DIST/libs" -p @executable_path/libs/ || true
+            # collapse duplicate LC_RPATH entries dylibbundler may add (dyld aborts on dupes)
+            while install_name_tool -delete_rpath @executable_path/libs/ "$b" 2>/dev/null; do :; done
+            install_name_tool -add_rpath @executable_path/libs/ "$b"
           done
           # Ship the sample card alongside (the binary looks for ./_SDCARD).
           cp -R _SDCARD "$DIST/_SDCARD"
