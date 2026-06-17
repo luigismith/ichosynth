@@ -222,6 +222,7 @@ flowchart TD
 | `HAS_ENCODER4` | `1` | **questa build = 4 encoder**; il 4° fa filtro/volume/seek. `0` = vecchia build a 3 encoder |
 | `BUTTONS3_ENABLED` | `1` | i 3 pulsanti PLAY/MENU/REC (pin 24/25/26) |
 | `RECORD_ENABLED` | `1` | registrazione dal vivo (tieni REC): ingresso codec → campione sul canale |
+| `BITCRUSH_ENABLED` | `1` | bitcrusher per-voce sulle 8 voci campione (1° effetto TŒRN; default bypass) |
 | `FILTER_ENABLED` | `1` | lowpass per voce sul **4° encoder** (gira = cutoff); `0` = suono identico all'originale |
 
 ---

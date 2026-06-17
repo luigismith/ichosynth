@@ -195,7 +195,20 @@ below verified by driving the live window (screenshot + synthetic mouse/keyboard
 - **Single build**: only `ni404emu` (ichosynth) by default; `toernemu` behind
   `EMU_BUILD_TOERN_REF=ON`.
 
+### DONE (2026-06-17) — 4-encoder filter + first TŒRN effect (bitcrusher)
+- **4 encoders** (`HAS_ENCODER4 1`, 4th on pins 32/33/41): the 4th is contextual —
+  in DRAW/SINGLE it's the **fast filter** (turn = lowpass cutoff of the cursor voice,
+  no button; auto-syncs per voice), volume in VOLUME/BPM, seek in the browser. The
+  standalone filter button is gone; emulator panel is now **4 encoders + 3 buttons**.
+  Verified via `--play`: closing the 4th encoder drops hi-hat energy to ~2%.
+- **Per-voice bitcrusher** (`BITCRUSH_ENABLED`) on the 8 sample voices, inserted
+  filterN→crushN→mixer (default bypass; `AudioMemory` bumped to 96). Verified via
+  `--play`: a crushed voice's signal clearly differs from clean; all 8 channels still
+  sound. Engine + `ni404_set_crush()` hook in; **on-device control = the FX MODE (next)**.
+
 ### Still open
+- **FX MODE** (the deferred filter/fx UI) to control crush (+ resonance, filter type,
+  future reverb/ladder) — currently crush has no on-device control (no free encoder).
 - Save a recorded take to the SD (persist past restart) + optional count-in.
 - ogg/aiff import (needs stb_vorbis / an AIFF parser).
 - Mac build of the new sources (CI covers it; not run locally).
