@@ -177,5 +177,14 @@ pure vertical flip; column de-serpentine unchanged (x already correct). Applies 
 both targets (shared main.cpp; NI404 is a toern fork, same panel wiring).
 
 ## NEXT (lower priority / needs the GUI or hardware)
-- Recording (mic/line-in via SDL audio capture) + granular (still stubs).
+- Granular (still a stub).
 - Optional 32x16 view; quiet toern Serial debug spam (firmware prints to stdout).
+
+## UPDATE (2026-06-16)
+- `toernemu` is now a **reference-only target**, OFF by default — build with
+  `-DEMU_BUILD_TOERN_REF=ON` after cloning `emulator/toern-src/`. Development focuses
+  on **ichosynth** (`ni404emu`).
+- The **SDL audio capture** backend (`src/audio_capture.cpp`) added for ichosynth's
+  recording also drives toern's `AudioRecordQueue` shim (so toern recording would
+  capture real input too). `firmware_toern.cpp` carries stubs for the new SD/recording
+  hooks so the reference target still links.

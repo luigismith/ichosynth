@@ -10,7 +10,7 @@ Disegni la musica su una griglia di LED RGB 16×16 con **tre manopole rotative**
 
 [![Licenza: MIT](https://img.shields.io/badge/License-MIT-2ea44f.svg)](#-licenza)
 [![Piattaforma: Teensy 4.1](https://img.shields.io/badge/Platform-Teensy%204.1-ee6611.svg)](https://www.pjrc.com/store/teensy41.html)
-[![Build: 3 encoder](https://img.shields.io/badge/Build-3%20encoders-orange.svg)](#-come-si-collega)
+[![Build: 4 encoder + 3 pulsanti](https://img.shields.io/badge/Build-4%20encoders%20%2B%203%20buttons-orange.svg)](#-come-si-collega)
 [![ICHOS 2026 · Taranto](https://img.shields.io/badge/ICHOS%202026-Taranto-E83AA6.svg)](#-parte-del-progetto-ichos)
 [![Fork di: NI404](https://img.shields.io/badge/Fork%20of-NI404%20by%20SP__-blueviolet.svg)](#-crediti--progetto-originale)
 [![Manuali: Italiano](https://img.shields.io/badge/Manuali-🇮🇹%20Italiano-008C45.svg)](#-manuali--manuali-italiano)
@@ -18,10 +18,10 @@ Disegni la musica su una griglia di LED RGB 16×16 con **tre manopole rotative**
 </div>
 
 > **Cos'è?** `ichosynth` è un **fork** amichevole di **[NI404](#-crediti--progetto-originale)** di **SP_ (soundpauli)**,
-> cablato come **build a 3 encoder**. Rispetto al progetto originale aggiunge un **OLED di stato** opzionale, la **sincronizzazione
-> come master del MIDI clock**, una **configurazione hardware** in un unico file, uno **schema di controllo a 3 encoder** pienamente
-> suonabile (i gesti della 4ª manopola rimappati sui tre pulsanti) e **manuali adatti ai principianti in inglese e italiano**.
-> Le funzioni OLED e MIDI clock sono **opzionali e disattivate di default**.
+> cablato come **build a 4 encoder + 3 pulsanti**. Rispetto al progetto originale aggiunge un **OLED di stato** opzionale, la
+> **sincronizzazione come master del MIDI clock**, una **configurazione hardware** in un unico file, il **filtro lowpass per-voce
+> alla TŒRN** sul 4° encoder, la **registrazione** dal vivo (tieni REC), un **emulatore desktop** per provarlo senza hardware, e
+> **manuali per principianti in inglese e italiano**. Le funzioni OLED, MIDI clock e registrazione sono configurabili in `config.h`.
 
 ---
 
@@ -65,14 +65,16 @@ culmina in un **documentario sonoro** di **Roberta Trani**, in anteprima al **Vi
 | Mappa pin e flag delle funzioni | sparsi nello sketch | 🆕 **un solo file** → [`config.h`](config.h) |
 | Display di stato | — | 🆕 **HUD OLED** (SSD1306 128×64) — *opzionale* |
 | MIDI clock | solo slave | 🆕 **sync come master** (24 PPQN Start/Clock/Stop) — *opzionale* |
-| Build a 3 encoder | parziale (solo rotazione) | 🆕 **pienamente suonabile**: Play/Pause, Volume/BPM, Menu e Note-Shift rimappati su 3 pulsanti |
-| Filtro lowpass per voce | in catena ma non controllato | 🆕 **completato**: cutoff con un gesto a 1 pulsante + manopola CENTRALE (mutuato da TOERN, MIT) |
+| 4 encoder + 3 pulsanti | 4° encoder parziale | 🆕 **PLAY/MENU/REC** su 3 pulsanti; il 4° encoder fa filtro/volume/seek |
+| Filtro lowpass per voce | in catena ma non controllato | 🆕 **completato**, alla TŒRN: gira il **4° encoder** = cutoff della voce sotto il cursore (mutuato da TŒRN, MIT) |
+| Registrazione dal vivo | — | 🆕 tieni **REC** → registra dall'ingresso del codec nel canale (`AudioInputI2S`+`AudioRecordQueue`) |
+| Emulatore desktop | — | 🆕 esegue il firmware reale su PC/Mac (`emulator/`), con comandi touch a schermo |
 | Documentazione | README in inglese | 🆕 **manuali italiani di costruzione + uso** (`.md` + `.pdf`) |
 
-> 🎛️ **Questa è una build a 3 encoder** (`HAS_ENCODER4 0`). La modalità a 3 encoder del progetto originale rimappava solo la
-> *rotazione* (volume → manopola sinistra), lasciando Play/Pause, Volume/BPM, Menu e Note-Shift sul 4° pulsante
-> mancante. Questo fork rimappa quei gesti sui tre pulsanti disponibili, così lo strumento è
-> pienamente suonabile con tre manopole. Imposta `HAS_ENCODER4 1` per ripristinare il layout originale a 4 encoder.
+> 🎛️ **Questa è una build a 4 encoder + 3 pulsanti** (`HAS_ENCODER4 1`). Il 4° encoder è contestuale
+> (filtro in DRAW/SINGLE, volume in VOLUME/BPM, seek nel browser); PLAY/MENU/REC stanno su tre tact switch.
+> Imposta `HAS_ENCODER4 0` per la vecchia build a 3 encoder (gesti della 4ª manopola rimappati sui tre
+> pulsanti degli encoder; nessun controllo filtro dal vivo).
 
 <details>
 <summary><b>📂 File modificati / aggiunti dal fork</b> (clicca per espandere)</summary>
@@ -143,12 +145,15 @@ I pin vivono in [`config.h`](config.h) — modifica la build per una variante ha
 | Encoder **sinistro** (CLK / DT / btn) | `5` / `22` / `15` | `ENC_LEFT_*`, `BTN_LEFT` |
 | Encoder **centrale** (CLK / DT / btn) | `9` / `14` / `16` | `ENC_MIDL_*`, `BTN_MIDL` |
 | Encoder **destro** (CLK / DT / btn) | `4` / `2` / `3` | `ENC_RIGHT_*`, `BTN_RIGHT` |
+| Encoder **4°** (CLK / DT / btn) | `32` / `33` / `41` | `ENC_MIDR_*`, `BTN_MIDR` |
+| 🆕 **3 pulsanti** PLAY / MENU / REC | `24` / `25` / `26` | `BTN_SW1/2/3` |
 | Bus I2C (codec **+ 🆕 OLED**) | `SDA 18` / `SCL 19` | `Wire` condiviso |
-| ~~4° encoder~~ *(non montato)* | `99` / `99` / `99` | `ENC_MIDR_*`, `BTN_MIDR` |
 
-> 🎛️ Questa build usa **3 encoder** (`HAS_ENCODER4 0`): sinistro, centrale, destro. Il volume è sulla manopola
-> **sinistra**, il BPM sulla manopola **centrale**. I pin del 4° encoder sono impostati a `99` (inutilizzati). Per costruire la
-> variante completa a 4 encoder, imposta `HAS_ENCODER4 1` e ripristina i pin reali `ENC_MIDR_*`/`BTN_MIDR`.
+> 🎛️ Questa build usa **4 encoder** (`HAS_ENCODER4 1`) + **3 pulsanti** (PLAY/MENU/REC).
+> Il **4° encoder è contestuale**: in DRAW/SINGLE regola il **filtro** (cutoff lowpass)
+> della voce sotto il cursore — alla TŒRN, *gira e basta*, senza pulsante dedicato — e in
+> VOLUME/BPM imposta il volume. Tieni **REC** per **registrare** un campione dall'ingresso
+> del codec. (Per la vecchia build a 3 encoder: `HAS_ENCODER4 0`.)
 > Il cablaggio completo passo-passo è nel [manuale di costruzione](MANUALE_COSTRUZIONE.md).
 
 ---
@@ -214,8 +219,10 @@ flowchart TD
 | `OLED_FPS` | `15` | refresh massimo del display (sicuro per l'audio) |
 | `MIDI_CLOCK_OUT_ENABLED` | `0` | emette il MIDI clock come master |
 | `EXTERNAL_CLOCK_TIMEOUT_MS` | `750` | finestra di rilevamento del clock esterno |
-| `HAS_ENCODER4` | `0` | **questa build = 3 encoder**; `1` = layout originale a 4 encoder |
-| `FILTER_ENABLED` | `1` | lowpass per voce sul pulsante FILTRO (pin 41); `0` = suono identico all'originale |
+| `HAS_ENCODER4` | `1` | **questa build = 4 encoder**; il 4° fa filtro/volume/seek. `0` = vecchia build a 3 encoder |
+| `BUTTONS3_ENABLED` | `1` | i 3 pulsanti PLAY/MENU/REC (pin 24/25/26) |
+| `RECORD_ENABLED` | `1` | registrazione dal vivo (tieni REC): ingresso codec → campione sul canale |
+| `FILTER_ENABLED` | `1` | lowpass per voce sul **4° encoder** (gira = cutoff); `0` = suono identico all'originale |
 
 ---
 

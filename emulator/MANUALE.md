@@ -5,12 +5,12 @@ Emulatore desktop (Windows e macOS) del sequencer/sampler **SP_ NI404** (Teensy 
 logica che gira sull'hardware, ma sul computer, con la griglia LED 16×16, il display
 OLED, l'audio e i controlli su tastiera/mouse e controller MIDI.
 
-Sono inclusi **due programmi**:
+Si sviluppa **un solo programma**, **ichosynth** (il nostro ibrido):
 
 | Programma | Cosa esegue |
 |---|---|
-| `ni404emu` | Il firmware **NI404** (il tuo fork) + il display OLED SSD1306 |
-| `toernemu` | Il firmware **TŒRN** completo + HUD OLED |
+| `ni404emu` | Il firmware **ichosynth** (`soundpauli_ni404.ino`) + display OLED SSD1306 — **questo è il build di default** |
+| `toernemu` | Il firmware **TŒRN** originale — solo come **riferimento di studio**, NON compilato di default (vedi §10) |
 
 ---
 
@@ -43,34 +43,47 @@ Il binario macOS va generato su un Mac (vedi §10). Una volta compilato:
 
 - **In alto**: la **griglia LED 16×16** (la stessa matrice WS2812 dell'hardware).
   Mostra il pattern del sequencer, i numeri, i menu del firmware.
-- **In basso**: il **display OLED 128×64** (lo status HUD: modo corrente, BPM,
-  volume, velocity, pagina, play/stop).
+- **Al centro**: il **display OLED 128×64** (status HUD: modo, BPM, volume,
+  velocity, pagina, play/stop/**\*REC\***). È piccolo e centrato, in proporzione
+  realistica rispetto alla matrice (il modulo 0,96" reale è minuscolo).
+- **In basso**: il **pannello comandi a schermo** — 4 **manopole** (E1–E4) e
+  **3 pulsanti** (**PLAY / MENU / REC**) — usabili con **mouse o dito** (vedi §3),
+  così su un dispositivo touch la simulazione è realistica. *(Il filtro è sulla
+  rotazione del 4° encoder, alla TŒRN: niente pulsante dedicato.)*
 
 L'orientamento della griglia rispecchia il pannello fisico (riga 1 in basso).
 
 ---
 
-## 3. Controlli da tastiera del PC
+## 3. Controlli
 
-I 4 encoder, i loro pulsanti e gli ingressi extra sono mappati sulla tastiera:
+### A schermo (mouse / touch) — pannello in basso
+- **Manopole E1–E4**:
+  - **trascina sul bordo (anello)** = **ruota** (solo rotazione); l'indicatore gira.
+  - **premi al centro** = premi il pulsante dell'encoder.
+  - **premi al centro e trascina** = tieni premuto **e** ruoti insieme (gesto
+    "premi + ruota" in un colpo). C'è una piccola zona morta al centro così un
+    semplice click non fa ruotare per sbaglio.
+  - rotellina del mouse sopra una manopola = ruota.
+  - in DRAW/SINGLE, la rotazione del **4° encoder (E4)** = **filtro** (cutoff)
+    lowpass della voce sotto il cursore — alla TŒRN, niente pulsante.
+- **Pulsanti**: **PLAY** (play/pausa), **MENU** (entra/esci menu), **REC** (tieni
+  premuto per registrare, vedi §9).
+- Tutto funziona con il **multi-touch** (puoi premere due pulsanti insieme).
+
+### Da tastiera del PC
 
 | Tasto | Funzione |
 |---|---|
-| **Q / A** | Encoder 1 (sinistro) — ruota indietro / avanti |
-| **W / S** | Encoder 2 (centrale) — ruota indietro / avanti |
-| **E / D** | Encoder 3 (destro) — ruota indietro / avanti |
-| **R / F** | Encoder 4 — ruota indietro / avanti |
-| **Z** | Premi encoder 1 |
-| **X** | Premi encoder 2 |
-| **C** | Premi encoder 3 |
-| **V** | Premi encoder 4 |
-| **B** | Pulsante FILTRO (solo NI404) |
-| **1 / 2 / 3** | Touch 1 / 2 / 3 (solo TŒRN) |
+| **Q / A** · **W / S** · **E / D** · **R / F** | Encoder 1 · 2 · 3 · 4 — ruota indietro / avanti |
+| **Z · X · C · V** | Premi encoder 1 · 2 · 3 · 4 |
+| **R / F** | 4° encoder = **filtro** (cutoff) della voce sotto il cursore |
+| **1 / 2 / 3** | Pulsanti **PLAY / MENU / REC** |
 | **TAB** | Apre/chiude il **menu impostazioni** |
 | **Esc** | Esci |
 
-> **Niente reagisce ai tasti?** Clicca prima sulla **finestra grafica**: se il focus
-> è sulla finestra console (quella con i log), la tastiera va lì. Poi ripremi.
+> **Niente reagisce ai tasti?** Clicca prima sulla **finestra grafica** per darle il
+> focus (i click del mouse sui comandi funzionano comunque sempre).
 
 ---
 
@@ -86,13 +99,16 @@ Voci:
 
 | Voce | Cosa fa |
 |---|---|
-| **Audio output** | Sceglie la scheda/uscita audio (← → per scorrere i dispositivi) |
-| **Master volume** | Guadagno d'uscita 0×…64× (alza qui se senti basso) |
-| **Audio input** | Sceglie l'ingresso (per futuri usi di registrazione) |
-| **MIDI input** | Mostra i controller MIDI rilevati |
-| **MIDI map** | Ricorda dove si configura la mappatura (`midi-map.txt`) |
-| **Keyboard** | Legenda dei tasti |
-| **Close** | Chiude il menu |
+| **Uscita audio** | Sceglie la scheda/uscita audio (← → per scorrere i dispositivi) |
+| **Volume** | Guadagno d'uscita 0×…64× (alza qui se senti basso) |
+| **Ingresso audio** | Sceglie il microfono/linea **usato dalla registrazione** (§9) |
+| **Cartella SD** | Mostra il percorso della SD; **Invio** la apre in Esplora file |
+| **Ripristina SD** | **Invio** torna alla cartella SD predefinita (per cambiarla: trascina una cartella sulla finestra) |
+| **Campioni SD** | **Invio** apre il **browser dei campioni** (§9) |
+| **MIDI in** | Mostra i controller MIDI rilevati |
+| **Mappa MIDI** | Ricorda dove si configura la mappatura (`midi-map.txt`) |
+| **Tasti** | Legenda dei tasti |
+| **Chiudi** | Chiude il menu |
 
 Le impostazioni si salvano in **`settings.txt`** accanto all'eseguibile.
 
@@ -200,9 +216,35 @@ _SDCARD/
 - Puoi gestire/creare la struttura con **`wavmaker`** (in `_SDCARD/`).
 - Il kit della demo è generato da `emulator/scripts/gen_samples.cpp`.
 
+### Importare campioni (WAV / MP3 / FLAC)
+**Trascina un file audio nella finestra**: l'emulatore lo **decodifica** (WAV, MP3 o
+FLAC — decoder `dr_libs` integrati, nessuna dipendenza esterna), lo ricampiona a
+**44.1 kHz mono 16-bit** e lo installa sulla SD (cartella `9/`, primo numero libero),
+caricandolo nel canale corrente. I formati non supportati vengono rifiutati con un
+messaggio. *(ogg/aiff non ancora supportati.)*
+
+### Gestire la SD dal menu (TAB)
+- **Cartella SD** → Invio: apre la cartella SD in Esplora file (gestisci i file a mano).
+- **Cambiare cartella SD**: **trascina una cartella** sulla finestra → diventa la SD
+  (i campioni vengono ricaricati). **Ripristina SD** → Invio per tornare alla predefinita.
+- **Campioni SD** → Invio: **browser** che elenca tutti i `_N.wav` sulla SD (ordinati);
+  **↑/↓** per scorrere, **Invio** carica il campione nel **canale corrente**,
+  **Esc/TAB** esce.
+
+### Registrazione (REC)
+Tieni premuto **REC** per registrare dall'**ingresso audio selezionato** (menu TAB →
+Ingresso audio) nel **canale corrente**; **rilascia** per fermare — la registrazione
+diventa subito suonabile su quel canale. Durante la registrazione l'OLED mostra
+**\*REC\***. È portabile: sul Teensy reale usa `AudioInputI2S`+`AudioRecordQueue`
+(ingresso del codec SGTL5000), nell'emulatore cattura dal device d'ingresso.
+*(Per ora la registrazione resta in RAM sul canale; il salvataggio su SD è un passo
+successivo.)*
+
 > **Nota sui salvataggi:** all'avvio il firmware ricarica `autosaved.txt`. Un file di
 > salvataggio vecchio o corrotto con valori di filtro a 0 chiuderebbe i filtri (audio
 > quasi muto): il firmware ora **sanifica** i valori fuori range (filtri riaperti).
+> I file di runtime (`autosaved.txt`, `settings.txt`, `eeprom.bin`, `midi-*.txt`) sono
+> ignorati da git.
 
 ---
 
@@ -224,6 +266,14 @@ $env:PATH="C:\msys64\mingw64\bin;$env:PATH"
 cmake -S emulator -B emulator/build -G "MinGW Makefiles" -DCMAKE_BUILD_TYPE=Release
 cmake --build emulator/build
 ```
+
+> Di default si compila **solo `ichosynth` (`ni404emu`)**. Per compilare anche il
+> riferimento **TŒRN** clona il sorgente e attiva l'opzione:
+> ```
+> git clone --depth 1 https://github.com/soundpauli/toern.git emulator/toern-src
+> cmake -S emulator -B emulator/build -DEMU_BUILD_TOERN_REF=ON
+> cmake --build emulator/build
+> ```
 
 ### macOS (Homebrew + clang)
 ```bash
@@ -264,7 +314,8 @@ ni404emu --demotest    # renderizza l'intero loop della demo e riporta picco/cli
 - Fedeltà DSP **molto vicina ma non campione-per-campione** identica all'hardware
   (filtro SVF, inviluppi, freeverb, voce di resampling sono reimplementazioni).
 - Non è cycle-accurate (timing guidato dal callback audio + loop).
-- Alcune funzioni sono ancora stub (registrazione mic/line-in, granular).
+- La **registrazione** funziona (cattura dall'ingresso → campione sul canale); resta
+  in RAM (salvataggio su SD da fare). Il **granular** di TŒRN è ancora uno stub.
 - Un firmware nuovo della stessa famiglia hardware può richiedere di estendere gli
   shim in `compat/` per le API che usa.
 

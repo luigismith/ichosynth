@@ -10,7 +10,7 @@ You sketch music onto a 16×16 RGB LED grid with **three rotary knobs**. No comp
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-2ea44f.svg)](#-license)
 [![Platform: Teensy 4.1](https://img.shields.io/badge/Platform-Teensy%204.1-ee6611.svg)](https://www.pjrc.com/store/teensy41.html)
-[![Build: 3 encoders](https://img.shields.io/badge/Build-3%20encoders-orange.svg)](#-how-its-wired)
+[![Build: 4 encoders + 3 buttons](https://img.shields.io/badge/Build-4%20encoders%20%2B%203%20buttons-orange.svg)](#-how-its-wired)
 [![ICHOS 2026 · Taranto](https://img.shields.io/badge/ICHOS%202026-Taranto-E83AA6.svg)](#-part-of-the-ichos-project)
 [![Fork of: NI404](https://img.shields.io/badge/Fork%20of-NI404%20by%20SP__-blueviolet.svg)](#-credits--upstream)
 [![Manuali: Italiano](https://img.shields.io/badge/Manuali-🇮🇹%20Italiano-008C45.svg)](#-manuals--manuali-italiano)
@@ -18,10 +18,10 @@ You sketch music onto a 16×16 RGB LED grid with **three rotary knobs**. No comp
 </div>
 
 > **What is this?** `ichosynth` is a friendly **fork of [NI404](#-credits--upstream)** by **SP_ (soundpauli)**,
-> wired as a **3-encoder build**. On top of upstream it adds an optional **status OLED**, **MIDI clock
-> master sync**, a single-file **hardware config**, a fully playable **3-encoder control scheme** (the
-> 4th-knob gestures remapped onto the three buttons), and **beginner-friendly manuals in English & Italian**.
-> The OLED and MIDI-clock features are **opt-in and default to OFF**.
+> wired as a **4-encoder + 3-button build**. On top of upstream it adds an optional **status OLED**, **MIDI clock
+> master sync**, a single-file **hardware config**, a **TŒRN-style per-voice lowpass filter** on the 4th encoder,
+> live **recording** (hold REC), a **desktop emulator** to try it without hardware, and **beginner-friendly manuals
+> in English & Italian**. The OLED, MIDI-clock and recording features are configurable in `config.h`.
 
 ---
 
@@ -65,14 +65,16 @@ culminates in a **sonic documentary** by **Roberta Trani**, premiering at the **
 | Pin map & feature flags | scattered in the sketch | 🆕 **one file** → [`config.h`](config.h) |
 | Status display | — | 🆕 **OLED HUD** (SSD1306 128×64) — *opt-in* |
 | MIDI clock | slave only | 🆕 **master sync** (24 PPQN Start/Clock/Stop) — *opt-in* |
-| 3-encoder build | partial (rotation only) | 🆕 **fully playable**: Play/Pause, Volume/BPM, Menu & Note-Shift remapped to 3 buttons |
-| Per-voice lowpass filter | in chain but uncontrolled | 🆕 **finished**: cutoff on a 1-button + CENTER knob gesture (ported from TOERN, MIT) |
+| 4 encoders + 3 buttons | partial 4th encoder | 🆕 **PLAY/MENU/REC** on 3 pushbuttons; the 4th encoder does filter/volume/seek |
+| Per-voice lowpass filter | in chain but uncontrolled | 🆕 **finished**, TŒRN-style: turn the **4th encoder** = cutoff of the cursor voice (ported from TŒRN, MIT) |
+| Live recording | — | 🆕 hold **REC** → record from the codec input into the channel (`AudioInputI2S`+`AudioRecordQueue`) |
+| Desktop emulator | — | 🆕 runs the real firmware on PC/Mac (`emulator/`), with on-screen touch controls |
 | Documentation | English README | 🆕 **Italian build + usage manuals** (`.md` + `.pdf`) |
 
-> 🎛️ **This is a 3-encoder build** (`HAS_ENCODER4 0`). Upstream's 3-encoder mode only remapped the
-> *rotation* (volume → left knob), leaving Play/Pause, Volume/BPM, Menu and Note-Shift on the missing
-> 4th button. This fork remaps those gestures onto the three available buttons so the instrument is
-> fully playable with three knobs. Set `HAS_ENCODER4 1` to restore the original 4-encoder layout.
+> 🎛️ **This is a 4-encoder + 3-button build** (`HAS_ENCODER4 1`). The 4th encoder is contextual
+> (filter in DRAW/SINGLE, volume in VOLUME/BPM, sample-seek in the browser); PLAY/MENU/REC sit on three
+> tact switches. Set `HAS_ENCODER4 0` for the legacy 3-encoder build (4th-knob gestures remapped onto
+> the three encoder buttons; no live filter control).
 
 <details>
 <summary><b>📂 Files changed / added by the fork</b> (click to expand)</summary>
@@ -143,12 +145,14 @@ Pins live in [`config.h`](config.h) — change the build for a hardware variant 
 | **Left** encoder (CLK / DT / btn) | `5` / `22` / `15` | `ENC_LEFT_*`, `BTN_LEFT` |
 | **Center** encoder (CLK / DT / btn) | `9` / `14` / `16` | `ENC_MIDL_*`, `BTN_MIDL` |
 | **Right** encoder (CLK / DT / btn) | `4` / `2` / `3` | `ENC_RIGHT_*`, `BTN_RIGHT` |
+| **4th** encoder (CLK / DT / btn) | `32` / `33` / `41` | `ENC_MIDR_*`, `BTN_MIDR` |
+| 🆕 **3 pushbuttons** PLAY / MENU / REC | `24` / `25` / `26` | `BTN_SW1/2/3` |
 | I2C bus (codec **+ 🆕 OLED**) | `SDA 18` / `SCL 19` | shared `Wire` |
-| ~~4th encoder~~ *(not fitted)* | `99` / `99` / `99` | `ENC_MIDR_*`, `BTN_MIDR` |
 
-> 🎛️ This build uses **3 encoders** (`HAS_ENCODER4 0`): Left, Center, Right. Volume is on the **Left**
-> knob, BPM on the **Center** knob. The 4th-encoder pins are set to `99` (unused). To build the full
-> 4-encoder variant, set `HAS_ENCODER4 1` and restore the real `ENC_MIDR_*`/`BTN_MIDR` pins.
+> 🎛️ This build uses **4 encoders** (`HAS_ENCODER4 1`) + **3 pushbuttons** (PLAY/MENU/REC).
+> The **4th encoder is contextual**: in DRAW/SINGLE it sets the **filter** (lowpass cutoff) of the voice
+> under the cursor — TŒRN-style, *just turn it*, no dedicated button — and in VOLUME/BPM it sets volume.
+> Hold **REC** to **record** a sample from the codec input. (Old 3-encoder build: `HAS_ENCODER4 0`.)
 > Full step-by-step wiring is in the [build manual](BUILD_MANUAL.md).
 
 ---
@@ -214,8 +218,10 @@ flowchart TD
 | `OLED_FPS` | `15` | max display refresh (audio-safe) |
 | `MIDI_CLOCK_OUT_ENABLED` | `0` | emit MIDI clock as master |
 | `EXTERNAL_CLOCK_TIMEOUT_MS` | `750` | external-clock detection window |
-| `HAS_ENCODER4` | `0` | **this build = 3 encoders**; `1` = original 4-encoder layout |
-| `FILTER_ENABLED` | `1` | per-voice lowpass on the FILTER button (pin 41); `0` = exact upstream sound |
+| `HAS_ENCODER4` | `1` | **this build = 4 encoders**; the 4th does filter/volume/seek. `0` = old 3-encoder build |
+| `BUTTONS3_ENABLED` | `1` | the 3 pushbuttons PLAY/MENU/REC (pins 24/25/26) |
+| `RECORD_ENABLED` | `1` | live recording (hold REC): codec input → sample on the channel |
+| `FILTER_ENABLED` | `1` | per-voice lowpass on the **4th encoder** (turn = cutoff); `0` = exact upstream sound |
 
 ---
 

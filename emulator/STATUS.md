@@ -170,3 +170,32 @@ integration step (swap firmware.cpp as above).
 - Center encoder: `W`/`S`, button: `X`.  (BPM / filter when held)
 - Right encoder: `E`/`D`, button: `C`.
 - Filter button (hold): `F`.  Play/Pause: Enter.  Shift: Left-Shift.
+
+## DONE (2026-06-16) — usability + recording + SD + single build
+The emulator is now the development target for **ichosynth** (the hybrid). All of the
+below verified by driving the live window (screenshot + synthetic mouse/keyboard):
+- **On-screen controls (mouse + multi-touch)** in a panel below the OLED: 4 knobs
+  (grab the RIM to rotate, press the CENTRE for the encoder button, centre-press-drag
+  = hold+turn; dead-zone prevents stray rotation; wheel rotates) + buttons PLAY / MENU
+  / REC / FILT. `src/main.cpp`; labels via `emu_draw_text()` exposed from `menu.cpp`.
+- **Realistic OLED**: scale 3→1 (128px, ~¼ of the grid) and centred.
+- **Settings menu** made width-safe (header split, value column truncated) — no overflow.
+- **Multi-format import**: drag a **WAV/MP3/FLAC** onto the window → decoded
+  (`src/audio_decode.cpp` + vendored `vendor/dr_{wav,mp3,flac}.h`), resampled, installed
+  on the SD, loaded. `sample_import.cpp` now decodes via that path; import extension
+  check widened in `firmware.cpp`.
+- **SD management** (menu): show path + open in Explorer (SDL_OpenURL); switch SD by
+  dropping a folder (`ni404_sd_set_root` + reload pack) / reset to default; **sample
+  browser** (lists `_N.wav`, loads into the current channel). SD root get/set on the
+  SD shim; hooks in `firmware.cpp`/`ni404_host.h`.
+- **Live recording**: portable path — firmware `AudioInputI2S`+`AudioRecordQueue`
+  (see firmware notes); emulator captures from the selected input device
+  (`src/audio_capture.cpp`, SDL capture → `AudioRecordQueue` shim). Hold REC; OLED
+  shows `*REC*`. (Recording lands in RAM on the channel; SD-save TODO.)
+- **Single build**: only `ni404emu` (ichosynth) by default; `toernemu` behind
+  `EMU_BUILD_TOERN_REF=ON`.
+
+### Still open
+- Save a recorded take to the SD (persist past restart) + optional count-in.
+- ogg/aiff import (needs stb_vorbis / an AIFF parser).
+- Mac build of the new sources (CI covers it; not run locally).
