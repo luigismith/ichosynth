@@ -100,6 +100,10 @@ class SDClass {
 public:
     bool begin(int = 0) { root = resolve_root(); return true; }
 
+    // Emulator-only: inspect / change the folder backing the virtual SD card.
+    std::string getRoot() const { return root; }
+    void setRoot(const std::string &r) { root = r; }
+
     // Find the SD-card folder at RUNTIME so the binary is portable (the baked
     // compile-time path points at the build machine and is only the last resort).
     // Order: $NI404_SDCARD, then _SDCARD next to the exe / a couple levels up from

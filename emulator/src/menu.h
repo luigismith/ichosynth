@@ -23,4 +23,9 @@ void menu_render(SDL_Renderer *ren, int winW, int winH);
 // of a drag-and-drop sample import). Drawn by menu_render for a few seconds.
 void menu_toast(const char *msg);
 
+// Draw text with the built-in 5x7 font at scale s (1px cell * s). Exposed so the
+// frontend can label the on-screen controls without including Adafruit_GFX.h
+// (which would drag Arduino.h's macros into a TU that also needs windows.h).
+void emu_draw_text(SDL_Renderer *r, int x, int y, const char *t, int s);
+
 #endif // NI404_MENU_H

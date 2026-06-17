@@ -57,6 +57,15 @@ int  ni404_test_bpm();
 // ---- demo: load the kit, paint a beat, and start playing -------------------
 void ni404_demo();
 
+// ---- SD-card management (emulator): inspect/point the folder backing the SD,
+// read the current channel, and load a sample id into a channel (browser). -----
+const char *ni404_sd_root();                 // current SD folder path
+bool        ni404_sd_set_root(const char *path);  // repoint SD + reload samples
+const char *ni404_sd_default_root();         // the auto-resolved default folder
+int         ni404_current_channel();         // firmware's current channel (1..8)
+// Load sample id (e.g. 302) into a channel (1..8); reuses the firmware loader.
+void ni404_load_sample(int channel, int id);
+
 // ---- sample import (drag-and-drop): convert a dropped WAV to the kit format,
 // install it on the virtual SD (folder 9 = user imports) and load it into the
 // current channel. Returns a short status string (valid until the next call).

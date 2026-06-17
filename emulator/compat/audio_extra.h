@@ -8,6 +8,7 @@
 
 #include <cmath>
 #include <cstring>
+#include "audio_capture.h"   // host audio-input backend for AudioRecordQueue
 
 // ---- AudioAmplifier: simple gain -----------------------------------------
 class AudioAmplifier : public AudioStream {
@@ -162,20 +163,22 @@ public:
     void update(void) override {}   // transmit nothing -> downstream silent
 };
 
-// AudioRecordQueue: would buffer AudioInputI2S; no input -> never has data.
+// AudioRecordQueue: fed by the host capture backend (selected input device), so
+// the firmware's recording path gets real audio in the emulator.
 class AudioRecordQueue : public AudioStream {
 public:
     AudioRecordQueue() : AudioStream(1, inputQueueArray) {}
-    void begin() { enabled = true; }
-    void end() { enabled = false; }
-    int available() { return 0; }
-    int16_t *readBuffer() { return nullptr; }
+    void begin() { enabled = true; ni404_capture_start(); }
+    void end() { enabled = false; ni404_capture_stop(); }
+    int available() { return enabled ? ni404_capture_available() : 0; }
+    int16_t *readBuffer() { return (enabled && ni404_capture_read(buf)) ? buf : nullptr; }
     void freeBuffer() {}
     void clear() {}
     void update(void) override { audio_block_t *in = receiveReadOnly(0); if (in) ::release(in); }
 private:
     audio_block_t *inputQueueArray[1];
     bool enabled = false;
+    int16_t buf[128];
 };
 
 // AudioPlaySdWav: minimal stub (the firmware uses one instance; returns silence

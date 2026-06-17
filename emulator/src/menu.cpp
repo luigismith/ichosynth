@@ -6,6 +6,11 @@
 
 #include "menu.h"
 #include "Adafruit_GFX.h"   // ni404_font5x7
+#include "audio_capture.h"  // route the selected input device to the recorder
+#include "ni404_host.h"     // SD root get/set, current channel, sample loader
+#include <filesystem>
+#include <algorithm>
+#include <cctype>
 #include <SDL.h>
 #include <cstdio>
 #include <cstring>
@@ -80,6 +85,7 @@ void menu_init(SDL_AudioCallback cb) {
     for (int i = 0; i < (int)g_outDevs.size(); i++) if (g_outDevs[i] == outName) g_outSel = i;
     for (int i = 0; i < (int)g_inDevs.size(); i++) if (g_inDevs[i] == inName) g_inSel = i;
     ni404_set_master_gain(gain);
+    ni404_capture_set_device((g_inSel > 0 && g_inSel < (int)g_inDevs.size()) ? g_inDevs[g_inSel].c_str() : "");
     open_output();
 }
 
@@ -89,8 +95,52 @@ void menu_shutdown() {
 
 bool menu_is_open() { return g_open; }
 
+// ---- SD card folder + sample browser --------------------------------------
+static bool g_browse = false;
+static int  g_bsel = 0, g_btop = 0;
+static std::vector<int> g_bids;
+static std::vector<std::string> g_blabels;
+
+// Scan the SD folder for sample files (_<n>.wav) and list them sorted by id.
+static void browser_scan() {
+    namespace fs = std::filesystem;
+    g_bids.clear(); g_blabels.clear();
+    std::error_code ec;
+    std::string root = ni404_sd_root() ? ni404_sd_root() : "";
+    fs::recursive_directory_iterator it(root, fs::directory_options::skip_permission_denied, ec), end;
+    for (; !ec && it != end; it.increment(ec)) {
+        if (!it->is_regular_file(ec)) continue;
+        std::string name = it->path().filename().string();
+        if (name.size() < 6 || name[0] != '_') continue;
+        std::string lo = name; for (char &c : lo) c = (char)std::tolower((unsigned char)c);
+        if (lo.compare(lo.size() - 4, 4, ".wav") != 0) continue;
+        std::string num = name.substr(1, name.size() - 5);
+        bool digits = !num.empty();
+        for (char c : num) if (!std::isdigit((unsigned char)c)) digits = false;
+        if (!digits) continue;
+        g_bids.push_back(std::atoi(num.c_str()));
+        g_blabels.push_back(name);
+    }
+    std::vector<int> idx(g_bids.size());
+    for (size_t i = 0; i < idx.size(); i++) idx[i] = (int)i;
+    std::sort(idx.begin(), idx.end(), [&](int a, int b) { return g_bids[a] < g_bids[b]; });
+    std::vector<int> sid; std::vector<std::string> sl;
+    for (int i : idx) { sid.push_back(g_bids[i]); sl.push_back(g_blabels[i]); }
+    g_bids.swap(sid); g_blabels.swap(sl);
+    g_bsel = 0; g_btop = 0;
+}
+
+static void open_sd_folder() {
+    namespace fs = std::filesystem; std::error_code ec;
+    std::string s = fs::absolute(ni404_sd_root() ? ni404_sd_root() : ".", ec).string();
+    for (char &c : s) if (c == '\\') c = '/';
+    std::string url = "file:///" + s;
+    SDL_OpenURL(url.c_str());
+}
+
 // ---- menu items -----------------------------------------------------------
-enum { IT_OUT = 0, IT_GAIN, IT_IN, IT_MIDI, IT_MAP, IT_KEYS, IT_CLOSE, IT_COUNT };
+enum { IT_OUT = 0, IT_GAIN, IT_IN, IT_SD, IT_SD_RESET, IT_BROWSE,
+       IT_MIDI, IT_MAP, IT_KEYS, IT_CLOSE, IT_COUNT };
 
 static void adjust(int item, int dir) {
     if (item == IT_OUT) {
@@ -102,12 +152,30 @@ static void adjust(int item, int dir) {
         ni404_set_master_gain(g); settings_save();
     } else if (item == IT_IN) {
         int n = (int)g_inDevs.size(); g_inSel = (g_inSel + dir + n) % n; settings_save();
+        ni404_capture_set_device((g_inSel > 0 && g_inSel < (int)g_inDevs.size()) ? g_inDevs[g_inSel].c_str() : "");
     }
 }
 
 bool menu_handle_event(const SDL_Event &e) {
     if (e.type != SDL_KEYDOWN) return g_open;   // swallow all key events while open
     SDL_Scancode sc = e.key.keysym.scancode;
+
+    // Sample browser sub-screen (entered from the SD section).
+    if (g_browse) {
+        int n = (int)g_bids.size();
+        if (sc == SDL_SCANCODE_TAB || sc == SDL_SCANCODE_ESCAPE) { g_browse = false; return true; }
+        if (sc == SDL_SCANCODE_UP)   { if (g_bsel > 0) g_bsel--; return true; }
+        if (sc == SDL_SCANCODE_DOWN) { if (g_bsel < n - 1) g_bsel++; return true; }
+        if (sc == SDL_SCANCODE_RETURN && n > 0) {
+            int ch = ni404_current_channel();
+            ni404_load_sample(ch, g_bids[g_bsel]);
+            char b[80]; std::snprintf(b, sizeof b, "%s -> canale %d", g_blabels[g_bsel].c_str(), ch);
+            menu_toast(b);
+            return true;
+        }
+        return true;   // consume everything else while browsing
+    }
+
     if (sc == SDL_SCANCODE_TAB) { g_open = !g_open; return true; }
     if (!g_open) return false;
     switch (sc) {
@@ -118,7 +186,10 @@ bool menu_handle_event(const SDL_Event &e) {
         case SDL_SCANCODE_RIGHT:  adjust(g_sel, +1); return true;
         case SDL_SCANCODE_RETURN:
             if (g_sel == IT_CLOSE) g_open = false;
-            else if (g_sel == IT_MAP) { /* reload happens in firmware lazily; just re-enumerate */ enumerate_devices(); }
+            else if (g_sel == IT_MAP) enumerate_devices();
+            else if (g_sel == IT_SD) open_sd_folder();
+            else if (g_sel == IT_SD_RESET) { ni404_sd_set_root(ni404_sd_default_root()); menu_toast("SD ripristinata"); }
+            else if (g_sel == IT_BROWSE) { browser_scan(); g_browse = true; }
             else adjust(g_sel, +1);
             return true;
         default: return true;   // consume everything else while open
@@ -139,6 +210,10 @@ static void drawChar(SDL_Renderer *r, int x, int y, char c, int s) {
 static void drawText(SDL_Renderer *r, int x, int y, const char *t, int s) {
     for (; *t; t++) { drawChar(r, x, y, *t, s); x += 6 * s; }
 }
+
+// Public wrapper (declared in menu.h) so the frontend can draw labels with the
+// same font. Caller sets the draw color beforehand.
+void emu_draw_text(SDL_Renderer *r, int x, int y, const char *t, int s) { drawText(r, x, y, t, s); }
 
 // ---- transient toast notification -----------------------------------------
 static std::string g_toast;
@@ -170,31 +245,74 @@ void menu_render(SDL_Renderer *ren, int winW, int winH) {
     SDL_SetRenderDrawColor(ren, 20, 24, 36, 255); SDL_Rect panel{ px, py, pw, ph }; SDL_RenderFillRect(ren, &panel);
     SDL_SetRenderDrawColor(ren, 90, 120, 200, 255); SDL_RenderDrawRect(ren, &panel);
 
-    int s = 2, lh = 8 * s + 8, x = px + 16, y = py + 16;
+    // ---- sample browser sub-screen ----
+    if (g_browse) {
+        SDL_SetRenderDrawColor(ren, 200, 220, 255, 255);
+        emu_draw_text(ren, px + 16, py + 16, "SFOGLIA CAMPIONI", 2);
+        SDL_SetRenderDrawColor(ren, 130, 150, 190, 255);
+        char hh[96]; std::snprintf(hh, sizeof hh, "canale %d - Invio carica, Esc/TAB esci", ni404_current_channel());
+        emu_draw_text(ren, px + 16, py + 16 + 22, hh, 1);
+        const int listY = py + 56, rowH = 18, visible = (ph - 70) / rowH;
+        int n = (int)g_bids.size();
+        if (g_bsel < g_btop) g_btop = g_bsel;
+        if (g_bsel >= g_btop + visible) g_btop = g_bsel - visible + 1;
+        if (n == 0) {
+            SDL_SetRenderDrawColor(ren, 200, 200, 210, 255);
+            emu_draw_text(ren, px + 16, listY, "(nessun campione _N.wav trovato)", 1);
+            return;
+        }
+        for (int i = 0; i < visible && g_btop + i < n; i++) {
+            int idx = g_btop + i; bool seld = (idx == g_bsel); int ry = listY + i * rowH;
+            if (seld) { SDL_SetRenderDrawColor(ren, 40, 60, 110, 255); SDL_Rect hl{ px + 10, ry - 2, pw - 20, rowH }; SDL_RenderFillRect(ren, &hl); }
+            SDL_SetRenderDrawColor(ren, seld ? 255 : 190, seld ? 255 : 200, 255, 255);
+            char line[96]; std::snprintf(line, sizeof line, "%s %s", seld ? ">" : " ", g_blabels[idx].c_str());
+            emu_draw_text(ren, px + 16, ry, line, 2);
+        }
+        return;
+    }
+
+    const int x = px + 16, panelRight = px + pw - 10;
+    int y = py + 16;
+    // Header: title (big) + a hint line (small) so neither runs off a 512px window.
     SDL_SetRenderDrawColor(ren, 200, 220, 255, 255);
-    drawText(ren, x, y, "IMPOSTAZIONI  (TAB chiude, su/giu scegli, sin/des cambia)", s); y += lh + 6;
+    drawText(ren, x, y, "IMPOSTAZIONI", 2); y += 8 * 2 + 6;
+    SDL_SetRenderDrawColor(ren, 130, 150, 190, 255);
+    drawText(ren, x, y, "TAB chiude - su/giu scegli - sin/des cambia", 1); y += 8 + 12;
+
+    const int s = 2, lh = 8 * s + 10;
+    // The value column sits to the right of the (short) labels; values are drawn
+    // small and truncated so a long device name never spills past the panel.
+    const int valX = x + 15 * 6 * s;                 // after ~15 big-font chars
+    const int maxValChars = (panelRight - valX) / 6; // small font = 6px/char
+    auto fit = [&](std::string v, int lim) -> std::string {
+        if ((int)v.size() > lim && lim > 3) v = v.substr(0, lim - 2) + "..";
+        return v;
+    };
 
     char buf[256];
-    struct Row { const char *label; std::string val; };
+    struct Row { const char *label; std::string val; bool adj; };
     Row rows[IT_COUNT];
-    rows[IT_OUT]  = { "Uscita audio ", g_outDevs.empty() ? "(nessuna)" : g_outDevs[g_outSel] };
+    rows[IT_OUT]  = { "Uscita audio", g_outDevs.empty() ? "(nessuna)" : g_outDevs[g_outSel], true };
     std::snprintf(buf, sizeof buf, "%.1fx", ni404_get_master_gain());
-    rows[IT_GAIN] = { "Volume master", buf };
-    rows[IT_IN]   = { "Ingresso audio", g_inDevs.empty() ? "(nessuno)" : g_inDevs[g_inSel] };
+    rows[IT_GAIN] = { "Volume", buf, true };
+    rows[IT_IN]   = { "Ingresso audio", g_inDevs.empty() ? "(nessuno)" : g_inDevs[g_inSel], true };
+    rows[IT_SD]      = { "Cartella SD", ni404_sd_root() ? ni404_sd_root() : "(?)", false };
+    rows[IT_SD_RESET]= { "Ripristina SD", "trascina una cartella per cambiarla", false };
+    rows[IT_BROWSE]  = { "Campioni SD", "Invio = sfoglia/carica", false };
     { std::string m; for (size_t i = 0; i < g_midiDevs.size(); i++) { if (i) m += ", "; m += g_midiDevs[i]; }
-      rows[IT_MIDI] = { "Ingresso MIDI", m.empty() ? "(nessuno)" : m }; }
-    rows[IT_MAP]  = { "Mappa MIDI   ", "manopole CC24-27 (rel) -> 4 encoder; pad 36-43 (vedi midi-map.txt)" };
-    rows[IT_KEYS] = { "Tastiera     ", "Q/A W/S E/D R/F=encoder  Z X C V=premi  B=filtro  1/2/3=touch" };
-    rows[IT_CLOSE]= { "Chiudi       ", "trascina un .wav nella finestra per caricare un campione" };
+      rows[IT_MIDI] = { "MIDI in", m.empty() ? "(nessuno)" : m, false }; }
+    rows[IT_MAP]  = { "Mappa MIDI", "CC24-27 -> encoder; vedi midi-map.txt", false };
+    rows[IT_KEYS] = { "Tasti", "QAWSED RF=enc ZXCV=premi 1/2/3=puls", false };
+    rows[IT_CLOSE]= { "Chiudi", "trascina audio=campione, cartella=SD", false };
 
     for (int i = 0; i < IT_COUNT; i++) {
         bool selrow = (i == g_sel);
         if (selrow) { SDL_SetRenderDrawColor(ren, 40, 60, 110, 255); SDL_Rect hl{ x - 6, y - 3, pw - 32, lh }; SDL_RenderFillRect(ren, &hl); }
         SDL_SetRenderDrawColor(ren, selrow ? 255 : 180, selrow ? 255 : 200, 255, 255);
-        std::snprintf(buf, sizeof buf, "%s %s %s", selrow ? ">" : " ", rows[i].label,
-                      (i == IT_OUT || i == IT_GAIN || i == IT_IN) ? "<" : " ");
+        std::snprintf(buf, sizeof buf, "%s%s", selrow ? ">" : " ", rows[i].label);
         drawText(ren, x, y, buf, s);
-        drawText(ren, x + 26 * 6 * s, y, rows[i].val.c_str(), 1);   // value in smaller font, fits more
+        std::string val = rows[i].adj ? ("< " + fit(rows[i].val, maxValChars - 4) + " >") : fit(rows[i].val, maxValChars);
+        drawText(ren, valX, y + (8 * s - 8) / 2, val.c_str(), 1);
         y += lh;
     }
 }

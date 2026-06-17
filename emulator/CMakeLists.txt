@@ -10,6 +10,12 @@ endif()
 
 find_package(SDL2 REQUIRED)
 
+# We develop ONE thing: ichosynth (our hybrid firmware, built as the ni404emu
+# target from ../soundpauli_ni404.ino). The upstream TŒRN build is only a study
+# reference — off by default so a normal build produces a single emulator.
+# Enable with: cmake ... -DEMU_BUILD_TOERN_REF=ON
+option(EMU_BUILD_TOERN_REF "Also build the upstream TŒRN reference emulator" OFF)
+
 # The firmware lives one level up; its quote-includes (config.h, colors.h,
 # files.h, audioinit.h, display.h) resolve relative to its own directory.
 get_filename_component(FIRMWARE_DIR "${CMAKE_SOURCE_DIR}/.." ABSOLUTE)
@@ -23,6 +29,8 @@ add_executable(ni404emu
   src/midi_map.cpp
   src/menu.cpp
   src/sample_import.cpp
+  src/audio_decode.cpp
+  src/audio_capture.cpp
 )
 
 # On Windows build as a GUI app (subsystem:windows) so no console window appears
@@ -34,6 +42,7 @@ endif()
 
 target_include_directories(ni404emu PRIVATE
   "${CMAKE_SOURCE_DIR}/compat"
+  "${CMAKE_SOURCE_DIR}/vendor"
   "${FIRMWARE_DIR}"
   ${SDL2_INCLUDE_DIRS}
 )
@@ -80,7 +89,7 @@ endif()
 # TŒRN emulator target — runs the real toern firmware (emulator/toern-src/).
 # ===========================================================================
 set(TOERN_SRC "${CMAKE_SOURCE_DIR}/toern-src")
-if(EXISTS "${TOERN_SRC}/toern.ino")
+if(EMU_BUILD_TOERN_REF AND EXISTS "${TOERN_SRC}/toern.ino")
   add_executable(toernemu
     src/main.cpp
     src/firmware_toern.cpp
@@ -90,13 +99,15 @@ if(EXISTS "${TOERN_SRC}/toern.ino")
     src/midi_map.cpp
     src/menu.cpp
     src/sample_import.cpp
+    src/audio_decode.cpp
+    src/audio_capture.cpp
     "${TOERN_SRC}/src/effect_freeverb_dmabuf.cpp"
   )
   if(WIN32)
     set_target_properties(toernemu PROPERTIES WIN32_EXECUTABLE TRUE)
   endif()
   target_include_directories(toernemu PRIVATE
-    "${CMAKE_SOURCE_DIR}/compat" "${TOERN_SRC}" ${SDL2_INCLUDE_DIRS})
+    "${CMAKE_SOURCE_DIR}/compat" "${CMAKE_SOURCE_DIR}/vendor" "${TOERN_SRC}" ${SDL2_INCLUDE_DIRS})
   target_compile_definitions(toernemu PRIVATE
     SDL_MAIN_HANDLED NI404_EMULATOR=1
     NI404_SDCARD_PATH="${FIRMWARE_DIR}/_SDCARD")

@@ -19,9 +19,11 @@
 #include <cstdint>
 #include <thread>
 #include <chrono>
+#include <filesystem>       // detect a dropped folder (set as SD card)
 #include "FastLED.h"        // CRGB
 #include "ni404_host.h"
-#include "menu.h"
+#include "menu.h"            // emu_draw_text() reuses the 5x7 font (avoids pulling
+                            // Arduino.h/windows.h macro clashes into this TU)
 #ifdef _WIN32
 #include <windows.h>        // AttachConsole (GUI subsystem: no console window pops up)
 #endif
@@ -48,11 +50,17 @@ static void open_midi(int requested) {
 static const int GRID = 16;
 static const int CELL = 30;
 static const int MARGIN = 16;
-// OLED panel (SSD1306 128x64) drawn below the LED grid.
-static const int OLED_W = 128, OLED_H = 64, OLED_SCALE = 3;
+// OLED panel (SSD1306 128x64) drawn below the LED grid. The real 0.96" module is
+// tiny next to the 16x16 matrix, so keep it small (1 screen px per OLED px) and
+// centred — roughly the true size ratio rather than a giant panel.
+static const int OLED_W = 128, OLED_H = 64, OLED_SCALE = 1;
 static const int GRID_BOTTOM = MARGIN + GRID * CELL;
 static const int WIN_W = GRID * CELL + 2 * MARGIN;
-static const int WIN_H = GRID_BOTTOM + MARGIN + OLED_H * OLED_SCALE + MARGIN;
+// On-screen control panel (4 encoders + buttons) drawn below the OLED, so the
+// emulator is fully usable by mouse/touch — realistic on a touchscreen device.
+static const int CTRL_TOP = GRID_BOTTOM + MARGIN + OLED_H * OLED_SCALE + MARGIN;
+static const int CTRL_H   = 200;
+static const int WIN_H = CTRL_TOP + CTRL_H;
 
 // ---- audio callback -------------------------------------------------------
 static void audio_cb(void * /*ud*/, Uint8 *stream, int len) {
@@ -80,13 +88,158 @@ static void handle_key(SDL_Scancode sc, bool down, bool repeat) {
         case SDL_SCANCODE_X: if (!repeat) ni404_host_button_set(BTN_C, down); break;
         case SDL_SCANCODE_C: if (!repeat) ni404_host_button_set(BTN_R, down); break;
         case SDL_SCANCODE_V: if (!repeat) ni404_host_button_set(BTN_4, down); break;
-        // --- NI404 filter button ---
-        case SDL_SCANCODE_B: if (!repeat) ni404_host_button_set(BTN_FILT, down); break;
-        // --- toern touch switches (SWITCH_1/2/3) ---
+        // (filter is on the 4th encoder's rotation now — no filter button)
+        // --- the 3 pushbuttons (PLAY/MENU/REC) ---
         case SDL_SCANCODE_1: if (!repeat) ni404_host_button_set(BTN_TOUCH1, down); break;
         case SDL_SCANCODE_2: if (!repeat) ni404_host_button_set(BTN_TOUCH2, down); break;
         case SDL_SCANCODE_3: if (!repeat) ni404_host_button_set(BTN_TOUCH3, down); break;
         default: break;
+    }
+}
+
+// ---- on-screen controls (mouse + multi-touch) -----------------------------
+// Skeuomorphic knobs: grab the RIM and drag to rotate (rotation only); press the
+// CENTRE to push the encoder button, and dragging from the centre keeps the
+// button held while rotating (the real "hold + turn" gesture in one motion).
+// Below the knobs, three buttons stand in for the device's pushbuttons, plus the
+// NI404 filter pad. Everything drives the same host input the keyboard/MIDI use.
+enum WKind { W_KNOB, W_BTN };
+struct Widget { SDL_Rect r; WKind kind; int idx; const char *label; int cx, cy, rOut, rIn; };
+static std::vector<Widget> g_widgets;
+static const char *kEncLabel[4] = { "E1", "E2", "E3", "E4" };
+static const long DETENT = 4;             // one detent = 4 quadrature counts
+static const double ROT_STEP = 0.2618;    // radians of drag per detent (~15deg)
+static const double PI_ = 3.14159265358979323846;
+
+static void build_widgets() {
+    g_widgets.clear();
+    const int ENCW = WIN_W / 4;           // one cell per encoder
+    const int D = 60;                     // knob diameter
+    const int cy = CTRL_TOP + 16 + D / 2;
+    for (int i = 0; i < 4; i++) {
+        int kcx = i * ENCW + ENCW / 2;
+        Widget w{ { kcx - D / 2, cy - D / 2, D, D }, W_KNOB, i, kEncLabel[i], kcx, cy, D / 2, (D / 2) * 9 / 20 };
+        g_widgets.push_back(w);
+    }
+    const int by = CTRL_TOP + 16 + D + 26, bh = 48;
+    // 3 pushbuttons (real hardware = 4 encoders + 3 buttons; the filter is on the
+    // 4th encoder's rotation now, so there is no separate FILT button).
+    struct { int slot; const char *lab; } btns[3] = {
+        { BTN_TOUCH1, "PLAY" }, { BTN_TOUCH2, "MENU" }, { BTN_TOUCH3, "REC" }
+    };
+    const int bw3 = WIN_W / 3;
+    for (int j = 0; j < 3; j++)
+        g_widgets.push_back({ { j * bw3 + 12, by, bw3 - 24, bh }, W_BTN, btns[j].slot, btns[j].lab, 0, 0, 0, 0 });
+}
+
+static int hit_test(int px, int py) {
+    for (int i = 0; i < (int)g_widgets.size(); i++) {
+        const Widget &W = g_widgets[i];
+        if (W.kind == W_KNOB) {
+            double dx = px - W.cx, dy = py - W.cy;
+            if (dx * dx + dy * dy <= (double)W.rOut * W.rOut) return i;
+        } else {
+            SDL_Point p{ px, py };
+            if (SDL_PointInRect(&p, &W.r)) return i;
+        }
+    }
+    return -1;
+}
+
+// Active pointers (mouse = id -1, touch = SDL fingerId). mode: 0 rim-rotate,
+// 1 centre-press (+ rotate while dragging), 2 plain button.
+struct Pointer { long long id; int widx; int mode; double lastAngle; double accum; };
+static std::vector<Pointer> g_pointers;
+
+static void pointer_down(int px, int py, long long id) {
+    if (menu_is_open()) return;
+    int w = hit_test(px, py);
+    if (w < 0) return;
+    Widget &W = g_widgets[w];
+    if (W.kind == W_KNOB) {
+        double dx = px - W.cx, dy = py - W.cy;
+        double dist = std::sqrt(dx * dx + dy * dy);
+        Pointer p{ id, w, 0, std::atan2(dy, dx), 0.0 };
+        if (dist <= W.rIn) { p.mode = 1; ni404_host_button_set(W.idx, true); }  // centre = press
+        else p.mode = 0;                                                        // rim = rotate
+        g_pointers.push_back(p);
+    } else {
+        ni404_host_button_set(W.idx, true);
+        g_pointers.push_back({ id, w, 2, 0.0, 0.0 });
+    }
+}
+
+static void pointer_move(int px, int py, long long id) {
+    for (auto &p : g_pointers) {
+        if (p.id != id) continue;
+        Widget &W = g_widgets[p.widx];
+        if (W.kind != W_KNOB) return;                 // buttons ignore movement
+        double dx = (double)px - W.cx, dy = (double)py - W.cy;
+        double ang = std::atan2(dy, dx);
+        double d = ang - p.lastAngle;
+        while (d >  PI_) d -= 2 * PI_;
+        while (d < -PI_) d += 2 * PI_;
+        p.lastAngle = ang;
+        // Dead-zone near the centre: angle is ill-defined there, so a centre
+        // press without dragging outward just holds (no spurious rotation).
+        if (dx * dx + dy * dy < (double)(W.rOut * 0.30) * (W.rOut * 0.30)) return;
+        p.accum += d;                                  // accumulate angular drag
+        while (p.accum >=  ROT_STEP) { ni404_host_encoder_add(W.idx, +DETENT); p.accum -= ROT_STEP; }
+        while (p.accum <= -ROT_STEP) { ni404_host_encoder_add(W.idx, -DETENT); p.accum += ROT_STEP; }
+        return;
+    }
+}
+
+static void pointer_up(long long id) {
+    for (int i = 0; i < (int)g_pointers.size(); i++) {
+        if (g_pointers[i].id != id) continue;
+        Widget &W = g_widgets[g_pointers[i].widx];
+        if (g_pointers[i].mode == 1 || g_pointers[i].mode == 2) ni404_host_button_set(W.idx, false);
+        g_pointers.erase(g_pointers.begin() + i);
+        return;
+    }
+}
+
+static void fill_circle(SDL_Renderer *r, int cx, int cy, int rad) {
+    for (int dy = -rad; dy <= rad; dy++) {
+        int dx = (int)std::sqrt((double)rad * rad - (double)dy * dy);
+        SDL_RenderDrawLine(r, cx - dx, cy + dy, cx + dx, cy + dy);
+    }
+}
+static void draw_text_centered(SDL_Renderer *r, const SDL_Rect &box, const char *t, int s, int yoff) {
+    int tw = (int)std::strlen(t) * 6 * s;
+    emu_draw_text(r, box.x + (box.w - tw) / 2, box.y + yoff, t, s);
+}
+
+static void render_controls(SDL_Renderer *ren) {
+    SDL_SetRenderDrawColor(ren, 18, 20, 28, 255);
+    SDL_Rect bg{ 0, CTRL_TOP, WIN_W, CTRL_H }; SDL_RenderFillRect(ren, &bg);
+    SDL_SetRenderDrawColor(ren, 40, 46, 64, 255);
+    SDL_RenderDrawLine(ren, 0, CTRL_TOP, WIN_W, CTRL_TOP);
+
+    for (const Widget &W : g_widgets) {
+        if (W.kind == W_KNOB) {
+            bool down = ni404_host_button_get(W.idx);
+            SDL_SetRenderDrawColor(ren, 70, 78, 100, 255); fill_circle(ren, W.cx, W.cy, W.rOut);      // rim
+            SDL_SetRenderDrawColor(ren, down ? 90 : 44, down ? 150 : 50, down ? 100 : 64, 255);
+            fill_circle(ren, W.cx, W.cy, W.rIn);                                                      // centre (press)
+            // rotation indicator: a tick that turns with the accumulated count.
+            float ang = (float)ni404_host_encoder_get(W.idx) * 0.20f;
+            int ex = W.cx + (int)(std::sin(ang) * (W.rOut - 6));
+            int ey = W.cy - (int)(std::cos(ang) * (W.rOut - 6));
+            SDL_SetRenderDrawColor(ren, 235, 245, 255, 255);
+            SDL_RenderDrawLine(ren, W.cx, W.cy, ex, ey);
+            SDL_SetRenderDrawColor(ren, 160, 200, 255, 255);
+            SDL_Rect lbl{ W.cx - W.rOut, W.cy + W.rOut + 4, W.rOut * 2, 14 };
+            draw_text_centered(ren, lbl, W.label, 2, 0);
+        } else {
+            bool down = ni404_host_button_get(W.idx);
+            SDL_SetRenderDrawColor(ren, down ? 70 : 40, down ? 110 : 54, down ? 160 : 86, 255);
+            SDL_RenderFillRect(ren, &W.r);
+            SDL_SetRenderDrawColor(ren, 110, 130, 180, 255); SDL_RenderDrawRect(ren, &W.r);
+            SDL_SetRenderDrawColor(ren, 230, 240, 255, 255);
+            draw_text_centered(ren, W.r, W.label, 2, W.r.h / 2 - 8);
+        }
     }
 }
 
@@ -385,12 +538,13 @@ int main(int argc, char **argv) {
     ni404_setup();
     if (demo) ni404_demo();          // load kit + paint a beat + start playing
     open_midi(midiDev);
+    build_widgets();
 
     std::printf(
-        "\n== Emulatore NI404/toern - tasti ==\n"
-        "  Encoder (ruota -/+):  Q/A  W/S  E/D  R/F   (4 manopole)\n"
-        "  Premi encoder:        Z    X    C    V\n"
-        "  Filtro (NI404):       B          Touch (toern): 1 2 3\n"
+        "\n== Emulatore NI404/toern - comandi ==\n"
+        "  A schermo (mouse o touch): le 4 manopole (- / premi / +) e i pulsanti.\n"
+        "  Tastiera - Encoder (ruota -/+):  Q/A  W/S  E/D  R/F   Premi: Z X C V\n"
+        "  Filtro = 4o encoder (R/F)     Pulsanti: 1=PLAY 2=MENU 3=REC\n"
         "  TAB = menu impostazioni (audio, volume, MIDI)   Esci: Esc\n"
         "  Trascina un file .wav nella finestra per caricarlo come campione.\n\n");
 
@@ -400,11 +554,18 @@ int main(int argc, char **argv) {
         SDL_Event e;
         while (SDL_PollEvent(&e)) {
             if (e.type == SDL_QUIT) { running = false; continue; }
-            if (e.type == SDL_DROPFILE) {          // drag-and-drop a .wav to import a sample
+            if (e.type == SDL_DROPFILE) {          // drop a file = import sample; folder = set SD
                 const char *path = e.drop.file;
-                const char *res = ni404_import_sample(path);
-                std::printf("[import] %s\n", res);
-                menu_toast(res);                   // on-window feedback (no console needed)
+                std::error_code ec;
+                if (std::filesystem::is_directory(path, ec)) {
+                    const char *res = ni404_sd_set_root(path) ? "SD: cartella impostata" : "Cartella SD non valida";
+                    std::printf("[sd] %s: %s\n", res, path);
+                    menu_toast(res);
+                } else {
+                    const char *res = ni404_import_sample(path);
+                    std::printf("[import] %s\n", res);
+                    menu_toast(res);               // on-window feedback (no console needed)
+                }
                 SDL_free((void *)path);
                 continue;
             }
@@ -414,6 +575,24 @@ int main(int argc, char **argv) {
                 else handle_key(e.key.keysym.scancode, true, e.key.repeat != 0);
             } else if (e.type == SDL_KEYUP) {
                 handle_key(e.key.keysym.scancode, false, false);
+            } else if (e.type == SDL_MOUSEBUTTONDOWN && e.button.which != SDL_TOUCH_MOUSEID) {
+                pointer_down(e.button.x, e.button.y, -1);
+            } else if (e.type == SDL_MOUSEBUTTONUP && e.button.which != SDL_TOUCH_MOUSEID) {
+                pointer_up(-1);
+            } else if (e.type == SDL_MOUSEMOTION && (e.motion.state & SDL_BUTTON_LMASK)
+                       && e.motion.which != SDL_TOUCH_MOUSEID) {
+                pointer_move(e.motion.x, e.motion.y, -1);   // drag (rotate / press+rotate)
+            } else if (e.type == SDL_MOUSEWHEEL && e.wheel.which != SDL_TOUCH_MOUSEID) {
+                int mx, my; SDL_GetMouseState(&mx, &my);
+                int w = hit_test(mx, my);
+                if (w >= 0 && g_widgets[w].kind == W_KNOB)
+                    ni404_host_encoder_add(g_widgets[w].idx, e.wheel.y > 0 ? +DETENT : -DETENT);
+            } else if (e.type == SDL_FINGERDOWN) {
+                pointer_down((int)(e.tfinger.x * WIN_W), (int)(e.tfinger.y * WIN_H), (long long)e.tfinger.fingerId);
+            } else if (e.type == SDL_FINGERMOTION) {
+                pointer_move((int)(e.tfinger.x * WIN_W), (int)(e.tfinger.y * WIN_H), (long long)e.tfinger.fingerId);
+            } else if (e.type == SDL_FINGERUP) {
+                pointer_up((long long)e.tfinger.fingerId);
             }
         }
 
@@ -447,7 +626,7 @@ int main(int argc, char **argv) {
         static uint8_t oled[OLED_W * OLED_H];
         int ow = 0, oh = 0;
         uint64_t ogen = ni404_get_oled(oled, sizeof(oled), &ow, &oh);
-        int panelX = MARGIN, panelY = GRID_BOTTOM + MARGIN;
+        int panelX = (WIN_W - OLED_W * OLED_SCALE) / 2, panelY = GRID_BOTTOM + MARGIN;
         // panel background (dark blue, like an OLED bezel)
         SDL_Rect bg{ panelX - 2, panelY - 2, OLED_W * OLED_SCALE + 4, OLED_H * OLED_SCALE + 4 };
         SDL_SetRenderDrawColor(ren, 8, 10, 24, 255);
@@ -461,6 +640,7 @@ int main(int argc, char **argv) {
                         SDL_RenderFillRect(ren, &p);
                     }
         }
+        render_controls(ren);             // on-screen encoders + buttons (mouse/touch)
         menu_render(ren, WIN_W, WIN_H);   // settings overlay (TAB)
         SDL_RenderPresent(ren);
     }

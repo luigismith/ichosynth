@@ -81,7 +81,11 @@ private:
         if (pin == BTN_RIGHT)  return BTN_R;
         if (pin == BTN_MIDL)   return BTN_C;
         if (pin == BTN_MIDR)   return BTN_4;
-        if (pin == BTN_FILTER) return BTN_FILT;
+#ifdef BTN_SW1
+        if (pin == BTN_SW1)    return BTN_TOUCH1;   // PLAY
+        if (pin == BTN_SW2)    return BTN_TOUCH2;   // MENU
+        if (pin == BTN_SW3)    return BTN_TOUCH3;   // REC
+#endif
         return BTN_4;
     }
 };

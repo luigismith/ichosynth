@@ -70,6 +70,12 @@ int  ni404_test_edit_page() { return 0; }
 const char *ni404_test_mode() { return ""; }
 int  ni404_test_note_at(int, int) { return 0; }
 
+// SD-management hooks: root get/set work; reload/current-channel are NI404-specific.
+const char *ni404_sd_root() { static std::string s; s = SD.getRoot(); return s.c_str(); }
+const char *ni404_sd_default_root() { static std::string s; s = SDClass::resolve_root(); return s.c_str(); }
+int  ni404_current_channel() { return 1; }
+bool ni404_sd_set_root(const char *path) { if (!path || !*path) return false; SD.setRoot(path); return true; }
+
 // Drag-and-drop sample loader (toern build): convert the dropped WAV to the kit
 // format and install it on the virtual SD under folder 9 (_900.._999). toern's
 // channel model differs from NI404, so here we only add it to the library; pick
@@ -78,6 +84,7 @@ int  ni404_test_note_at(int, int) { return 0; }
 #include <filesystem>
 #include <string>
 #include <cctype>
+#include <cstring>
 #ifndef NI404_SDCARD_PATH
 #define NI404_SDCARD_PATH "_SDCARD"
 #endif
@@ -86,8 +93,10 @@ const char *ni404_import_sample(const char *srcPath) {
     namespace fs = std::filesystem;
     std::string s = srcPath ? srcPath : "", low = s;
     for (char &ch : low) ch = (char)std::tolower((unsigned char)ch);
-    if (low.size() < 4 || low.substr(low.size() - 4) != ".wav") {
-        std::snprintf(status, sizeof status, "Not a .wav file"); return status;
+    auto endsWith = [&](const char *e) { size_t n = std::strlen(e);
+        return low.size() >= n && low.compare(low.size() - n, n, e) == 0; };
+    if (!endsWith(".wav") && !endsWith(".mp3") && !endsWith(".flac")) {
+        std::snprintf(status, sizeof status, "Formato non supportato (wav/mp3/flac)"); return status;
     }
     std::error_code ec;
     fs::path dir = fs::path(NI404_SDCARD_PATH) / "9";

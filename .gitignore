@@ -30,3 +30,11 @@ Thumbs.db
 .claude/ralph-task.md
 .claude/ralph-loop.local.md
 
+# Emulator / firmware runtime artifacts (written when running the emulator)
+eeprom.bin
+midi-log.txt
+midi-map.txt
+settings.txt
+_SDCARD/autosaved.txt
+_SDCARD/settings.txt
+

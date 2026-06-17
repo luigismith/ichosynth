@@ -1,7 +1,7 @@
-// sample_import.h — host-side WAV importer. Converts an arbitrary WAV file
-// (PCM 8/16/24/32-bit or float32, mono or stereo, any sample rate) into the
-// format the NI404/toern firmware expects: 16-bit mono PCM at 44100 Hz with a
-// standard 44-byte header. Used by the drag-and-drop sample loader.
+// sample_import.h — host-side sample importer. Converts a source audio file
+// (WAV/MP3/FLAC via audio_decode, any rate/channels) into the format the
+// NI404/toern firmware expects: 16-bit mono PCM at 44100 Hz with a standard
+// 44-byte header. Used by the drag-and-drop / browser sample loader.
 #ifndef NI404_SAMPLE_IMPORT_H
 #define NI404_SAMPLE_IMPORT_H
 

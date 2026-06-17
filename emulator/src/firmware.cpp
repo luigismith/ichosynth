@@ -18,6 +18,7 @@
 #include <filesystem>
 #include <string>
 #include <cctype>
+#include <cstring>
 
 #ifndef NI404_SDCARD_PATH
 #define NI404_SDCARD_PATH "_SDCARD"
@@ -31,12 +32,14 @@ const char *ni404_import_sample(const char *srcPath) {
     static char status[96];
     namespace fs = std::filesystem;
 
-    // Accept only .wav by extension.
+    // Accept any supported source format (wav/mp3/flac); the converter decodes it.
     std::string s = srcPath ? srcPath : "";
     std::string low = s;
     for (char &ch : low) ch = (char)std::tolower((unsigned char)ch);
-    if (low.size() < 4 || low.substr(low.size() - 4) != ".wav") {
-        std::snprintf(status, sizeof status, "Not a .wav file");
+    auto endsWith = [&](const char *e) { size_t n = std::strlen(e);
+        return low.size() >= n && low.compare(low.size() - n, n, e) == 0; };
+    if (!endsWith(".wav") && !endsWith(".mp3") && !endsWith(".flac")) {
+        std::snprintf(status, sizeof status, "Formato non supportato (wav/mp3/flac)");
         return status;
     }
 
@@ -77,6 +80,19 @@ void ni404_load_sample(int channel, int id) {
     SMP.currentChannel = (unsigned int)channel; SMP.seek = 0; SMP.seekEnd = 0;
     loadSample(0, id);
     SMP.mute[channel] = false;
+}
+
+// ---- SD-card management hooks (emulator) ----------------------------------
+const char *ni404_sd_root() { static std::string s; s = SD.getRoot(); return s.c_str(); }
+const char *ni404_sd_default_root() { static std::string s; s = SDClass::resolve_root(); return s.c_str(); }
+int ni404_current_channel() { return (int)SMP.currentChannel; }
+
+bool ni404_sd_set_root(const char *path) {
+    if (!path || !*path) return false;
+    SD.setRoot(path);
+    // Reload the sample pack from the new folder so the change is audible.
+    loadSamplePack(samplePackID);
+    return true;
 }
 // Play a sample channel (1..8) like a MIDI keyboard note (pitch 60 = base).
 void ni404_play_note(int channel, int pitch, int vel) {
