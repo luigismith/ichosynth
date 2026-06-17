@@ -94,6 +94,10 @@ unsigned long filterBarUntil = 0;   // show the cutoff bar overlay until this ti
 unsigned int filterVoice();
 void applyFilter(unsigned int v);
 void applyAllFilters();
+#if BITCRUSH_ENABLED
+void applyCrush(unsigned int v);
+void applyAllCrush();
+#endif
 #endif
 unsigned int lastPage = 1;
 unsigned int lastButtonPressTime = 0;
@@ -222,6 +226,12 @@ EXTMEM arraysampler _samplers[13];
 AudioPlayArrayResmp *voices[] = { &sound0, &sound1, &sound2, &sound3, &sound4, &sound5, &sound6, &sound7, &sound8, &sound9, &sound10, &sound11, &sound12 };
 AudioEffectEnvelope *envelopes[] = { &envelope0, &envelope1, &envelope2, &envelope3, &envelope4, &envelope5, &envelope6, &envelope7, &envelope8, &envelope9, &envelope10, &envelope11, &envelope12, &envelope13, &envelope14 };
 AudioFilterStateVariable *filters[] = { &filter0, &filter1, &filter2, &filter3, &filter4, &filter5, &filter6, &filter7, &filter8, &filter9, &filter10, &filter11, &filter12, &filter13, &filter14 };
+#if BITCRUSH_ENABLED
+// Per-voice bitcrusher on the 8 sample voices (index 1..8; [0] = none).
+const unsigned int maxCrush = 9;
+AudioEffectBitcrusher *crushers[maxCrush] = { nullptr, &crush1, &crush2, &crush3, &crush4, &crush5, &crush6, &crush7, &crush8 };
+EXTMEM uint8_t crushBits[maxCrush];   // per-voice bit depth; 16 = bypass (set at boot)
+#endif
 
 void serialprint(...) {
 }
@@ -328,6 +338,17 @@ void applyFilter(unsigned int v) {
 void applyAllFilters() {
   for (unsigned int v = 1; v < maxFilters; v++) applyFilter(v);
 }
+
+#if BITCRUSH_ENABLED
+// Per-voice bitcrusher: crushBits[v] = bit depth (16 = bypass, lower = grittier).
+void applyCrush(unsigned int v) {
+  if (v < 1 || v >= maxCrush) return;
+  crushers[v]->bits(crushBits[v] >= 1 && crushBits[v] <= 16 ? crushBits[v] : 16);
+}
+void applyAllCrush() {
+  for (unsigned int v = 1; v < maxCrush; v++) { crushBits[v] = 16; crushers[v]->sampleRate(44100.0f); applyCrush(v); }
+}
+#endif
 
 // Two-row bar overlay while the FILTER button is held: length = cutoff,
 // color = the voice's grid color (same palette as the notes).
@@ -522,12 +543,15 @@ void setup() {
   sgtl5000_1.micGain(40);
 #endif
 
-  AudioMemory(64);
+  AudioMemory(96);   // headroom for the per-voice bitcrushers (FX)
 
 #if FILTER_ENABLED
   // Open every voice's lowpass (9 kHz) instead of the library's accidental
   // 1 kHz default — see config.h. Knob values come from SMP.filter_knob[].
   applyAllFilters();
+#endif
+#if BITCRUSH_ENABLED
+  applyAllCrush();   // all sample voices start bypassed (16-bit)
 #endif
 
   // OLED HUD shares the I2C bus the codec just brought up (no-op if disabled).

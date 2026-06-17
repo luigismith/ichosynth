@@ -76,39 +76,57 @@ AudioRecordQueue recordQueue;
 AudioConnection  patchRecIn(audioInput, 0, recordQueue, 0);
 #endif
 
+#if BITCRUSH_ENABLED
+// Per-voice bitcrusher (TŒRN-style FX) inserted in the 8 sample voices:
+//   soundN -> envelopeN -> filterN -> crushN -> mixer.  Default = bypass
+// (16 bits / 44.1 kHz, set at boot), so it's transparent until a voice is crushed.
+AudioEffectBitcrusher crush1, crush2, crush3, crush4, crush5, crush6, crush7, crush8;
+#endif
+
 AudioConnection patchCord1_1(sound1, envelope1);
 AudioConnection patchCord1_2(envelope1, 0, filter1, 0);
-AudioConnection patchCord1_3(filter1, 0, mixer1, 0);
-
-
 AudioConnection patchCord2_1(sound2, envelope2);
 AudioConnection patchCord2_2(envelope2, 0, filter2, 0);
-AudioConnection patchCord2_3(filter2, 0, mixer1, 1);
-
 AudioConnection patchCord3_1(sound3, envelope3);
 AudioConnection patchCord3_2(envelope3, 0, filter3, 0);
-AudioConnection patchCord3_3(filter3, 0, mixer1, 2);
-
 AudioConnection patchCord4_1(sound4, envelope4);
 AudioConnection patchCord4_2(envelope4, 0, filter4, 0);
-AudioConnection patchCord4_3(filter4, 0, mixer1, 3);
-
-
 AudioConnection patchCord5_1(sound5, envelope5);
 AudioConnection patchCord5_2(envelope5, 0, filter5, 0);
-AudioConnection patchCord5_3(filter5, 0, mixer2, 0);
-
 AudioConnection patchCord6_1(sound6, envelope6);
 AudioConnection patchCord6_2(envelope6, 0, filter6, 0);
-AudioConnection patchCord6_3(filter6, 0, mixer2, 1);
-
 AudioConnection patchCord7_1(sound7, envelope7);
 AudioConnection patchCord7_2(envelope7, 0, filter7, 0);
-AudioConnection patchCord7_3(filter7, 0, mixer2, 2);
-
 AudioConnection patchCord8_1(sound8, envelope8);
 AudioConnection patchCord8_2(envelope8, 0, filter8, 0);
+
+#if BITCRUSH_ENABLED
+AudioConnection patchCord1_3(filter1, 0, crush1, 0);
+AudioConnection patchCord1_4(crush1, 0, mixer1, 0);
+AudioConnection patchCord2_3(filter2, 0, crush2, 0);
+AudioConnection patchCord2_4(crush2, 0, mixer1, 1);
+AudioConnection patchCord3_3(filter3, 0, crush3, 0);
+AudioConnection patchCord3_4(crush3, 0, mixer1, 2);
+AudioConnection patchCord4_3(filter4, 0, crush4, 0);
+AudioConnection patchCord4_4(crush4, 0, mixer1, 3);
+AudioConnection patchCord5_3(filter5, 0, crush5, 0);
+AudioConnection patchCord5_4(crush5, 0, mixer2, 0);
+AudioConnection patchCord6_3(filter6, 0, crush6, 0);
+AudioConnection patchCord6_4(crush6, 0, mixer2, 1);
+AudioConnection patchCord7_3(filter7, 0, crush7, 0);
+AudioConnection patchCord7_4(crush7, 0, mixer2, 2);
+AudioConnection patchCord8_3(filter8, 0, crush8, 0);
+AudioConnection patchCord8_4(crush8, 0, mixer2, 3);
+#else
+AudioConnection patchCord1_3(filter1, 0, mixer1, 0);
+AudioConnection patchCord2_3(filter2, 0, mixer1, 1);
+AudioConnection patchCord3_3(filter3, 0, mixer1, 2);
+AudioConnection patchCord4_3(filter4, 0, mixer1, 3);
+AudioConnection patchCord5_3(filter5, 0, mixer2, 0);
+AudioConnection patchCord6_3(filter6, 0, mixer2, 1);
+AudioConnection patchCord7_3(filter7, 0, mixer2, 2);
 AudioConnection patchCord8_3(filter8, 0, mixer2, 3);
+#endif
 
 
 AudioConnection patchCord9_1(sound9, envelope9);

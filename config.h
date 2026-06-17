@@ -69,6 +69,16 @@
 #define RECORD_ENABLED 1
 #endif
 
+/* ===================== BITCRUSHER FX (per-voice) ===================== *
+ * A per-voice bitcrusher (bit-depth reduction) on the 8 sample voices, inserted
+ * in the graph as filterN -> crushN -> mixer. Default = bypass (16 bit), so it's
+ * transparent until a voice is crushed. First of the TŒRN effects ported into
+ * ichosynth. Set 0 to omit it from the audio graph entirely.
+ */
+#ifndef BITCRUSH_ENABLED
+#define BITCRUSH_ENABLED 1
+#endif
+
 /* ===================== OLED STATUS DISPLAY ===================== *
  * SSD1306 0.96" 128x64 over I2C. It shares the Wire bus with the Teensy Audio
  * Shield's SGTL5000 codec (SDA = pin 18, SCL = pin 19). The codec lives at a
