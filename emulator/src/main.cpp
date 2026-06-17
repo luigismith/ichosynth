@@ -400,14 +400,26 @@ static int run_play() {
     // 0) Filter FIRST (clean graph, nothing else ringing): a bright source (closed
     //    hat) through wide-open vs nearly-closed cutoff. Measured as mean energy,
     //    which a lowpass on a high-frequency source clearly reduces.
-    std::printf("\n0) Filtro per-canale (hi-hat brillante, taglio aperto vs chiuso):\n");
+    std::printf("\n0) Filtro per-voce via 4o encoder (hi-hat brillante, aperto vs chiuso):\n");
     ni404_load_sample(1, 302);   // closed hat = broadband / high-frequency
-    ni404_set_filter(1, 32); ni404_play_note(1, 60, 110); float fWide = render_rms(14);
-    ni404_set_filter(1, 1);  ni404_play_note(1, 60, 110); float fNarrow = render_rms(14);
+    // Put the cursor on voice 1 and let the fast-filter latch onto it (so the 4th
+    // encoder now drives voice 1's cutoff), then sweep the encoder open vs closed.
+    ni404_play_note(1, 60, 110); for (int t = 0; t < 6; t++) ni404_loop();
+    ni404_host_encoder_set(ENC_4TH, 4);   ni404_play_note(1, 60, 110); float fNarrow = render_rms(14);  // closed
+    ni404_host_encoder_set(ENC_4TH, 400); ni404_play_note(1, 60, 110); float fWide = render_rms(14);    // open
     std::snprintf(d, sizeof d, "energia aperto=%.4f  chiuso=%.4f  (%.0f%%)",
                   fWide, fNarrow, fWide > 0 ? 100.0 * fNarrow / fWide : 0.0);
-    check("il filtro attenua l'energia chiudendo il taglio", fNarrow < fWide * 0.7f, d);
-    ni404_set_filter(1, 32);
+    check("il 4o encoder filtra (chiuso attenua l'energia)", fNarrow < fWide * 0.7f, d);
+    ni404_host_encoder_set(ENC_4TH, 400);
+
+    // 0b) Bitcrusher (FX): a crushed voice's signal differs from the clean one.
+    std::printf("\n0b) Bitcrusher per-voce (voce pulita vs frantumata):\n");
+    ni404_set_crush(1, 16); ni404_play_note(1, 60, 110); float cClean = render_rms(14);
+    ni404_set_crush(1, 2);  ni404_play_note(1, 60, 110); float cCrush = render_rms(14);
+    std::snprintf(d, sizeof d, "rms pulito=%.4f  crush(2bit)=%.4f", cClean, cCrush);
+    check("il bitcrusher altera il segnale", cClean > 0.001f && cCrush > 0.001f
+          && std::fabs(cCrush - cClean) > cClean * 0.05f, d);
+    ni404_set_crush(1, 16);
 
     // 1) Every drum/sample pad plays from the MIDI keyboard (selected channel).
     std::printf("\n1) Suono gli 8 canali campione dalla tastiera MIDI (DO=base):\n");

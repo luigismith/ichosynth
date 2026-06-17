@@ -115,6 +115,16 @@ void ni404_set_filter(int channel, int knob) {
     SMP.filter_knob[channel] = (unsigned int)knob;
     applyFilter((unsigned int)channel);
 }
+void ni404_set_crush(int channel, int bits) {
+#if BITCRUSH_ENABLED
+    if (channel < 1 || channel >= (int)maxCrush) return;
+    if (bits < 1) bits = 1; if (bits > 16) bits = 16;
+    crushBits[channel] = (uint8_t)bits;
+    applyCrush((unsigned int)channel);
+#else
+    (void)channel; (void)bits;
+#endif
+}
 int  ni404_test_beat()    { return (int)beat; }
 int  ni404_test_page()    { return (int)SMP.page; }
 int  ni404_test_playing() { return isPlaying ? 1 : 0; }

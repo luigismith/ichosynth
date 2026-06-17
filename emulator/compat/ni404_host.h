@@ -49,6 +49,7 @@ int  ni404_test_sample_len(int channel); // loaded sample length in bytes (0 = n
 void ni404_play_note(int channel, int pitch, int vel);  // sample ch 1..8, pitch 60=base
 void ni404_play_synth(int voice, int row, int vel);     // synth 13/14 at pianoFrequencies[row]
 void ni404_set_filter(int channel, int knob);           // cutoff knob 1..32
+void ni404_set_crush(int channel, int bits);            // bitcrusher bit depth 1..16 (16 = off)
 int  ni404_test_beat();
 int  ni404_test_page();
 int  ni404_test_playing();
