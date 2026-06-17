@@ -69,6 +69,13 @@ AudioMixer4 mixer4;  //xy=736,230
 AudioMixer4 mixer_end;  //xy=736,230
 AudioOutputI2S i2s1;    //xy=1082,325
 
+#if RECORD_ENABLED
+// Live recording: codec input -> queue the firmware drains into a sample buffer.
+AudioInputI2S    audioInput;
+AudioRecordQueue recordQueue;
+AudioConnection  patchRecIn(audioInput, 0, recordQueue, 0);
+#endif
+
 AudioConnection patchCord1_1(sound1, envelope1);
 AudioConnection patchCord1_2(envelope1, 0, filter1, 0);
 AudioConnection patchCord1_3(filter1, 0, mixer1, 0);

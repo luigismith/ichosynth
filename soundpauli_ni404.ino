@@ -89,9 +89,8 @@ void midiClockTransport(bool playing);
 void midiClockUpdateTempo();
 #endif
 #if FILTER_ENABLED
-bool filterHold = false;     // true while the FILTER button is held
-int filterEncBase = 0;       // CENTER encoder count when the hold started
-int filterKnobBase = 0;      // filter_knob value when the hold started
+unsigned int lastFilterVoice = 0;   // last voice the 4th-encoder fast-filter tracked
+unsigned long filterBarUntil = 0;   // show the cutoff bar overlay until this time
 unsigned int filterVoice();
 void applyFilter(unsigned int v);
 void applyAllFilters();
@@ -108,6 +107,11 @@ EXTMEM unsigned int note[maxlen][maxY + 1][2] = {};
 unsigned int sample_len[maxFiles];
 bool sampleLengthSet = false;
 bool isPlaying = false;  // global
+#if RECORD_ENABLED
+bool isRecording = false;          // REC button held -> capturing
+uint32_t recSamples = 0;           // int16 samples captured so far
+unsigned int recCh = 1;            // channel being recorded into
+#endif
 int PrevSampleRate = 1;
 EXTMEM int SampleRate[16] = { 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 };
 EXTMEM int buttons[5], oldButtons[5] = { 0, 0, 0, 0, 0 };
@@ -203,8 +207,12 @@ bool isEncoder4Defined = HAS_ENCODER4;
   Switch multiresponseButton3 = Switch(BTN_MIDL);  // Middle-Left: VOLUME / BPM
   Switch multiresponseButton4 = Switch(BTN_MIDR);  // Middle-Right:
   Switch multiresponseButton2 = Switch(BTN_RIGHT); // right-Knob:  (double-tab+hold: set Accents), Long hold(+l/r knob): Select BPM OR VOLUME
-#if FILTER_ENABLED
-  Switch filterButton = Switch(BTN_FILTER);  // plain momentary pushbutton to GND (INPUT_PULLUP, active LOW)
+// Filter is on the 4th encoder's rotation now (TŒRN-style fast filter) — no button.
+#if BUTTONS3_ENABLED
+  // 3 extra tact switches = PLAY / MENU / REC (TŒRN-style SWITCH_1/2/3).
+  Switch buttonPlay = Switch(BTN_SW1);
+  Switch buttonMenu = Switch(BTN_SW2);
+  Switch buttonRec  = Switch(BTN_SW3);
 #endif
 
 
@@ -506,6 +514,13 @@ void setup() {
   // According to info in libraries\Audio\control_sgtl5000.cpp
   // 31 is LOWEST output of 1.16V and 13 is HIGHEST output of 3.16V
   sgtl5000_1.lineOutLevel(1);
+
+#if RECORD_ENABLED
+  // Enable the codec input for live recording (mic by default; the Audio Shield
+  // also exposes line-in — switch to AUDIO_INPUT_LINEIN if wiring line level).
+  sgtl5000_1.inputSelect(AUDIO_INPUT_MIC);
+  sgtl5000_1.micGain(40);
+#endif
 
   AudioMemory(64);
 
@@ -1644,32 +1659,55 @@ void loop() {
   multiresponseButton3.poll();
   multiresponseButton4.poll();
 
-#if FILTER_ENABLED
-  // FILTER button: hold + turn CENTER = lowpass cutoff of the voice under
-  // the cursor. While held, the encoders are detached from the cursor (the
-  // CENTER count is restored on release so nothing jumps).
-  filterButton.poll();
-  if (filterButton.pushed() && !filterHold
-      && (currentMode == &draw || currentMode == &singleMode)) {
-    unsigned int v = filterVoice();
-    if (v) {
-      filterHold = true;
-      filterEncBase = encoders[2].read();
-      filterKnobBase = SMP.filter_knob[v];
+#if BUTTONS3_ENABLED
+  // 3 extra pushbuttons: direct PLAY / MENU / REC (like the device's switches).
+  buttonPlay.poll(); buttonMenu.poll(); buttonRec.poll();
+  if (buttonPlay.pushed()
+      && (currentMode == &draw || currentMode == &singleMode || currentMode == &noteShift))
+    togglePlay(isPlaying);
+  if (buttonMenu.pushed()) {
+    if (currentMode == &menu) switchMode(&draw);
+    else if (currentMode == &draw) switchMode(&menu);
+  }
+#if RECORD_ENABLED
+  // REC: hold to record from the codec input into the current channel's sample.
+  if (buttonRec.pushed() && (currentMode == &draw || currentMode == &singleMode)
+      && SMP.currentChannel >= 1 && SMP.currentChannel <= 8) {
+    recCh = SMP.currentChannel;
+    recSamples = 0;
+    isRecording = true;
+    _samplers[recCh].removeAllSamples();   // silence the sample we're about to overwrite
+    recordQueue.begin();
+  }
+  if (isRecording) {
+    uint32_t maxSamp = (uint32_t)(sizeof(sampled[recCh]) / 2);
+    while (recordQueue.available() > 0) {
+      int16_t *p = recordQueue.readBuffer();
+      if (!p) break;
+      if (recSamples + 128 <= maxSamp) {
+        memcpy((int16_t *)sampled[recCh] + recSamples, p, 128 * sizeof(int16_t));
+        recSamples += 128;
+      }
+      recordQueue.freeBuffer();
+      if (recSamples + 128 > maxSamp) break;   // buffer full
+    }
+    bool full = (recSamples + 128 > maxSamp);
+    if (buttonRec.released() || full) {
+      isRecording = false;
+      recordQueue.end();
+      if (recSamples > 200) {                  // register the take on its channel
+        _samplers[recCh].removeAllSamples();
+        _samplers[recCh].addSample(36, (int16_t *)sampled[recCh] + 2, (int)recSamples - 120, 1);
+        SMP.mute[recCh] = false;
+        SMP.smplen = recSamples * 2;
+      }
     }
   }
-  if (filterButton.released() && filterHold) {
-    filterHold = false;
-    encoders[2].write(filterEncBase);  // restore CENTER so the cursor doesn't move
-  }
+#endif
 #endif
 
   // getEncoders
-#if FILTER_ENABLED
-  if (!filterHold) checkPositions();
-#else
   checkPositions();
-#endif
 
   // Set stateMashine
   if (currentMode->name == "DRAW") {
@@ -1724,17 +1762,29 @@ void loop() {
   }
 
 #if FILTER_ENABLED
-  if (filterHold) {
+  // Fast filter (TŒRN-style): the 4th encoder sweeps the lowpass cutoff of the
+  // voice under the cursor. pos[3] is the cutoff (clamped to the filter range by
+  // the mode's min/maxValues). On cursor-voice change, sync the knob to that
+  // voice's stored cutoff so it doesn't jump.
+  if (currentMode == &draw || currentMode == &singleMode) {
     unsigned int v = filterVoice();
     if (v) {
-      int delta = (encoders[2].read() - filterEncBase) / 4;  // 4 counts per detent
-      int k = constrain(filterKnobBase + delta, 1, (int)maxfilterResolution);
-      if ((unsigned int)k != SMP.filter_knob[v]) {
-        SMP.filter_knob[v] = k;
-        applyFilter(v);  // safe here: loop context, not an ISR
+      if (v != lastFilterVoice) {
+        lastFilterVoice = v;
+        encoders[3].write((int)SMP.filter_knob[v] * 4);   // load this voice's cutoff
+        currentMode->pos[3] = SMP.filter_knob[v];
+      } else {
+        unsigned int k = constrain((int)currentMode->pos[3], 1, (int)maxfilterResolution);
+        if (k != SMP.filter_knob[v]) {
+          SMP.filter_knob[v] = k;
+          applyFilter(v);                                  // loop context, not an ISR
+          filterBarUntil = millis() + 600;                 // show the cutoff bar briefly
+        }
       }
-      drawFilterBar(v);  // overlay on top of this frame
+      if (millis() < filterBarUntil) drawFilterBar(v);     // overlay on top of this frame
     }
+  } else {
+    lastFilterVoice = 0;                                   // re-sync on re-entry
   }
 #endif
 

@@ -22,26 +22,52 @@
 #define ENC_RIGHT_DT 2  // Right knob DT
 #define ENC_MIDL_CLK 9  // Middle (center) knob CLK
 #define ENC_MIDL_DT 14  // Middle (center) knob DT
-#define ENC_MIDR_CLK 99 // 4th knob — UNUSED in this 3-encoder build (99 = not wired)
-#define ENC_MIDR_DT 99  // 4th knob — UNUSED in this 3-encoder build (99 = not wired)
+#define ENC_MIDR_CLK 32 // 4th knob CLK (upstream NI404 "middle-left" wiring)
+#define ENC_MIDR_DT 33  // 4th knob DT
 
 /* ===================== ENCODER PUSH-BUTTONS ===================== */
 #define BTN_LEFT 15 // Left knob switch
 #define BTN_RIGHT 3 // Right knob switch
 #define BTN_MIDL 16 // Middle (center) knob switch
-#define BTN_MIDR 99 // 4th knob switch — UNUSED in this 3-encoder build (99 = not wired)
+#define BTN_MIDR 41 // 4th knob switch (reuses the old standalone filter-button pin)
 
 /*
  * 4th encoder present?
- * 0 = 3-encoder build (THIS BUILD): three KY-040 encoders only (LEFT, CENTER,
- *     RIGHT). Volume moves to the LEFT knob, BPM to the CENTER knob, and the
- *     button gestures that upstream put on the 4th knob (Play/Pause, Volume/BPM,
- *     Menu, Note-Shift) are remapped onto the three remaining buttons — see the
- *     `!isEncoder4Defined` branches in checkMode(). Filtering/seeking disabled.
- * 1 = full 4-encoder build (filtering + sample-end seeking + volume on the
- *     middle-right knob). Restore the real ENC_MIDR and BTN_MIDR pins above.
+ * 1 = full 4-encoder build (THIS BUILD): four KY-040 encoders. The 4th (middle-
+ *     right) knob is contextual — in DRAW/SINGLE it sweeps the per-voice lowpass
+ *     FILTER of the voice under the cursor (TŒRN-style "fast filter": just turn,
+ *     no button); in VOLUME/BPM it sets volume; in the sample browser it seeks the
+ *     sample end. No standalone filter button needed.
+ * 0 = 3-encoder build: three encoders only; the 4th knob's gestures (Play/Pause,
+ *     Volume/BPM, Menu, Note-Shift) are remapped onto the three buttons (see the
+ *     `!isEncoder4Defined` branches). The per-voice filter control needs the 4th
+ *     encoder, so in this fallback the filters just stay open (no live control).
  */
-#define HAS_ENCODER4 0
+#define HAS_ENCODER4 1
+
+/* ===================== EXTRA PUSHBUTTONS (3 tact switches) ===================== *
+ * Three momentary tact switches = the instrument's PLAY / MENU / REC buttons
+ * (the role TŒRN assigns to its 3 touch SWITCH_1/2/3). Each: one leg to the pin,
+ * the other to GND (INPUT_PULLUP, active LOW — the avdweb Switch default), so an
+ * unwired pin safely reads "released". Set BUTTONS3_ENABLED 0 for a board without
+ * them. REC is reserved until live recording is ported from TŒRN.
+ */
+#ifndef BUTTONS3_ENABLED
+#define BUTTONS3_ENABLED 1
+#endif
+#define BTN_SW1 24   // PLAY  (play / pause)
+#define BTN_SW2 25   // MENU  (enter / exit menu)
+#define BTN_SW3 26   // REC   (hold to record from the audio input)
+
+/* ===================== LIVE RECORDING (mic / line-in) ===================== *
+ * Hold the REC button (BTN_SW3) to record from the codec input into the current
+ * channel's sample (released = stop, sample is registered and playable). Uses
+ * AudioInputI2S + AudioRecordQueue, so it runs on the Teensy and in the emulator
+ * (which captures from the selected input device). Set 0 to omit.
+ */
+#ifndef RECORD_ENABLED
+#define RECORD_ENABLED 1
+#endif
 
 /* ===================== OLED STATUS DISPLAY ===================== *
  * SSD1306 0.96" 128x64 over I2C. It shares the Wire bus with the Teensy Audio
@@ -66,19 +92,19 @@
  * but stock code never sets its cutoff, leaving the library default (1 kHz!).
  * Mapping mutuated from TOERN (soundpauli, MIT): cutoff 281.25..9000 Hz.
  *
- * Control: a plain momentary PUSHBUTTON (to GND) on BTN_FILTER — wired where
- * the 4th encoder's switch would sit. HOLD the button and TURN the CENTER
- * knob to sweep the lowpass of the voice under the cursor (row - 1, same
- * indexing as mute). Release = back to normal. Settings persist per song.
+ * Control (TŒRN-style "fast filter"): with HAS_ENCODER4=1, just TURN the 4th
+ * encoder in DRAW/SINGLE to sweep the lowpass of the voice under the cursor
+ * (row - 1, same indexing as mute) — no button, no hold. The knob auto-syncs to
+ * each voice's stored cutoff when the cursor moves. Settings persist per song.
+ * (3-encoder build: falls back to a dedicated hold-button — see HAS_ENCODER4=0.)
  *
  * FILTER_ENABLED 1 also opens all filters at boot (9 kHz instead of the
  * accidental 1 kHz default), so the dry sound is brighter than stock. Set to
- * 0 for byte-identical upstream behavior (and no button needed).
+ * 0 for byte-identical upstream behavior.
  */
 #ifndef FILTER_ENABLED
 #define FILTER_ENABLED 1
 #endif
-#define BTN_FILTER 41          // momentary pushbutton to GND (4th knob's SW spot)
 #define FILTER_MIN_HZ 281.25f  // TOERN 'PASS' lowpass mapping
 #define FILTER_MAX_HZ 9000.0f
 #define FILTER_RES 0.7f        // neutral resonance

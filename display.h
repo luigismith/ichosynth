@@ -26,6 +26,10 @@
 #include <Adafruit_GFX.h>
 #include <Adafruit_SSD1306.h>
 
+#if RECORD_ENABLED
+extern bool isRecording;   // defined in the .ino; shown as "*REC*" on the HUD
+#endif
+
 static Adafruit_SSD1306 oled(OLED_WIDTH, OLED_HEIGHT, &Wire, OLED_RESET_PIN);
 
 static bool oledReady = false;
@@ -39,6 +43,7 @@ static int oledLastVel = -1;
 static int oledLastPage = -1;
 static int oledLastLastPage = -1;
 static int oledLastPlaying = -1;
+static int oledLastRec = -1;
 
 inline void oledInit() {
   // Call AFTER the audio codec is enabled: the codec has already brought up the
@@ -63,6 +68,12 @@ inline void oledRenderStatus(const char *modeName, int bpm, int vol, int vel,
                              int page, int lastPageVal, bool playing) {
   if (!oledReady) return;
 
+#if RECORD_ENABLED
+  const bool rec = isRecording;
+#else
+  const bool rec = false;
+#endif
+
   const unsigned long now = millis();
   if (now - oledLastDraw < (unsigned long)(1000 / OLED_FPS)) return;
 
@@ -70,7 +81,7 @@ inline void oledRenderStatus(const char *modeName, int bpm, int vol, int vel,
     (oledLastMode != modeName) || (oledLastBpm != bpm) ||
     (oledLastVol != vol) || (oledLastVel != vel) ||
     (oledLastPage != page) || (oledLastLastPage != lastPageVal) ||
-    (oledLastPlaying != (int)playing);
+    (oledLastPlaying != (int)playing) || (oledLastRec != (int)rec);
   if (!dirty) return;
 
   oledLastDraw = now;
@@ -81,6 +92,7 @@ inline void oledRenderStatus(const char *modeName, int bpm, int vol, int vel,
   oledLastPage = page;
   oledLastLastPage = lastPageVal;
   oledLastPlaying = (int)playing;
+  oledLastRec = (int)rec;
 
   oled.clearDisplay();
 
@@ -92,7 +104,7 @@ inline void oledRenderStatus(const char *modeName, int bpm, int vol, int vel,
   // Transport state (top-right, small).
   oled.setTextSize(1);
   oled.setCursor(OLED_WIDTH - 30, 0);
-  oled.print(playing ? F(">PLAY") : F("STOP"));
+  oled.print(rec ? F("*REC*") : (playing ? F(">PLAY") : F("STOP")));
 
   // BPM (large).
   oled.setTextSize(2);
