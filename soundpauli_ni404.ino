@@ -119,6 +119,9 @@ bool isPlaying = false;  // global
 bool isRecording = false;          // REC button held -> capturing
 uint32_t recSamples = 0;           // int16 samples captured so far
 unsigned int recCh = 1;            // channel being recorded into
+bool recArmed = false;        // count-in armed (counting beats before recording)
+int  recCountIn = 0;          // quarter-note beats left in the count-in
+unsigned long recCountAt = 0; // millis() of the last count-in beat tick
 #endif
 int PrevSampleRate = 1;
 EXTMEM int SampleRate[16] = { 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 };
@@ -467,6 +470,15 @@ unsigned int saveRecording(unsigned int ch, uint32_t nSamples) {
   f.write((const uint8_t *)sampled[ch], nSamples * 2);
   f.close();
   return id;
+}
+
+// Begin capturing into channel `ch` (after any count-in).
+void beginRec(unsigned int ch) {
+  recCh = ch;
+  recSamples = 0;
+  isRecording = true;
+  _samplers[ch].removeAllSamples();   // silence the sample we're about to overwrite
+  recordQueue.begin();
 }
 #endif
 
@@ -1244,6 +1256,7 @@ void playNote() {
     // pagebeat is always 1-16, calcs from beat. if beat 1-16, pagebeat is 1, if beat 17-32, pagebeat is 2, etc.
     pagebeat = (beat - 1) % maxX + 1;
 
+
     // midi functions
     if (waitForFourBars && pulseCount >= totalPulsesToWait) {
       beat = 1;
@@ -1821,13 +1834,21 @@ void loop() {
 #endif
 #if RECORD_ENABLED
   // REC: hold to record from the codec input into the current channel's sample.
-  if (buttonRec.pushed() && (currentMode == &draw || currentMode == &singleMode)
+  // When the sequencer is playing, a 4-beat count-in syncs the take to the beat
+  // (like TŒRN's ON1); when stopped, recording starts immediately.
+  if (buttonRec.pushed() && !isRecording && !recArmed
+      && (currentMode == &draw || currentMode == &singleMode)
       && SMP.currentChannel >= 1 && SMP.currentChannel <= 8) {
     recCh = SMP.currentChannel;
-    recSamples = 0;
-    isRecording = true;
-    _samplers[recCh].removeAllSamples();   // silence the sample we're about to overwrite
-    recordQueue.begin();
+    recArmed = true; recCountIn = 4; recCountAt = millis();   // 4-beat count-in, then record
+  }
+  if (recArmed) {   // advance the count-in at the song tempo (a beat = a quarter note)
+    unsigned int bpm = (SMP.bpm < 20) ? 120 : SMP.bpm;
+    if (millis() - recCountAt >= (unsigned long)(60000UL / bpm)) {
+      recCountAt += 60000UL / bpm;
+      if (--recCountIn <= 0) { recArmed = false; beginRec(recCh); }   // count done -> record
+    }
+    if (buttonRec.released()) { recArmed = false; recCountIn = 0; }   // cancelled before start
   }
   if (isRecording) {
     uint32_t maxSamp = (uint32_t)(sizeof(sampled[recCh]) / 2);
@@ -1909,6 +1930,13 @@ void loop() {
       FastLEDshow();
     }
   }
+
+#if RECORD_ENABLED
+  if (recArmed) {   // count-in overlay: show the beats remaining (4..1) in red
+    showNumber((unsigned int)recCountIn, CRGB(40, 0, 0), 5);
+    FastLEDshow();
+  }
+#endif
 
   // end synthsound after X ms
   if (noteOnTriggered && millis() - startTime >= 200) {
