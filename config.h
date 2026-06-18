@@ -90,6 +90,14 @@
 #define LADDER_ENABLED 1
 #endif
 
+/* ===================== FX MODE (per-voice FX editor) ===================== *
+ * Hold the MENU button in DRAW/SINGLE to enter FX MODE: the 4 encoders become
+ * sliders for the voice under the cursor — E1 cutoff (lowpass), E2 ladder cutoff,
+ * E3 ladder resonance, E4 bitcrush amount — shown as 4 bars on the grid. Tap MENU
+ * to exit. Auto-enabled when the filter + both FX + the 3 buttons are present.
+ */
+#define FXMODE_ENABLED (FILTER_ENABLED && BITCRUSH_ENABLED && LADDER_ENABLED && BUTTONS3_ENABLED)
+
 /* ===================== OLED STATUS DISPLAY ===================== *
  * SSD1306 0.96" 128x64 over I2C. It shares the Wire bus with the Teensy Audio
  * Shield's SGTL5000 codec (SDA = pin 18, SCL = pin 19). The codec lives at a

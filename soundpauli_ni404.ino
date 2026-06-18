@@ -164,6 +164,12 @@ Mode velocity = { "VELOCITY", { 1, 1, 1, 1 }, { 1, 1, maxY, maxY }, { 1, 1, 10, 
 Mode set_Wav = { "SET_WAV", { 0, 1, 1, 0 }, { 999, maxFolders, 999, 999 }, { 0, 0, 1, 999 } };
 Mode set_SamplePack = { "SET_SAMPLEPACK", { 1, 1, 1, 1 }, { 1, 1, 99, 99 }, { 1, 1, 1, 1 } };
 Mode menu = { "MENU", { 1, 1, 1, 1 }, { 1, 1, 12, 12 }, { 1, 1, 1, 1 } };
+#if FXMODE_ENABLED
+// FX MODE: 4 encoders = sliders (cutoff, ladder cutoff, ladder reso, bitcrush) of
+// the voice under the cursor; all ranges 1..maxY so checkPositions maps uniformly.
+Mode fxMode = { "FXMODE", { 1, 1, 1, 1 }, { maxY, maxY, maxY, maxY }, { maxY, maxY, 1, 1 } };
+unsigned int fxVoice = 0;   // voice being edited in FX mode
+#endif
 
 // Declare currentMode as a global variable
 Mode *currentMode = &draw;
@@ -382,6 +388,48 @@ void drawFilterBar(unsigned int v) {
     light(x, 8, px);
     light(x, 9, px);
   }
+}
+#endif
+
+#if FXMODE_ENABLED
+// Enter FX MODE on the voice under the cursor: seed the 4 sliders from its current
+// FX values (so the encoders don't jump), then switch (switchMode syncs encoders).
+void enterFX() {
+  unsigned int v = filterVoice();
+  if (v < 1 || v >= maxCrush) return;   // FX (crush/ladder) exist only on sample voices 1..8
+  fxVoice = v;
+  fxMode.pos[0] = constrain((int)round(mapf(SMP.filter_knob[v], 1, maxfilterResolution, 1, maxY)), 1, (int)maxY);
+  fxMode.pos[1] = constrain((int)round(mapf(ladderCut[v], 1, maxfilterResolution, 1, maxY)), 1, (int)maxY);
+  fxMode.pos[2] = constrain((int)round(mapf(ladderRes[v], 0, maxfilterResolution, 1, maxY)), 1, (int)maxY);
+  fxMode.pos[3] = constrain((int)round(mapf(crushBits[v], 16, 2, 1, maxY)), 1, (int)maxY);
+  switchMode(&fxMode);
+}
+
+// Draw the 4 FX sliders as vertical bars (4 grid columns each).
+void drawFXSliders() {
+  FastLEDclear();
+  CRGB barcol[4] = { CRGB(0, 18, 18), CRGB(18, 0, 18), CRGB(18, 18, 0), CRGB(20, 6, 0) };
+  for (int s = 0; s < 4; s++) {
+    unsigned int h = constrain((int)fxMode.pos[s], 1, (int)maxY);
+    for (unsigned int x = (unsigned int)(s * 4 + 1); x <= (unsigned int)(s * 4 + 4) && x <= maxX; x++)
+      for (unsigned int y = 1; y <= maxY; y++)
+        light(x, y, (y <= h) ? barcol[s] : CRGB(1, 1, 1));
+  }
+  FastLED.show();
+}
+
+// Apply the 4 sliders to the cursor voice's FX every frame, then draw.
+void fxModeUpdate() {
+  unsigned int v = fxVoice;
+  if (v < 1 || v >= maxCrush) { switchMode(&draw); return; }
+  SMP.filter_knob[v] = constrain((int)round(mapf(fxMode.pos[0], 1, maxY, 1, maxfilterResolution)), 1, (int)maxfilterResolution);
+  applyFilter(v);
+  ladderCut[v] = constrain((int)round(mapf(fxMode.pos[1], 1, maxY, 1, maxfilterResolution)), 1, (int)maxfilterResolution);
+  ladderRes[v] = constrain((int)round(mapf(fxMode.pos[2], 1, maxY, 0, maxfilterResolution)), 0, (int)maxfilterResolution);
+  applyLadder(v);
+  crushBits[v] = constrain((int)round(mapf(fxMode.pos[3], 1, maxY, 16, 2)), 1, 16);
+  applyCrush(v);
+  drawFXSliders();
 }
 #endif
 
@@ -1713,10 +1761,27 @@ void loop() {
   if (buttonPlay.pushed()
       && (currentMode == &draw || currentMode == &singleMode || currentMode == &noteShift))
     togglePlay(isPlaying);
+#if FXMODE_ENABLED
+  // MENU: tap = menu (or exit FX); hold (>600 ms) in DRAW/SINGLE = enter FX MODE.
+  static unsigned long menuDownAt = 0;
+  static bool menuLong = false;
+  if (buttonMenu.pushed()) { menuDownAt = millis(); menuLong = false; }
+  if (buttonMenu.on() && !menuLong && (millis() - menuDownAt) > 600
+      && (currentMode == &draw || currentMode == &singleMode)) {
+    menuLong = true; enterFX();
+  }
+  if (buttonMenu.released()) {
+    if (menuLong) { menuLong = false; }                  // hold already entered FX
+    else if (currentMode == &fxMode) switchMode(&draw);  // tap exits FX
+    else if (currentMode == &menu) switchMode(&draw);
+    else if (currentMode == &draw) switchMode(&menu);
+  }
+#else
   if (buttonMenu.pushed()) {
     if (currentMode == &menu) switchMode(&draw);
     else if (currentMode == &draw) switchMode(&menu);
   }
+#endif
 #if RECORD_ENABLED
   // REC: hold to record from the codec input into the current channel's sample.
   if (buttonRec.pushed() && (currentMode == &draw || currentMode == &singleMode)
@@ -1781,6 +1846,10 @@ void loop() {
     if (isPlaying) {
       drawTimer(pagebeat);
     }
+#if FXMODE_ENABLED
+  } else if (currentMode->name == "FXMODE") {
+    fxModeUpdate();
+#endif
   }
 
   // reset buttons
