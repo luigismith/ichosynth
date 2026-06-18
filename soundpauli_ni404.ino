@@ -97,6 +97,10 @@ void applyAllFilters();
 #if BITCRUSH_ENABLED
 void applyCrush(unsigned int v);
 void applyAllCrush();
+#if LADDER_ENABLED
+void applyLadder(unsigned int v);
+void applyAllLadder();
+#endif
 #endif
 #endif
 unsigned int lastPage = 1;
@@ -231,6 +235,11 @@ AudioFilterStateVariable *filters[] = { &filter0, &filter1, &filter2, &filter3, 
 const unsigned int maxCrush = 9;
 AudioEffectBitcrusher *crushers[maxCrush] = { nullptr, &crush1, &crush2, &crush3, &crush4, &crush5, &crush6, &crush7, &crush8 };
 EXTMEM uint8_t crushBits[maxCrush];   // per-voice bit depth; 16 = bypass (set at boot)
+#if LADDER_ENABLED
+AudioFilterLadder *ladders[maxCrush] = { nullptr, &ladder1, &ladder2, &ladder3, &ladder4, &ladder5, &ladder6, &ladder7, &ladder8 };
+EXTMEM uint8_t ladderCut[maxCrush];   // per-voice ladder cutoff knob; max = open
+EXTMEM uint8_t ladderRes[maxCrush];   // per-voice ladder resonance knob; 0 = none
+#endif
 #endif
 
 void serialprint(...) {
@@ -348,6 +357,18 @@ void applyCrush(unsigned int v) {
 void applyAllCrush() {
   for (unsigned int v = 1; v < maxCrush; v++) { crushBits[v] = 16; crushers[v]->sampleRate(44100.0f); applyCrush(v); }
 }
+#if LADDER_ENABLED
+// Per-voice Moog ladder: ladderCut[v] = cutoff knob (max = open ~18 kHz),
+// ladderRes[v] = resonance knob (0 = none .. ~1.1 = singing).
+void applyLadder(unsigned int v) {
+  if (v < 1 || v >= maxCrush) return;
+  ladders[v]->frequency(mapf(ladderCut[v], 1, maxfilterResolution, FILTER_MIN_HZ, 18000.0f));
+  ladders[v]->resonance(mapf(ladderRes[v], 0, maxfilterResolution, 0.0f, 1.1f));
+}
+void applyAllLadder() {
+  for (unsigned int v = 1; v < maxCrush; v++) { ladderCut[v] = maxfilterResolution; ladderRes[v] = 0; applyLadder(v); }
+}
+#endif
 #endif
 
 // Two-row bar overlay while the FILTER button is held: length = cutoff,
@@ -543,7 +564,7 @@ void setup() {
   sgtl5000_1.micGain(40);
 #endif
 
-  AudioMemory(96);   // headroom for the per-voice bitcrushers (FX)
+  AudioMemory(120);   // headroom for the per-voice FX (bitcrushers + ladders)
 
 #if FILTER_ENABLED
   // Open every voice's lowpass (9 kHz) instead of the library's accidental
@@ -552,6 +573,9 @@ void setup() {
 #endif
 #if BITCRUSH_ENABLED
   applyAllCrush();   // all sample voices start bypassed (16-bit)
+#if LADDER_ENABLED
+  applyAllLadder();  // all ladders start wide open (transparent)
+#endif
 #endif
 
   // OLED HUD shares the I2C bus the codec just brought up (no-op if disabled).

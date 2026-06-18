@@ -79,6 +79,17 @@
 #define BITCRUSH_ENABLED 1
 #endif
 
+/* ===================== MOOG LADDER FILTER (per-voice) ===================== *
+ * A 4-pole Moog-style ladder filter after the bitcrusher on the 8 sample voices
+ * (filterN -> crushN -> ladderN -> mixer). A second, characterful resonant lowpass
+ * (the TŒRN "ladder" type). Default = wide open (~18 kHz, no resonance) = effectively
+ * transparent. Second TŒRN effect ported. Requires BITCRUSH_ENABLED (shares the FX
+ * chain); set 0 to omit. Set both FX flags to 0 for byte-identical upstream routing.
+ */
+#ifndef LADDER_ENABLED
+#define LADDER_ENABLED 1
+#endif
+
 /* ===================== OLED STATUS DISPLAY ===================== *
  * SSD1306 0.96" 128x64 over I2C. It shares the Wire bus with the Teensy Audio
  * Shield's SGTL5000 codec (SDA = pin 18, SCL = pin 19). The codec lives at a
