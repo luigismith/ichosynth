@@ -223,6 +223,7 @@ flowchart TD
 | `RECORD_ENABLED` | `1` | live recording (hold REC): codec input → sample on the channel |
 | `BITCRUSH_ENABLED` | `1` | per-voice bitcrusher on the 8 sample voices (1st TŒRN FX; default bypass) |
 | `LADDER_ENABLED` | `1` | per-voice Moog ladder filter after the crusher (2nd TŒRN FX; default open) |
+| `FXMODE_ENABLED` | auto | hold MENU = FX MODE: 4 encoders become sliders (cutoff/ladder cut/ladder reso/crush) |
 | `FILTER_ENABLED` | `1` | per-voice lowpass on the **4th encoder** (turn = cutoff); `0` = exact upstream sound |
 
 ---

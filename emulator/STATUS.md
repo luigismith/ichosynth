@@ -210,9 +210,15 @@ below verified by driving the live window (screenshot + synthetic mouse/keyboard
   Verified via `--play`: closing the ladder drops a bright voice's energy to ~1%.
   Engine + `ni404_set_ladder()` hook in; on-device control also via the FX MODE.
 
+### DONE (2026-06-18) — FX MODE (on-device control for the effects)
+- New `fxMode` Mode (`FXMODE_ENABLED`): **hold MENU** in DRAW/SINGLE → the 4 encoders
+  become sliders for the cursor voice (E1 cutoff, E2 ladder cutoff, E3 ladder reso,
+  E4 bitcrush), drawn as 4 colour-coded bars on the grid; tap MENU to exit. Encoders
+  seeded from the voice's current values on entry (no jump). Only voices 1..8.
+  Verified live (screenshot+input): enters, persists after the hold releases, sliders
+  move with the encoders; `--play` still all-PASS.
+
 ### Still open
-- **FX MODE** (the deferred filter/fx UI) to control crush (+ resonance, filter type,
-  future reverb/ladder) — currently crush has no on-device control (no free encoder).
 - Save a recorded take to the SD (persist past restart) + optional count-in.
 - ogg/aiff import (needs stb_vorbis / an AIFF parser).
 - Mac build of the new sources (CI covers it; not run locally).

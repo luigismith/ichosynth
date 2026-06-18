@@ -124,7 +124,10 @@ Già nel firmware ichosynth (`config.h` + `soundpauli_ni404.ino`):
   campione, default trasparenti. Verificati col `--play`. Manca solo il **controllo
   on-device** (non c'è un encoder libero in draw → serve la FX mode).
 
+- **FX MODE** (`FXMODE_ENABLED`): **tieni MENU** → le 4 manopole diventano slider della
+  voce sotto il cursore (E1 cutoff, E2 ladder cutoff, E3 ladder risonanza, E4 bitcrush),
+  4 barre sulla griglia; tap MENU per uscire. È il controllo on-device degli effetti.
+
 Verificato dal vivo nell'emulatore (PLAY, MENU, REC, manopole, filtro sul 4° encoder,
-bitcrusher via `--play`). Da fare: la **FX/FILTER MODE** (4 manopole = slider: cutoff,
-risonanza, tipo LP/HP/ladder, **bitcrusher**, reverb) per controllare gli effetti;
-poi salvataggio registrazione su SD, count-in, e gli altri effetti (reverb, ladder).
+bitcrusher + ladder via `--play`, FX MODE con gli slider). Da fare: salvataggio
+registrazione su SD, count-in, e altri effetti (reverb — serve lo shim freeverb).

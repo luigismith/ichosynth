@@ -67,8 +67,11 @@ L'orientamento della griglia rispecchia il pannello fisico (riga 1 in basso).
   - rotellina del mouse sopra una manopola = ruota.
   - in DRAW/SINGLE, la rotazione del **4° encoder (E4)** = **filtro** (cutoff)
     lowpass della voce sotto il cursore — alla TŒRN, niente pulsante.
-- **Pulsanti**: **PLAY** (play/pausa), **MENU** (entra/esci menu), **REC** (tieni
-  premuto per registrare, vedi §9).
+- **Pulsanti**: **PLAY** (play/pausa), **MENU** (tap = entra/esci menu; **tieni
+  premuto** = **FX MODE**), **REC** (tieni premuto per registrare, vedi §9).
+- **FX MODE** (tieni MENU in DRAW/SINGLE): le 4 manopole diventano **slider** della
+  voce sotto il cursore — E1 cutoff, E2 ladder cutoff, E3 ladder risonanza, E4
+  bitcrush — mostrati come 4 barre sulla griglia. Tap MENU per uscire.
 - Tutto funziona con il **multi-touch** (puoi premere due pulsanti insieme).
 
 ### Da tastiera del PC
