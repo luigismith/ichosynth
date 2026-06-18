@@ -421,6 +421,15 @@ static int run_play() {
           && std::fabs(cCrush - cClean) > cClean * 0.05f, d);
     ni404_set_crush(1, 16);
 
+    // 0c) Moog ladder (FX): closing the ladder attenuates a bright voice.
+    std::printf("\n0c) Moog ladder per-voce (aperto vs chiuso):\n");
+    ni404_set_ladder(1, 99); ni404_play_note(1, 60, 110); float lWide = render_rms(14);
+    ni404_set_ladder(1, 1);  ni404_play_note(1, 60, 110); float lNarrow = render_rms(14);
+    std::snprintf(d, sizeof d, "energia aperto=%.4f  chiuso=%.4f  (%.0f%%)",
+                  lWide, lNarrow, lWide > 0 ? 100.0 * lNarrow / lWide : 0.0);
+    check("il ladder attenua chiudendo il taglio", lNarrow < lWide * 0.7f, d);
+    ni404_set_ladder(1, 99);
+
     // 1) Every drum/sample pad plays from the MIDI keyboard (selected channel).
     std::printf("\n1) Suono gli 8 canali campione dalla tastiera MIDI (DO=base):\n");
     for (int ch = 1; ch <= 8; ch++) {

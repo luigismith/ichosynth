@@ -125,6 +125,16 @@ void ni404_set_crush(int channel, int bits) {
     (void)channel; (void)bits;
 #endif
 }
+void ni404_set_ladder(int channel, int cutoffKnob) {
+#if BITCRUSH_ENABLED && LADDER_ENABLED
+    if (channel < 1 || channel >= (int)maxCrush) return;
+    if (cutoffKnob < 1) cutoffKnob = 1; if (cutoffKnob > (int)maxfilterResolution) cutoffKnob = (int)maxfilterResolution;
+    ladderCut[channel] = (uint8_t)cutoffKnob;
+    applyLadder((unsigned int)channel);
+#else
+    (void)channel; (void)cutoffKnob;
+#endif
+}
 int  ni404_test_beat()    { return (int)beat; }
 int  ni404_test_page()    { return (int)SMP.page; }
 int  ni404_test_playing() { return isPlaying ? 1 : 0; }

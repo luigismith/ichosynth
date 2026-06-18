@@ -61,6 +61,7 @@ void ni404_play_note(int, int, int) {}
 void ni404_play_synth(int, int, int) {}
 void ni404_set_filter(int, int) {}
 void ni404_set_crush(int, int) {}
+void ni404_set_ladder(int, int) {}
 int  ni404_test_beat()    { return 0; }
 int  ni404_test_page()    { return 0; }
 int  ni404_test_playing() { return 0; }
