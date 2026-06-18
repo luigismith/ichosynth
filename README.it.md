@@ -223,6 +223,7 @@ flowchart TD
 | `BUTTONS3_ENABLED` | `1` | i 3 pulsanti PLAY/MENU/REC (pin 24/25/26) |
 | `RECORD_ENABLED` | `1` | registrazione dal vivo (tieni REC): ingresso codec → campione sul canale |
 | `BITCRUSH_ENABLED` | `1` | bitcrusher per-voce sulle 8 voci campione (1° effetto TŒRN; default bypass) |
+| `LADDER_ENABLED` | `1` | filtro Moog ladder per-voce dopo il crusher (2° effetto TŒRN; default aperto) |
 | `FILTER_ENABLED` | `1` | lowpass per voce sul **4° encoder** (gira = cutoff); `0` = suono identico all'originale |
 
 ---

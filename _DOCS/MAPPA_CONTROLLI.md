@@ -119,9 +119,10 @@ Già nel firmware ichosynth (`config.h` + `soundpauli_ni404.ino`):
   codec (`AudioInputI2S`+`AudioRecordQueue`) nel canale corrente; OLED mostra `*REC*`.
 - Cablaggio pulsanti: un lato al pin, l'altro a **GND** (INPUT_PULLUP, attivi-bassi).
 
-- **Bitcrusher per-voce** (`BITCRUSH_ENABLED`): primo effetto TŒRN portato, inserito
-  nel grafo (filtro→crush→mixer) sulle 8 voci campione, default bypass. Verificato col
-  `--play`. Manca solo il **controllo on-device** (non c'è un encoder libero in draw).
+- **Bitcrusher + Moog ladder per-voce** (`BITCRUSH_ENABLED`, `LADDER_ENABLED`): primi due
+  effetti TŒRN portati, inseriti nel grafo (filtro→crush→ladder→mixer) sulle 8 voci
+  campione, default trasparenti. Verificati col `--play`. Manca solo il **controllo
+  on-device** (non c'è un encoder libero in draw → serve la FX mode).
 
 Verificato dal vivo nell'emulatore (PLAY, MENU, REC, manopole, filtro sul 4° encoder,
 bitcrusher via `--play`). Da fare: la **FX/FILTER MODE** (4 manopole = slider: cutoff,

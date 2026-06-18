@@ -205,6 +205,10 @@ below verified by driving the live window (screenshot + synthetic mouse/keyboard
   filterN→crushN→mixer (default bypass; `AudioMemory` bumped to 96). Verified via
   `--play`: a crushed voice's signal clearly differs from clean; all 8 channels still
   sound. Engine + `ni404_set_crush()` hook in; **on-device control = the FX MODE (next)**.
+- **Per-voice Moog ladder** (`LADDER_ENABLED`, 2nd TŒRN effect) after the crusher
+  (filterN→crushN→ladderN→mixer; default open ~18 kHz = transparent; `AudioMemory` 120).
+  Verified via `--play`: closing the ladder drops a bright voice's energy to ~1%.
+  Engine + `ni404_set_ladder()` hook in; on-device control also via the FX MODE.
 
 ### Still open
 - **FX MODE** (the deferred filter/fx UI) to control crush (+ resonance, filter type,
