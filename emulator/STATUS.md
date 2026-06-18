@@ -224,8 +224,15 @@ below verified by driving the live window (screenshot + synthetic mouse/keyboard
   (`SMP.wav[ch]`), so it persists past restart and reloads from disk. Verified via
   `--play` (`ni404_test_record_save` hook): synth a tone → save → reload → plays (peak 0.12).
 
+### DONE (2026-06-18) — REC count-in
+- Hold REC → a **4-beat count-in** at the song tempo (millis-based, BPM-synced; shows
+  4-3-2-1 on the grid via showNumber) then recording begins; release stops + saves.
+  Verified live (screenshots: 4→2→*REC*). Self-contained in loop() (not the playTimer
+  ISR), so it works whether the sequencer is playing or stopped.
+
 ### Still open
-- Optional count-in for REC; auto-load recordings into the channel on song reload (the
-  file persists + SMP.wav is set; full song-recall wiring to confirm on hardware).
+- Auto-load recordings into the channel on song reload (the file persists + SMP.wav is
+  set; full song-recall wiring to confirm on hardware).
+- Reverb (needs a freeverb shim for ni404emu + a send bus).
 - ogg/aiff import (needs stb_vorbis / an AIFF parser).
 - Mac build of the new sources (CI covers it; not run locally).

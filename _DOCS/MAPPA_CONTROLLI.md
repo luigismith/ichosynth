@@ -130,6 +130,8 @@ Già nel firmware ichosynth (`config.h` + `soundpauli_ni404.ino`):
 
 - **Registrazione salvata su SD** (`saveRecording`): al rilascio di REC la presa viene
   scritta in `samples/9/_9NN.wav` e caricata sul canale → persiste al riavvio.
+- **Count-in REC**: tieni REC → 4 beat a tempo (4-3-2-1 sulla griglia, come l'ON1 di
+  TŒRN) → poi registra. Basato su `millis()` nel loop (a `SMP.bpm`).
 
 Verificato (PLAY, MENU, REC, manopole, filtro 4° encoder, bitcrusher + ladder, FX MODE,
 salvataggio registrazione via `--play`). Da fare: count-in, e altri effetti (reverb —

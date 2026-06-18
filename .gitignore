@@ -37,4 +37,6 @@ midi-map.txt
 settings.txt
 _SDCARD/autosaved.txt
 _SDCARD/settings.txt
+# user-recorded / imported samples (runtime content, not shipped)
+_SDCARD/samples/
 

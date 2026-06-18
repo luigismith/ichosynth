@@ -236,9 +236,10 @@ messaggio. *(ogg/aiff non ancora supportati.)*
 
 ### Registrazione (REC)
 Tieni premuto **REC** per registrare dall'**ingresso audio selezionato** (menu TAB →
-Ingresso audio) nel **canale corrente**; **rilascia** per fermare — la registrazione
-diventa subito suonabile su quel canale. Durante la registrazione l'OLED mostra
-**\*REC\***. È portabile: sul Teensy reale usa `AudioInputI2S`+`AudioRecordQueue`
+Ingresso audio; se nessuno è scelto usa l'ingresso predefinito del sistema) nel
+**canale corrente**. Parte con un **count-in di 4 beat** a tempo di BPM (sulla griglia
+appaiono **4-3-2-1**, come l'ON1 di TŒRN), poi registra (OLED **\*REC\***); **rilascia**
+per fermare. La registrazione diventa subito suonabile **e viene salvata su SD**. È portabile: sul Teensy reale usa `AudioInputI2S`+`AudioRecordQueue`
 (ingresso del codec SGTL5000), nell'emulatore cattura dal device d'ingresso.
 **La registrazione viene salvata su SD** come `samples/9/_9NN.wav` (primo numero
 libero) e caricata sul canale, così **persiste** dopo il riavvio (ed è richiamabile
