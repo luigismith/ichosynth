@@ -128,6 +128,9 @@ Già nel firmware ichosynth (`config.h` + `soundpauli_ni404.ino`):
   voce sotto il cursore (E1 cutoff, E2 ladder cutoff, E3 ladder risonanza, E4 bitcrush),
   4 barre sulla griglia; tap MENU per uscire. È il controllo on-device degli effetti.
 
-Verificato dal vivo nell'emulatore (PLAY, MENU, REC, manopole, filtro sul 4° encoder,
-bitcrusher + ladder via `--play`, FX MODE con gli slider). Da fare: salvataggio
-registrazione su SD, count-in, e altri effetti (reverb — serve lo shim freeverb).
+- **Registrazione salvata su SD** (`saveRecording`): al rilascio di REC la presa viene
+  scritta in `samples/9/_9NN.wav` e caricata sul canale → persiste al riavvio.
+
+Verificato (PLAY, MENU, REC, manopole, filtro 4° encoder, bitcrusher + ladder, FX MODE,
+salvataggio registrazione via `--play`). Da fare: count-in, e altri effetti (reverb —
+serve lo shim freeverb + architettura di send).

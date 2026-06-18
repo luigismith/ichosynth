@@ -221,7 +221,7 @@ flowchart TD
 | `EXTERNAL_CLOCK_TIMEOUT_MS` | `750` | finestra di rilevamento del clock esterno |
 | `HAS_ENCODER4` | `1` | **questa build = 4 encoder**; il 4° fa filtro/volume/seek. `0` = vecchia build a 3 encoder |
 | `BUTTONS3_ENABLED` | `1` | i 3 pulsanti PLAY/MENU/REC (pin 24/25/26) |
-| `RECORD_ENABLED` | `1` | registrazione dal vivo (tieni REC): ingresso codec → campione sul canale |
+| `RECORD_ENABLED` | `1` | registrazione dal vivo (tieni REC): ingresso codec → campione sul canale, **salvato su SD** |
 | `BITCRUSH_ENABLED` | `1` | bitcrusher per-voce sulle 8 voci campione (1° effetto TŒRN; default bypass) |
 | `LADDER_ENABLED` | `1` | filtro Moog ladder per-voce dopo il crusher (2° effetto TŒRN; default aperto) |
 | `FXMODE_ENABLED` | auto | tieni MENU = FX MODE: le 4 manopole diventano slider (cutoff/ladder/risonanza/crush) |

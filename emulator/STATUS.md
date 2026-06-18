@@ -218,7 +218,14 @@ below verified by driving the live window (screenshot + synthetic mouse/keyboard
   Verified live (screenshot+input): enters, persists after the hold releases, sliders
   move with the encoders; `--play` still all-PASS.
 
+### DONE (2026-06-18) — recordings saved to SD
+- On REC release the take is written to `samples/9/_9NN.wav` (next free) via the
+  firmware (`saveRecording()` + `writeWavHeader()`), and the channel is pointed at it
+  (`SMP.wav[ch]`), so it persists past restart and reloads from disk. Verified via
+  `--play` (`ni404_test_record_save` hook): synth a tone → save → reload → plays (peak 0.12).
+
 ### Still open
-- Save a recorded take to the SD (persist past restart) + optional count-in.
+- Optional count-in for REC; auto-load recordings into the channel on song reload (the
+  file persists + SMP.wav is set; full song-recall wiring to confirm on hardware).
 - ogg/aiff import (needs stb_vorbis / an AIFF parser).
 - Mac build of the new sources (CI covers it; not run locally).

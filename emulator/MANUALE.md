@@ -240,8 +240,9 @@ Ingresso audio) nel **canale corrente**; **rilascia** per fermare — la registr
 diventa subito suonabile su quel canale. Durante la registrazione l'OLED mostra
 **\*REC\***. È portabile: sul Teensy reale usa `AudioInputI2S`+`AudioRecordQueue`
 (ingresso del codec SGTL5000), nell'emulatore cattura dal device d'ingresso.
-*(Per ora la registrazione resta in RAM sul canale; il salvataggio su SD è un passo
-successivo.)*
+**La registrazione viene salvata su SD** come `samples/9/_9NN.wav` (primo numero
+libero) e caricata sul canale, così **persiste** dopo il riavvio (ed è richiamabile
+dal browser campioni / dal salvataggio del brano).
 
 > **Nota sui salvataggi:** all'avvio il firmware ricarica `autosaved.txt`. Un file di
 > salvataggio vecchio o corrotto con valori di filtro a 0 chiuderebbe i filtri (audio

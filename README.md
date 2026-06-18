@@ -220,7 +220,7 @@ flowchart TD
 | `EXTERNAL_CLOCK_TIMEOUT_MS` | `750` | external-clock detection window |
 | `HAS_ENCODER4` | `1` | **this build = 4 encoders**; the 4th does filter/volume/seek. `0` = old 3-encoder build |
 | `BUTTONS3_ENABLED` | `1` | the 3 pushbuttons PLAY/MENU/REC (pins 24/25/26) |
-| `RECORD_ENABLED` | `1` | live recording (hold REC): codec input → sample on the channel |
+| `RECORD_ENABLED` | `1` | live recording (hold REC): codec input → sample on the channel, **saved to SD** |
 | `BITCRUSH_ENABLED` | `1` | per-voice bitcrusher on the 8 sample voices (1st TŒRN FX; default bypass) |
 | `LADDER_ENABLED` | `1` | per-voice Moog ladder filter after the crusher (2nd TŒRN FX; default open) |
 | `FXMODE_ENABLED` | auto | hold MENU = FX MODE: 4 encoders become sliders (cutoff/ladder cut/ladder reso/crush) |
