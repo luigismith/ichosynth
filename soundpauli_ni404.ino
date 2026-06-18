@@ -433,6 +433,43 @@ void fxModeUpdate() {
 }
 #endif
 
+#if RECORD_ENABLED
+// Write a 44-byte WAV header (16-bit mono 44.1 kHz) for `dataBytes` of PCM data.
+void writeWavHeader(File &f, uint32_t dataBytes) {
+  uint8_t h[44];
+  uint32_t rate = 44100, br = 44100 * 2, cs = 36 + dataBytes, fmtlen = 16;
+  uint16_t af = 1, ch1 = 1, ba = 2, bps = 16;
+  memcpy(h, "RIFF", 4);      memcpy(h + 4, &cs, 4);    memcpy(h + 8, "WAVE", 4);
+  memcpy(h + 12, "fmt ", 4); memcpy(h + 16, &fmtlen, 4);
+  memcpy(h + 20, &af, 2);    memcpy(h + 22, &ch1, 2);
+  memcpy(h + 24, &rate, 4);  memcpy(h + 28, &br, 4);
+  memcpy(h + 32, &ba, 2);    memcpy(h + 34, &bps, 2);
+  memcpy(h + 36, "data", 4); memcpy(h + 40, &dataBytes, 4);
+  f.write(h, 44);
+}
+
+// Persist a just-recorded buffer (sampled[ch], nSamples int16) to the SD as the next
+// free samples/9/_9NN.wav. Returns the id (0 = failed). The channel is pointed at it
+// by the caller so it survives a reload.
+unsigned int saveRecording(unsigned int ch, uint32_t nSamples) {
+  if (ch < 1 || ch > 8 || nSamples < 64) return 0;
+  unsigned int id = 0; char path[40];
+  for (unsigned int slot = 1; slot <= 99; slot++) {
+    sprintf(path, "samples/9/_%u.wav", 900 + slot);
+    if (!SD.exists(path)) { id = 900 + slot; break; }
+  }
+  if (!id) return 0;
+  SD.mkdir("samples"); SD.mkdir("samples/9");
+  sprintf(path, "samples/9/_%u.wav", id);
+  File f = SD.open(path, FILE_WRITE);
+  if (!f) return 0;
+  writeWavHeader(f, nSamples * 2);
+  f.write((const uint8_t *)sampled[ch], nSamples * 2);
+  f.close();
+  return id;
+}
+#endif
+
 void setup() {
   delay(200);
   Serial.begin(115200);
@@ -1813,6 +1850,8 @@ void loop() {
         _samplers[recCh].addSample(36, (int16_t *)sampled[recCh] + 2, (int)recSamples - 120, 1);
         SMP.mute[recCh] = false;
         SMP.smplen = recSamples * 2;
+        unsigned int recId = saveRecording(recCh, recSamples);   // persist the take to SD
+        if (recId) { SMP.wav[recCh][0] = recId; SMP.wav[recCh][1] = recId; }
       }
     }
   }
