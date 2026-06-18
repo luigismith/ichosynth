@@ -19,6 +19,7 @@
 #include <string>
 #include <cctype>
 #include <cstring>
+#include <cmath>
 
 #ifndef NI404_SDCARD_PATH
 #define NI404_SDCARD_PATH "_SDCARD"
@@ -133,6 +134,21 @@ void ni404_set_ladder(int channel, int cutoffKnob) {
     applyLadder((unsigned int)channel);
 #else
     (void)channel; (void)cutoffKnob;
+#endif
+}
+// Test hook: synth a 0.2s tone into a channel's buffer and save it to the SD via
+// the firmware's saveRecording() — verifies the WAV-write + reload roundtrip without
+// needing a mic. Returns the saved id (0 = fail).
+int ni404_test_record_save(int channel) {
+#if RECORD_ENABLED
+    if (channel < 1 || channel > 8) return 0;
+    int16_t *buf = (int16_t *)sampled[channel];
+    const int n = 8820;   // ~0.2 s at 44.1 kHz
+    for (int i = 0; i < n; i++)
+        buf[i] = (int16_t)(8000.0 * std::sin(2.0 * 3.14159265358979 * 440.0 * i / 44100.0));
+    return (int)saveRecording((unsigned int)channel, (uint32_t)n);
+#else
+    (void)channel; return 0;
 #endif
 }
 int  ni404_test_beat()    { return (int)beat; }

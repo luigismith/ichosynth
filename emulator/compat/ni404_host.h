@@ -51,6 +51,7 @@ void ni404_play_synth(int voice, int row, int vel);     // synth 13/14 at pianoF
 void ni404_set_filter(int channel, int knob);           // cutoff knob 1..32
 void ni404_set_crush(int channel, int bits);            // bitcrusher bit depth 1..16 (16 = off)
 void ni404_set_ladder(int channel, int cutoffKnob);     // Moog ladder cutoff knob 1..32 (max = open)
+int  ni404_test_record_save(int channel);               // test: synth a take, save to SD, return id (0=fail)
 int  ni404_test_beat();
 int  ni404_test_page();
 int  ni404_test_playing();

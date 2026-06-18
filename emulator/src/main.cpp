@@ -430,6 +430,19 @@ static int run_play() {
     check("il ladder attenua chiudendo il taglio", lNarrow < lWide * 0.7f, d);
     ni404_set_ladder(1, 99);
 
+    // 0d) Recording -> SD: synth a take, save it, reload from disk, verify it plays.
+    std::printf("\n0d) Registrazione salvata su SD (sintetizza -> salva -> ricarica):\n");
+    int recId = ni404_test_record_save(2);
+    std::snprintf(d, sizeof d, "id=%d", recId);
+    check("la registrazione si salva su SD (id 9xx)", recId >= 901 && recId <= 999, d);
+    if (recId > 0) {
+        ni404_load_sample(2, recId);
+        ni404_play_note(2, 60, 110);     // trigger the reloaded take
+        float rpk = render_peak(12);
+        std::snprintf(d, sizeof d, "peak=%.3f", rpk);
+        check("la registrazione salvata si ricarica da disco e suona", rpk > 0.02f, d);
+    }
+
     // 1) Every drum/sample pad plays from the MIDI keyboard (selected channel).
     std::printf("\n1) Suono gli 8 canali campione dalla tastiera MIDI (DO=base):\n");
     for (int ch = 1; ch <= 8; ch++) {
