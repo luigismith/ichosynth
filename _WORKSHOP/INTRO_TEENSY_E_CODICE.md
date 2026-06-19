@@ -28,7 +28,8 @@ Cosa lo rende speciale:
 Da solo il Teensy non fa suono: lo affianchiamo a una **scheda audio (codec
 SGTL5000)** che trasforma i numeri calcolati dal Teensy in un segnale analogico
 per le **cuffie**. E gli diamo un "volto": una **matrice di 256 LED (16×16)** che
-è allo stesso tempo schermo e tastiera.
+è allo stesso tempo schermo e tastiera, **4 manopole (encoder)**, **3 pulsanti**
+(PLAY/MENU/REC) e un piccolo **display OLED** che riassume lo stato.
 
 > In una frase: il Teensy *pensa* (calcola il suono, legge le manopole, accende i
 > LED), la scheda audio *parla* (manda il suono in cuffia), la matrice *mostra e
@@ -50,8 +51,11 @@ loop()    →  viene ripetuta all'INFINITO, per sempre     (il battito)
 - **`loop()`** è il battito cardiaco: legge gli ingressi, aggiorna lo schermo,
   reagisce a quello che fai — decine di volte al secondo.
 
-Nel nostro progetto il programma principale è il file **`soundpauli_ni404.ino`**;
-le impostazioni (quali pin, quali funzioni attive) stanno in **`config.h`**.
+Il programma che fa girare ichosynth è il **firmware reale di TŒRN** (il groovebox
+open-source di SP_/soundpauli): il file principale è **`toern.ino`** insieme agli
+altri file `.ino` del progetto. Noi lo compiliamo **immutato** e gli affianchiamo
+solo i nostri "driver" per l'hardware economico (encoder KY-040, pulsanti, OLED) —
+vedi la sezione 8.
 
 ---
 
@@ -67,12 +71,12 @@ di ciò che c'è nel codice):
 4. **Aspetta la micro SD**: se manca, disegna l'icona "noSD" e resta in attesa
    (`drawNoSD`). *(Per questo una board "nuda" senza SD sembra riavviarsi: sta
    solo aspettando la scheda.)*
-5. **Carica i campioni** dalla SD nella PSRAM (`loadSamplePack`).
+5. **Carica i campioni** dalla SD nella PSRAM (il sample pack).
 6. **Costruisce il "grafo audio"** — vedi sezione 5 — collegando lettori di
-   campioni, inviluppi, filtri e mixer.
+   campioni, voci sintetizzate, inviluppi, filtri, effetti e mixer.
 7. **Accende il codec audio** e riserva la memoria audio (`AudioMemory`).
-8. *(nostro fork)* applica i **filtri** e inizializza l'**OLED**.
-9. **Registra i pulsanti**: dice al programma cosa fare a click, doppio click,
+8. *(nostra aggiunta)* inizializza l'**OLED** di stato (`ichosOledBegin()`).
+9. **Prepara encoder e pulsanti**: dice al programma cosa fare a rotazione, click,
    pressione lunga…
 
 A fine `setup()` lo strumento è pronto a suonare.
@@ -85,16 +89,15 @@ Da qui in poi il Teensy ripete questo ciclo, velocissimo:
 
 ```
 loop():
-   leggi il MIDI USB (clock e note in arrivo)
-   interroga le 3 manopole e i pulsanti  (chi è stato premuto/girato?)
-   interpreta il gesto                   (sto disegnando una nota? cambiando pagina? ...)
-   aggiorna la matrice LED               (ridisegna la griglia)
+   leggi il MIDI (clock e note in arrivo)
+   interroga le 4 manopole e i 3 pulsanti  (chi è stato premuto/girato?)
+   interpreta il gesto                     (sto disegnando una nota? cambiando pagina? ...)
+   aggiorna la matrice LED e l'OLED        (ridisegna la griglia + lo stato)
 ```
 
-Un dettaglio elegante: i gesti delle manopole (click, doppio click, pressione
-lunga) non vengono interpretati subito, ma valutati **insieme** ~80 millisecondi
-dopo l'ultimo movimento. Così il programma capisce, ad esempio, che un "doppio
-click" è diverso da due click separati.
+Un dettaglio elegante: i gesti delle manopole (click, pressione lunga, combo di
+due pulsanti) non vengono interpretati alla cieca, ma valutati con una piccola
+macchina a stati che distingue, ad esempio, un click corto da una pressione tenuta.
 
 ---
 
@@ -109,13 +112,14 @@ Funziona come un **sintetizzatore modulare**: tanti "moduli" collegati da "cavi"
 Per ogni voce, il percorso del segnale è più o meno questo:
 
 ```
-[campione in PSRAM] → [lettore/player] → [inviluppo ADSR] → [filtro lowpass] → [mixer] → [codec audio] → 🎧
+[campione in PSRAM] → [lettore/player] → [inviluppo ADSR] → [filtro] → [effetti] → [mixer] → [codec audio] → 🎧
 ```
 
 - Il **player** legge il campione dalla PSRAM (e può cambiarne l'intonazione).
 - L'**inviluppo** dà forma al suono nel tempo (attacco, rilascio…).
-- Il **filtro lowpass** ne scurisce il timbro *(è qui che agisce il pulsante del
-  nostro fork)*.
+- Il **filtro** ne scurisce o sagoma il timbro *(è qui che agisce la rotazione
+  degli encoder in FILTER mode)*.
+- Gli **effetti** (bitcrusher, Moog ladder, reverb…) colorano la voce.
 - Il **mixer** somma le voci; il **codec** le trasforma in segnale per le cuffie.
 
 Il `loop()` non "fa" il suono: si limita a **configurare i parametri** (quale
@@ -134,10 +138,10 @@ La matrice di LED è insieme **display** e **spartito**:
 - le **colonne** sono i passi nel tempo (la sequenza che si ripete),
 - le **righe** sono le **voci** (i diversi campioni), ognuna con un colore.
 
-Una grande tabella in memoria (`note[...]`) ricorda *cosa* suona e *dove*. Un
-**timer hardware** fa avanzare il "cursore di riproduzione" al ritmo del **BPM** e,
-ad ogni passo, fa partire i campioni delle note accese. Il **MIDI clock OUT** (nostro
-fork) manda questo stesso tempo a strumenti esterni, per suonarci insieme.
+Una grande tabella in memoria ricorda *cosa* suona e *dove*. Un **timer hardware**
+fa avanzare il "cursore di riproduzione" al ritmo del **BPM** e, ad ogni passo, fa
+partire i campioni delle note accese. Via **USB-MIDI** lo strumento può sincronizzarsi
+con altri dispositivi, per suonarci insieme.
 
 ---
 
@@ -150,30 +154,44 @@ scheda, indicata nel codice come `EXTMEM`). È il motivo per cui la PSRAM è
 
 ---
 
-## 8 · Le nostre aggiunte (il fork)
+## 8 · Cos'è ichosynth (e cosa abbiamo aggiunto)
 
-ichosynth parte dall'**NI404** di SP_ (soundpauli) e aggiunge:
+ichosynth **è TŒRN** — il groovebox di SP_ (soundpauli) — ricostruito a mano con
+componenti economici e saldabili. Il firmware è quello reale e immutato, con tutte
+le sue funzioni: 8 voci campione + 3 voci sintetizzate, polifonia, effetti per voce
+(reverb, bitcrusher, Moog ladder, detune, ottava), griglia 16×16, pagine,
+sotto-pattern, song mode, velocity/probabilità/condizioni, mute, note-shift e
+copia-incolla, sample pack e browser SD, salvataggio/caricamento, registrazione
+dal vivo (MIC/LINE con count-in), USB-MIDI, tap-tempo.
 
-- **OLED**: un piccolo schermo che mostra modalità, BPM, volume.
-- **MIDI clock OUT**: sincronizza strumenti esterni (master del tempo).
-- **Filtro lowpass per voce** su un pulsante (idea mutuata da TOERN).
-- **Build a 3 encoder**: i comandi del 4° encoder dell'originale sono stati
-  **rimappati** sui pulsanti dei tre.
+Il lavoro "nostro" non è cambiare il suono, ma **rimpiazzare l'hardware costoso**
+di TŒRN con parti da pochi euro, scrivendo i driver che le fanno parlare con il
+firmware originale:
 
-Tutte attivabili/disattivabili da `config.h` con semplici interruttori
-(`#define ... 1` / `0`).
+- **4 encoder KY-040** al posto dei costosi encoder I²C RGB di TŒRN
+  (driver in `teensy/libraries/i2cEncoderLibV2`).
+- **3 tact switch** (PLAY/MENU/REC) al posto dei 3 sensori capacitivi
+  (driver in `teensy/libraries/FastTouch`).
+- **OLED SSD1306**: un piccolo schermo che mostra canale, modo, trasporto, BPM,
+  volume e pagina (driver in `teensy/libraries/IchosOled`) — al posto del
+  feedback a colori degli anelli RGB.
+
+Niente PCB: tutto a fili. La 2ª striscia LED reattiva di TŒRN è rimossa in questa
+build (libera il pin 24).
 
 ---
 
 ## 9 · Mappa mentale dei file
 
-| File | A cosa serve |
+| File / cartella | A cosa serve |
 |---|---|
-| `soundpauli_ni404.ino` | il programma principale (`setup` + `loop` + tutto il resto) |
-| `config.h` | le impostazioni: pin, quali funzioni attivare |
-| `display.h` | lo schermo OLED (fork) |
-| `audioinit.h` | la definizione del grafo audio (i "moduli" e i "cavi") |
-| `colors.h` · `files.h` | colori delle voci e tabelle di supporto |
+| `toern.ino` (+ gli altri `.ino`) | il firmware reale di TŒRN (`setup` + `loop` + tutto il resto) |
+| `teensy/build_toern.py` | compila il firmware → `teensy/firmware/toern.hex` |
+| `teensy/libraries/i2cEncoderLibV2` | driver dei 4 encoder KY-040 |
+| `teensy/libraries/FastTouch` | driver dei 3 tact switch |
+| `teensy/libraries/IchosOled` | driver dell'OLED di stato |
+| `teensy/README.md` | il doc del port (mappa pin, build, OLED) |
+| `_DOCS/MAPPA_CONTROLLI.md` | come encoder e pulsanti pilotano TŒRN |
 
 ---
 
@@ -183,6 +201,6 @@ Tutte attivabili/disattivabili da `config.h` con semplici interruttori
 tue manopole e ridisegna una griglia di luci, mentre un motore audio invisibile
 trasforma campioni in musica. Tutto il resto è dettaglio — e ora sapete dov'è.
 
-*ichosynth · fork di NI404 (SP_/soundpauli) · firmware open-source MIT*
+*ichosynth · build a basso costo di TŒRN (SP_/soundpauli) · firmware open-source MIT*
 
 </div>

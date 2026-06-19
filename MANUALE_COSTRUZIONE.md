@@ -4,25 +4,27 @@
 
 # 🔧 ichosynth — Manuale di Costruzione
 
-### Versione DIY a 3 encoder, cablata a mano (senza PCB stampato)
+### Versione DIY cablata a mano (senza PCB stampato)
 
 Guida passo-passo per principianti: costruisci il tuo **ichosynth** con soli fili volanti (jumper), seguendo le tabelle dei pin.
 
 [![Difficoltà: Media](https://img.shields.io/badge/Difficolt%C3%A0-Media%20(SMD%20PSRAM)-orange.svg)](#2--livello-di-difficoltà--leggi-prima-di-comprare)
-[![Build: 3 encoder](https://img.shields.io/badge/Build-3%20encoder-orange.svg)](#)
-[![Fork di NI404 (SP_)](https://img.shields.io/badge/fork%20di-NI404%20%C2%B7%20SP__-blueviolet.svg)](#)
+[![Build: 4 encoder](https://img.shields.io/badge/Build-4%20encoder%20%2B%203%20pulsanti-orange.svg)](#)
+[![Esegue: firmware TŒRN](https://img.shields.io/badge/esegue-TŒRN%20%C2%B7%20SP__-blueviolet.svg)](https://toern.live)
 [![Vedi anche: Uso](https://img.shields.io/badge/Vedi%20anche-Manuale%20d'Uso-2ea44f.svg)](MANUALE_USO.md)
 
 </div>
 
-> 🧠 **ichosynth** è il fork di **NI404** (di SP_ / soundpauli): un campionatore-sequencer open-source
-> basato su **Teensy 4.1**. Genera tutti i suoni da solo, il computer serve **solo** per programmarlo
-> la prima volta.
+> 🧠 **ichosynth** è una build economica, saldata a mano, di **TŒRN** (di SP_ / soundpauli, https://toern.live):
+> un campionatore-sequencer open-source basato su **Teensy 4.1**. Esegue il **vero firmware TŒRN** —
+> portato su componenti d'ingresso economici e saldabili — e genera tutti i suoni da solo; il computer
+> serve **solo** per programmarlo la prima volta.
 
-> 🆕 **Questa è la build a 3 encoder.** Monti **3 manopole** (SINISTRA, CENTRALE, DESTRA): più semplice
-> ed economica dell'originale a 4. Il firmware del fork è già impostato per 3 encoder
-> (`HAS_ENCODER4 0`): volume sulla SINISTRA, BPM sulla CENTRALE, e i comandi del 4° encoder rimappati
-> sui 3 pulsanti. Altre aggiunte del fork: **OLED** di stato e **MIDI clock OUT** (entrambi opzionali).
+> 🆕 **Cosa cambia rispetto a TŒRN.** Le parti costose di TŒRN (encoder RGB I²C, pad capacitivi a
+> sfioramento) sono sostituite da **4 economici encoder rotativi KY-040** (ruota + premi) e **3 tact
+> switch**. Il feedback degli anelli RGB sugli encoder di TŒRN è sostituito da un piccolo **OLED SSD1306**
+> che mostra canale, modalità, transport, BPM, volume e pagina. Tutto il resto — DSP, sequencer,
+> campionatore — è il firmware TŒRN invariato.
 
 ---
 
@@ -46,11 +48,12 @@ Guida passo-passo per principianti: costruisci il tuo **ichosynth** con soli fil
 ## 1 · Cosa stai costruendo
 
 - Un cervello: **Teensy 4.1** (un microcontrollore potente).
-- Una scheda audio (**Teensy Audio Adaptor**) con uscita cuffie da 3,5 mm.
-- Un display di gioco: una **matrice LED RGB 16×16** (256 LED).
-- **Tre manopole rotative con pulsante** (encoder KY-040): SINISTRA, CENTRALE, DESTRA.
+- Una scheda audio (**Teensy Audio Adaptor**, SGTL5000) con uscita cuffie da 3,5 mm.
+- Un display di gioco: una **matrice LED RGB 16×16** (256 LED, concatenabile a 32×16).
+- **Quattro manopole rotative con pulsante** (encoder KY-040): E1 (sinistra) → E4 (destra).
+- **Tre tact switch**: PLAY, MENU, REC.
+- Un piccolo **schermo OLED** (SSD1306 128×64) che mostra canale, modalità, transport, BPM, volume, pagina.
 - Una **micro SD** dove stanno i campioni audio e i tuoi pattern.
-- 🆕 *(opzionale, aggiunta di questo fork)* un piccolo **schermo OLED** che mostra modalità, BPM, volume, ecc.
 
 Tutto viene alimentato dalla porta **USB (5V)**.
 
@@ -63,12 +66,12 @@ Tutto viene alimentato dalla porta **USB (5V)**.
 
 | Parte | Difficoltà | Note |
 |---|---|---|
-| Cablaggio matrice + encoder | 🟢 Facile | saldature grosse e collegamenti a filo, adatto a principianti pazienti |
+| Cablaggio matrice + encoder + pulsanti | 🟢 Facile | saldature grosse e collegamenti a filo, adatto a principianti pazienti |
 | Saldatura **PSRAM** (2× chip SMD) | 🔴 Difficile | componenti minuscoli; vedi opzioni sotto |
 
 - **PSRAM — opzione A (consigliata):** compra il Teensy 4.1 **con la PSRAM già saldata**, o fattela saldare da chi ha esperienza/stazione ad aria calda.
 - **PSRAM — opzione B:** esercitati prima su schede di pratica.
-- ⚠️ La PSRAM **è obbligatoria**: il firmware usa ~16 MB di memoria esterna (servono **due** chip da 8 MB). Senza, non parte.
+- ⚠️ La PSRAM **è obbligatoria**: TŒRN usa ~16,5 MB di memoria esterna, quindi servono **entrambi** i chip da 8 MB saldati (16 MB totali). Senza, il firmware non parte.
 
 > ⏱️ Tempo stimato: mezza giornata per chi sa già saldare; di più se è la prima volta.
 
@@ -79,16 +82,16 @@ Tutto viene alimentato dalla porta **USB (5V)**.
 | Q.tà | Componente | Note |
 |------|------------|------|
 | 1 | Teensy 4.1 | il microcontrollore principale |
-| 2 | Chip PSRAM 8 MB (APS6404, compatibile Teensy 4.1) | totale 16 MB, **obbligatori** |
-| 1 | Teensy Audio Adaptor Board, **Rev D (per Teensy 4.x)** | codec SGTL5000 + jack 3,5 mm + slot SD (non usato) |
-| 1 | Matrice LED **WS2812B 16×16** (256 LED) | rigida o flessibile |
-| **3** | Encoder rotativo **KY-040** con pulsante | SINISTRA, CENTRALE, DESTRA (build a 3 encoder) |
-| 1 | 🆕 *(fork)* Pulsante momentaneo (tactile/push) | filtro lowpass — tra pin 41 e GND (vedi 6.5) |
-| 1 | Micro SD Card, **Class 10**, ≤ 32 GB | formattata **FAT32** |
+| 2 | Chip PSRAM 8 MB (APS6404, compatibile Teensy 4.1) | totale 16 MB, **obbligatori (entrambi i chip)** |
+| 1 | Teensy Audio Adaptor Board, **Rev D (per Teensy 4.x)** | codec SGTL5000 + jack cuffie 3,5 mm (no altoparlante); il suo slot SD non si usa |
+| 1 | Matrice LED **WS2812 RGB 16×16** (256 LED) | rigida o flessibile; concatenabile a 32×16 |
+| **4** | Encoder rotativo **KY-040** con pulsante | E1 (sinistra) → E4 (destra) |
+| **3** | Tact switch (momentaneo, tactile/push) | PLAY · MENU · REC (ognuno: un capo al pin, l'altro a GND) |
+| 1 | Micro SD Card, **Class 10** | per campioni e pattern |
 | 1 | Cavo micro-USB + alimentatore 5V (≥ 2A consigliato) | alimentazione e programmazione |
 | 1 | Cuffie con jack 3,5 mm | ichosynth non ha altoparlanti |
+| 1 | OLED **SSD1306 0,96" 128×64 I²C** | schermo di stato (sostituisce gli anelli RGB degli encoder di TŒRN) |
 | q.b. | Cavetti jumper Dupont (~10 cm), strip di pin header | per i collegamenti |
-| 1 | 🆕 *(opzionale, fork)* OLED **SSD1306 0,96" 128×64 I2C** | schermo informazioni |
 | 1 | *(opzionale)* Contenitore stampato 3D | file STL in `_DOCS/_ENCLOSURE/` |
 
 > ℹ️ **Licenze campioni**: il progetto **non** include file audio. Userai i tuoi campioni (vedi [cap. 9](#9--preparare-la-micro-sd-campioni)).
@@ -120,11 +123,16 @@ Tutto viene alimentato dalla porta **USB (5V)**.
 
 ## 6 · Mappa pin completa (la "verità" del firmware)
 
-Questi pin sono definiti in [`config.h`](config.h) e sono ciò che il software si aspetta.
-**Wira esattamente questi numeri** (tutti pin del Teensy).
+Questi pin sono ciò che il firmware si aspetta. Vivono nei sorgenti di build — le tabelle di encoder/pulsanti
+`ICHOS_ENC_PINS` e `ICHOS_BTN_PINS` sotto `teensy/libraries/`, più `teensy/build_toern.py` — **non**
+in un `config.h`. **Wira esattamente questi numeri** (tutti pin del Teensy).
+
+> 🧭 Questi pin sono stati scelti apposta per evitare i GPIO cablati di TŒRN e i pin riservati della
+> Teensy Audio Shield. **Non usare i pin 2 / 3 / 4** (uso interno di TŒRN) né il **pin 24** (era una
+> striscia LED opzionale, rimossa in questa build).
 
 <p align="center">
-  <img src="assets/wiring-map.svg" alt="Mappa di cablaggio: Teensy 4.1 al centro, matrice LED, 3 encoder, scheda audio e OLED (fork) con i pin" width="820">
+  <img src="assets/wiring-map.svg" alt="Mappa di cablaggio: Teensy 4.1 al centro, matrice LED, 4 encoder, 3 pulsanti, scheda audio e OLED con i pin" width="820">
 </p>
 
 ### 6.1 Matrice LED
@@ -142,8 +150,8 @@ Se invece la cabli a mano, collega:
 
 | Segnale audio | Pin Teensy | | Segnale audio | Pin Teensy |
 |---|---|---|---|---|
-| MCLK | **23** | | SDA (I2C) | **18** |
-| BCLK | **21** | | SCL (I2C) | **19** |
+| MCLK | **23** | | SDA (I²C) | **18** |
+| BCLK | **21** | | SCL (I²C) | **19** |
 | LRCLK (WS) | **20** | | 3,3V | **3.3V** |
 | TX (DIN al codec) | **7** | | GND | **GND** |
 | RX (DOUT dal codec) | **8** | | | |
@@ -151,24 +159,31 @@ Se invece la cabli a mano, collega:
 > ℹ️ La SD si usa dallo **slot integrato del Teensy 4.1**, non da quello della scheda audio.
 
 ### 6.3 Encoder (CLK, DT, SW = pulsante)
-Monti **3 encoder**. Ogni encoder ha 3 segnali (CLK, DT, SW) + alimentazione. Disponili da sinistra a
-destra come in tabella.
+Monti **4 encoder**. Ogni encoder ha 3 segnali (CLK, DT, SW) + alimentazione. Disponili da sinistra a
+destra (E1 → E4) come in tabella.
 
-| Encoder (ruolo nella build a 3 encoder) | CLK | DT | SW |
+| Encoder | CLK | DT | SW |
 |---|---|---|---|
-| **SINISTRA** — cursore su/giù, cancella, single · *volume* | **5** | **22** | **15** |
-| **CENTRALE** — pagina, disegna nota, Play/Pausa, indietro · *BPM* | **9** | **14** | **16** |
-| **DESTRA** — cursore sin/destra, mute, velocity | **4** | **2** | **3** |
+| **E1 (sinistra)** | **5** | **22** | **15** |
+| **E2** | **32** | **33** | **41** |
+| **E3** | **9** | **14** | **16** |
+| **E4 (destra)** | **37** | **38** | **39** |
 
 Inoltre, per ogni encoder: il pin **"+"** va a **3,3V**, il pin **GND** va a **GND**.
 
-> 🆕 **Il 4° encoder non si monta.** Nel firmware è già impostato `#define HAS_ENCODER4 0`; i pin di
-> rotazione del 4° encoder (CLK 32 / DT 33) sono a `99` = non usati. I comandi che l'originale metteva
-> sul 4° encoder sono rimappati sui 3 pulsanti (vedi manuale d'uso, cap. 16). Il **seek** resta
-> disattivato; il **filtro lowpass** è invece disponibile tramite un piccolo pulsante (vedi 6.5).
+### 6.4 Pulsanti — 3 tact switch (PLAY / MENU / REC)
+Comuni pulsanti momentanei (tipo tactile/push). Ognuno: **un capo al pin del Teensy, l'altro capo a
+GND**. Usano la resistenza di **pull-up interna** del Teensy (attivo-basso) — nessuna resistenza esterna.
 
-### 6.4 OLED opzionale (fork)
-Condivide lo **stesso bus I2C dell'audio** (nessun pin extra: stesso SDA/SCL).
+| Pulsante | Ruolo | Pin Teensy |
+|---|---|---|
+| **B1** | PLAY | **25** |
+| **B2** | MENU | **26** |
+| **B3** | REC | **28** |
+
+### 6.5 OLED (SSD1306)
+Condivide lo **stesso bus I²C del codec audio** (nessun pin di segnale extra: stesso SDA/SCL). Gli
+servono anche 3V3 e GND propri.
 
 | Segnale OLED | Pin Teensy |
 |--------------|-----------|
@@ -177,20 +192,8 @@ Condivide lo **stesso bus I2C dell'audio** (nessun pin extra: stesso SDA/SCL).
 | VCC | **3,3V** |
 | GND | **GND** |
 
-> ℹ️ Indirizzo I2C predefinito **0x3C** (alcuni pannelli usano 0x3D).
-
-### 6.5 Pulsante FILTRO (fork) 🆕
-Un **comune pulsante momentaneo** (tipo tactile/push), che abilita il **filtro lowpass per voce** (vedi
-manuale d'uso, cap. 15). Non è un encoder: due soli fili.
-
-| Segnale pulsante | Pin Teensy |
-|------------------|-----------|
-| un capo | **41** |
-| altro capo | **GND** |
-
-> ℹ️ Si usa la resistenza di **pull-up interna** del Teensy (pin attivo-basso): nessuna resistenza
-> esterna. Il pin **41** è esattamente dove starebbe il pulsante del 4° encoder dell'originale.
-> Non vuoi il filtro? Imposta `#define FILTER_ENABLED 0` in `config.h` e ometti il pulsante.
+> ℹ️ Indirizzo I²C predefinito **0x3C** (alcuni pannelli usano 0x3D). L'OLED sostituisce il feedback
+> degli anelli RGB sugli encoder di TŒRN, mostrando canale / modalità / transport / BPM / volume / pagina.
 
 ---
 
@@ -200,38 +203,42 @@ manuale d'uso, cap. 15). Non è un encoder: due soli fili.
 flowchart LR
     F1["1 · Teensy<br/>PSRAM + header"] --> F2["2 · Scheda<br/>audio"]
     F2 --> F3["3 · Matrice<br/>LED 16×16"]
-    F3 --> F4["4 · Encoder<br/>×3"]
-    F4 --> F5["5 · OLED<br/>🆕 opzionale"]
-    F5 --> F6["6 · Controllo<br/>multimetro"]
-    F6 --> OK["✅ Pronto per<br/>il firmware"]
-    style F5 stroke:#2ea44f,stroke-width:2px
+    F3 --> F4["4 · Encoder<br/>×4"]
+    F4 --> F5["5 · Pulsanti<br/>×3"]
+    F5 --> F6["6 · OLED"]
+    F6 --> F7["7 · Controllo<br/>multimetro"]
+    F7 --> OK["✅ Pronto per<br/>il firmware"]
     style OK stroke:#2ea44f,stroke-width:2px
 ```
 
 ### Fase 1 — Preparare il Teensy 4.1
-1. Salda i **due chip PSRAM** nelle piazzole sul retro (vedi [cap. 2](#2--livello-di-difficoltà--leggi-prima-di-comprare): se non te la senti, prendi un Teensy con PSRAM già montata).
+1. Salda i **due chip PSRAM** nelle piazzole sul retro (vedi [cap. 2](#2--livello-di-difficoltà--leggi-prima-di-comprare): se non te la senti, prendi un Teensy con PSRAM già montata). Entrambi i chip sono obbligatori.
 2. Salda gli **header** sui bordi del Teensy (e quelli per la scheda audio se la impili).
-3. Collega via USB al PC e verifica che venga riconosciuto (test completo in Fase 7/cap. 10).
+3. Collega via USB al PC e verifica che venga riconosciuto (test completo in Fase 8/cap. 10).
 
 ### Fase 2 — Scheda audio
 1. Impila la scheda audio sul Teensy (consigliato) **oppure** cabla i segnali della [tabella 6.2](#62-scheda-audio-teensy-audio-adaptor-rev-d).
 2. Collega le cuffie al jack 3,5 mm (per i test).
 
 ### Fase 3 — Matrice LED 16×16
-1. Individua la **freccia di ingresso dati** (input): va al pin **17**. L'uscita (output) resta libera.
+1. Individua la **freccia di ingresso dati** (input): va al pin **17**. L'uscita (output) resta libera (concatenabile a 32×16 se aggiungi un secondo pannello).
 2. Collega **5V** e **GND** della matrice.
 3. ⚡ **Alimentazione**: il firmware usa colori a bassa luminosità, quindi di solito l'USB basta. Se in futuro alzi la luminosità, inietta i 5V da un alimentatore dedicato e **unisci le masse (GND comune)** tra Teensy e matrice.
 
-### Fase 4 — Encoder (×3)
-1. Per ciascuno dei **3 encoder** collega CLK, DT, SW secondo la [tabella 6.3](#63-encoder-clk-dt-sw--pulsante), più "+" (3,3V) e GND.
-2. Disponili da sinistra a destra: **SINISTRA → CENTRALE → DESTRA**.
+### Fase 4 — Encoder (×4)
+1. Per ciascuno dei **4 encoder** collega CLK, DT, SW secondo la [tabella 6.3](#63-encoder-clk-dt-sw--pulsante), più "+" (3,3V) e GND.
+2. Disponili da sinistra a destra: **E1 → E2 → E3 → E4**.
 3. Tieni i fili ordinati ed etichettali: incrociare CLK/DT è l'errore più comune (si corregge anche via software, vedi troubleshooting).
-4. I pin di rotazione del **4° encoder** (32/33) restano **liberi**. *(Il pin 41 ospita il pulsante FILTRO opzionale — vedi 6.5.)*
+4. ⚠️ Non usare per sbaglio i pin **2 / 3 / 4** (uso interno di TŒRN) né il **24** (striscia LED rimossa) — nessun encoder li tocca.
 
-### Fase 5 — OLED (opzionale) 🆕
-1. Collega i 4 fili della [tabella 6.4](#64-oled-opzionale-fork). Essendo sullo stesso bus dell'audio, basta collegarsi in parallelo a SDA/SCL.
+### Fase 5 — Pulsanti (×3)
+1. Cabla ogni tact switch con **un capo al suo pin del Teensy** e **l'altro capo a GND** secondo la [tabella 6.4](#64-pulsanti--3-tact-switch-play--menu--rec).
+2. Nessuna resistenza: il firmware attiva i pull-up interni (attivo-basso).
 
-### Fase 6 — Controllo finale prima di accendere
+### Fase 6 — OLED
+1. Collega i 4 fili della [tabella 6.5](#65-oled-ssd1306). Essendo sullo stesso bus dell'audio, basta collegarlo in parallelo a SDA/SCL; dagli 3V3 e GND propri.
+
+### Fase 7 — Controllo finale prima di accendere
 1. Col multimetro verifica **assenza di corto** tra 5V e GND e tra 3,3V e GND.
 2. Ricontrolla che 5V/3,3V/GND siano nei pin giusti.
 
@@ -239,58 +246,41 @@ flowchart LR
 
 ## 8 · Software: caricare il firmware
 
+Il firmware è il **vero TŒRN** portato sul nostro hardware. Non si toccano le impostazioni di Arduino a
+mano: uno script di build gestisce tutta la toolchain (compila a `-O1`, l'opzione che serve all'enorme
+singola unità di traduzione di TŒRN per compilare senza errori sul gcc del Teensy).
+
 ```mermaid
 flowchart LR
-    A["Arduino IDE<br/>+ Teensyduino"] --> B["Installa<br/>le librerie"]
-    B --> C["⚠️ Sostituisci<br/>ResamplingReader.h"]
-    C --> D["USB Type =<br/>Serial + MIDI"]
-    D --> E["(fork) attiva<br/>OLED / MIDI clock"]
-    E --> F["Upload ▶"]
-    style C stroke:#d29922,stroke-width:2px
+    A["arduino-cli<br/>+ core teensy:avr"] --> B["python<br/>build_toern.py"]
+    B --> C["teensy/firmware/<br/>toern.hex"]
+    C --> D["flashalo<br/>(GUI o CLI)"]
+    style C stroke:#2ea44f,stroke-width:2px
 ```
 
-### 8.1 Installazione ambiente
-1. Installa **Arduino IDE**.
-2. Installa **Teensyduino** (l'add-on PJRC che aggiunge il supporto Teensy).
+### 8.1 Compilare dai sorgenti (consigliato)
+1. Installa **arduino-cli** e aggiungi il core **teensy:avr** (≥ 1.61.0).
+2. Dalla radice del repo, lancia:
+   ```sh
+   python teensy/build_toern.py
+   ```
+   Produce **`teensy/firmware/toern.hex`**. Vedi [`teensy/README.md`](teensy/README.md) per i dettagli
+   (clona anche i sorgenti TŒRN se mancano e applica il remap dei pin per i nostri 3 pulsanti).
+3. Per compilare **e** flashare in un colpo solo (serve `teensy_loader_cli`):
+   ```sh
+   python teensy/build_toern.py --flash
+   ```
 
-### 8.2 Librerie richieste
-- WS2812Serial
-- FastLED (≥ 3.9.x)
-- Encoder (Paul Stoffregen) — inclusa in Teensyduino
-- Audio (Teensy Audio Library) — inclusa in Teensyduino
-- Mapf
-- TeensyPolyphony (newdigate)
-- teensy-variable-playback (newdigate)
-- avdweb_Switch
-- 🆕 **solo se usi l'OLED del fork:** Adafruit_SSD1306 e Adafruit_GFX
+> 🧱 La build fissa il livello di ottimizzazione a **`opt=o1std` (-O1)**. Al default `-O2` il gcc del
+> Teensy può andare in crash sul file singolo da ~23k righe di TŒRN; con `-O1` compila pulito e ci sta
+> comodamente.
 
-### 8.3 Passo OBBLIGATORIO: ResamplingReader.h
-> ⚠️ Dentro la libreria `teensy-variable-playback` di newdigate, **sostituisci** il file
-> `ResamplingReader.h` con quello fornito qui: [`_DOCS/ResamplingReader.h`](_DOCS/ResamplingReader.h).
-> Aiuta a evitare errori di puntatore nullo (nullptr).
+### 8.2 Flasher GUI a un clic (.hex già pronto)
+Se hai già un `toern.hex`, la cartella **`_FLASHER`** contiene un flasher GUI a un clic: scegli la
+scheda, scegli il `.hex`, premi flash. Nessun Arduino IDE richiesto.
 
-### 8.4 Impostazioni di compilazione
-Nel menu **Tools** di Arduino IDE:
-- **Board:** Teensy 4.1
-- **USB Type:** **Serial + MIDI** *(necessario: il MIDI passa dalla porta USB)*
-- **CPU Speed:** predefinita (600 MHz)
-
-### 8.5 (Fork) config.h: 3 encoder, OLED e MIDI clock out
-In [`config.h`](config.h) la build a 3 encoder è **già impostata**:
-```c
-#define HAS_ENCODER4 0            // build a 3 encoder (questa è la nostra)
-```
-Se vuoi, attiva anche le funzioni opzionali del fork mettendole a `1`:
-```c
-#define OLED_ENABLED 1            // attiva lo schermo OLED
-#define MIDI_CLOCK_OUT_ENABLED 1  // invia il clock MIDI a strumenti esterni
-```
-> 🆕 `OLED_ENABLED` e `MIDI_CLOCK_OUT_ENABLED` a `0` (default) = nessuna funzione extra. `HAS_ENCODER4
-> 0` è la nostra build a 3 manopole; lascialo così.
-
-### 8.6 Compilare e caricare
-1. Apri `soundpauli_ni404.ino`.
-2. Premi **Upload** (il Teensy entra in programmazione da solo; in caso premi il pulsantino sul Teensy).
+> ℹ️ Nota hardware: questo è un **Teensy 4.1**. Lo script imposta da sé il tipo USB (Serial + MIDI). Se
+> il loader non vede la scheda, premi il pulsantino sul Teensy per entrare in modalità programmazione.
 
 ---
 
@@ -350,13 +340,14 @@ Doppio click: si apre una finestra. Poi:
 ## 10 · Primo avvio e test
 
 1. Inserisci la SD, collega le cuffie, alimenta via USB.
-2. All'accensione vedrai una **animazione/logo** sulla matrice.
+2. All'accensione vedrai una **animazione/logo** sulla matrice, e l'**OLED** si accende con lo stato (canale, modalità, BPM, volume, pagina).
 3. Se manca la SD compare l'icona **"noSD"** (rossa): spegni, inserisci la SD, riaccendi.
-4. Muovi l'encoder **SINISTRA** e **DESTRA**: deve muoversi un puntino bianco pulsante (il cursore).
-5. Premi (push) l'encoder **CENTRALE** per piazzare una nota: dovresti sentire il campione.
-6. **Doppio click** sull'encoder **CENTRALE**: Play/Pausa.
+4. Muovi gli encoder: matrice e OLED devono reagire (cursore, volume, BPM, …).
+5. Premi un encoder / un pulsante per piazzare una nota o azionare il transport: dovresti sentire il campione.
+6. Prova il pulsante **PLAY** per avviare/fermare il sequencer.
 
-> 🎮 Per imparare a suonarlo, vai al **[Manuale d'Uso](MANUALE_USO.md)**.
+> 🎮 Per imparare a suonarlo, vai al **[Manuale d'Uso](MANUALE_USO.md)** e alla mappa comandi in
+> [`_DOCS/MAPPA_CONTROLLI.md`](_DOCS/MAPPA_CONTROLLI.md).
 
 ---
 
@@ -365,17 +356,16 @@ Doppio click: si apre una finestra. Poi:
 | Sintomo | Probabile causa / rimedio |
 |--------|----------------------------|
 | 🔌 Non si accende / non riconosciuto dal PC | Cavo USB solo-carica (usane uno dati); saldature header; corto 5V-GND |
-| 🔁 Si riavvia da solo / crash dopo pochi secondi | PSRAM mancante o mal saldata; alimentazione USB debole (usa 5V ≥ 2A) |
+| 🔁 Si riavvia da solo / crash dopo pochi secondi | PSRAM mancante o mal saldata (servono entrambi i chip); alimentazione USB debole (usa 5V ≥ 2A) |
 | 💡 LED non si accendono / colori sbagliati | DIN non sul pin 17; freccia dati invertita (usa l'ingresso); GND non comune |
 | 🌫️ Solo alcuni LED accesi a caso | Alimentazione insufficiente alla matrice; GND comune mancante |
 | ↩️ Un encoder gira "al contrario" | Inverti i fili **CLK e DT** di quell'encoder |
-| 🔇 Un encoder non fa nulla | Pulsante/segnali sui pin sbagliati; ricontrolla [tabella 6.3](#63-encoder-clk-dt-sw--pulsante) |
-| ▶️ Non riesco a fare Play | nella build a 3 encoder è **doppio click** sulla CENTRALE (vedi manuale d'uso, cap. 16) |
-| 🎛️ Il filtro non cambia il suono | controlla il pulsante tra pin **41** e **GND**; il filtro agisce sulla **voce sotto il cursore** (cap. 6.5) |
-| 🎧 Nessun suono in cuffia | Scheda audio non collegata bene (7,8,20,21,23,18,19); `USB Type` non impostato; volume a 0 |
-| ❌ Compilazione: errori nullptr / ResamplingReader | Non hai sostituito `ResamplingReader.h` (vedi [8.3](#83-passo-obbligatorio-resamplingreaderh)) |
+| 🔇 Un encoder non fa nulla | Segnali sui pin sbagliati; ricontrolla [tabella 6.3](#63-encoder-clk-dt-sw--pulsante); assicurati di non essere finito su 2/3/4 |
+| 🔘 Un pulsante non fa nulla | Un capo al pin, l'altro a **GND**; ricontrolla [tabella 6.4](#64-pulsanti--3-tact-switch-play--menu--rec) (25/26/28) |
+| 🎧 Nessun suono in cuffia | Scheda audio non collegata bene (7,8,20,21,23,18,19); volume a 0 |
+| ❌ Build fallita / errore del compilatore | Verifica che `arduino-cli` e il core `teensy:avr` siano installati; lancia `python teensy/build_toern.py` (compila a -O1 — vedi [`teensy/README.md`](teensy/README.md)) |
 | 🚫 Campioni non partono / canale muto | Struttura/percorso SD errati; WAV non mono-16bit-44.1k (usa `wavmaker.py`) |
-| 📟 OLED nero | `OLED_ENABLED` non a 1; indirizzo 0x3D invece di 0x3C; SDA/SCL invertiti |
+| 📟 OLED nero | Indirizzo 0x3D invece di 0x3C; SDA/SCL invertiti; manca 3V3/GND |
 
 ---
 
@@ -384,12 +374,12 @@ Doppio click: si apre una finestra. Poi:
 ```
 LED matrix DIN ............ 17        Audio MCLK ... 23   Audio SDA ... 18
                                       Audio BCLK ... 21   Audio SCL ... 19
-Encoder SINISTRA  CLK 5  DT 22 SW 15  Audio LRCLK .. 20
-Encoder CENTRALE  CLK 9  DT 14 SW 16  Audio TX ..... 7
-Encoder DESTRA    CLK 4  DT 2  SW 3   Audio RX ..... 8
-                                      OLED ......... SDA 18 / SCL 19 (0x3C)
-4° encoder ....... NON montato (pin 32/33 liberi)
-Pulsante FILTRO .. pin 41  ->  GND   (fork, lowpass per voce)
+Encoder E1 (sinistra) CLK 5  DT 22 SW 15  Audio LRCLK .. 20
+Encoder E2            CLK 32 DT 33 SW 41  Audio TX ..... 7
+Encoder E3            CLK 9  DT 14 SW 16  Audio RX ..... 8
+Encoder E4 (destra)   CLK 37 DT 38 SW 39  OLED ..... SDA 18 / SCL 19 (0x3C)
+Pulsanti  PLAY 25   MENU 26   REC 28   (ognuno: pin -> GND, attivo-basso)
+Evita:    pin 2/3/4 (uso interno TŒRN) e 24 (striscia LED rimossa)
 ```
 
 > ⚡ Alimentazioni: matrice = **5V**; encoder, OLED e audio = **3,3V**; **GND sempre in comune** tra tutto.
@@ -400,6 +390,6 @@ Pulsante FILTRO .. pin 41  ->  GND   (fork, lowpass per voce)
 
 Buona costruzione! 🛠️ Quando suona, passa al **[Manuale d'Uso](MANUALE_USO.md)**.
 
-*ichosynth è un fork di **NI404** di SP_ (soundpauli) · firmware open-source MIT.*
+*ichosynth è una build economica, saldata a mano, di **TŒRN** di SP_ (soundpauli, https://toern.live) · firmware open-source che gira su un Teensy 4.1.*
 
 </div>

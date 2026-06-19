@@ -6,44 +6,47 @@
 
 ### How to play the sampler-sequencer you *draw*
 
-You draw music on a 16×16 LED grid with **3 knobs**. No computer, no menus to memorize: turn, press, listen.
+You draw music on a 16×16 grid with **4 knobs** and **3 buttons**. No computer, no menus to memorize: turn, press, listen.
 
 [![Level: Beginner](https://img.shields.io/badge/Level-Beginner-2ea44f.svg)](#)
-[![Build: 3 encoders](https://img.shields.io/badge/Build-3%20encoders-orange.svg)](#)
-[![Fork of NI404 (SP_)](https://img.shields.io/badge/fork%20of-NI404%20%C2%B7%20SP__-blueviolet.svg)](#)
+[![Build: 4 encoders + 3 buttons](https://img.shields.io/badge/Build-4%20encoders%20%2B%203%20buttons-orange.svg)](#)
+[![Firmware: TŒRN by SP_](https://img.shields.io/badge/firmware-T%C5%92RN%20%C2%B7%20SP__-blueviolet.svg)](https://toern.live)
 [![See also: Build](https://img.shields.io/badge/See%20also-Build%20Manual-blue.svg)](BUILD_MANUAL.md)
 
 </div>
 
 > 🎧 **You don't need a computer to play**: your **ichosynth** generates everything on its own. Plug in
-> your headphones, power it via USB, and off you go.
+> your **headphones**, power it via USB, and off you go.
 
-> 🆕 **This is the 3-encoder build.** Compared to the original 4-knob NI404, the **volume** is set
-> with the **LEFT** knob, the **BPM** with the **CENTER** one, and the commands the original put on the
-> 4th encoder (Play/Pause, Volume/BPM, Menu, Note-Shift) have been **remapped** onto the 3 available
-> buttons. New in the fork: optional **OLED** screen and **MIDI clock OUT** (master sync).
+> ℹ️ **This is the real TŒRN.** ichosynth runs the full **TŒRN firmware** (by SP_/soundpauli,
+> [toern.live](https://toern.live)) on a Teensy 4.1, built with cheap hand-soldered parts: **4 KY-040
+> encoders**, **3 tact switches** and an **SSD1306 OLED**. Where the original TŒRN told you the state
+> with the glowing colour of its encoder rings, our build shows it as plain text on the **OLED**.
 
 ---
 
 ## 📑 Table of Contents
 
 - [1 · The concept in 30 seconds](#1--the-concept-in-30-seconds)
-- [2 · The 3 knobs (encoders)](#2--the-3-knobs-encoders)
-- [3 · Reading the grid](#3--reading-the-grid)
-- [4 · DRAW mode (drawing)](#4--draw-mode-drawing)
-- [5 · Pages and patterns](#5--pages-and-patterns)
-- [6 · Mute (silencing voices)](#6--mute-silencing-voices)
-- [7 · Volume and BPM](#7--volume-and-bpm)
-- [8 · Velocity](#8--velocity)
-- [9 · SINGLE mode](#9--single-mode-one-voice-only)
-- [10 · Changing the sample (Sample Browser)](#10--changing-the-sample-sample-browser)
-- [11 · Voice colors](#11--voice-colors)
-- [12 · Sample Pack](#12--sample-pack-sample-set)
-- [13 · Saving and loading](#13--saving-and-loading-your-songs)
-- [14 · MIDI](#14--midi)
-- [15 · Lowpass filter (fork)](#15--lowpass-filter-fork)
-- [16 · Mode & command map](#16--mode--command-map)
-- [17 · Common problems](#17--common-problems)
+- [2 · The hardware: 4 knobs + 3 buttons](#2--the-hardware-4-knobs--3-buttons)
+- [3 · Reading the grid and the OLED](#3--reading-the-grid-and-the-oled)
+- [4 · The 3 buttons (B1 B2 B3)](#4--the-3-buttons-b1-b2-b3)
+- [5 · DRAW mode (drawing)](#5--draw-mode-drawing)
+- [6 · Pages, patterns and subpatterns](#6--pages-patterns-and-subpatterns)
+- [7 · Mute (silencing voices)](#7--mute-silencing-voices)
+- [8 · Volume and BPM](#8--volume-and-bpm)
+- [9 · Velocity, probability and conditions](#9--velocity-probability-and-conditions)
+- [10 · SINGLE mode (one voice only)](#10--single-mode-one-voice-only)
+- [11 · FILTER mode and per-voice DSP](#11--filter-mode-and-per-voice-dsp)
+- [12 · Changing the sample (Sample Browser)](#12--changing-the-sample-sample-browser)
+- [13 · Voice colors and the synth voices](#13--voice-colors-and-the-synth-voices)
+- [14 · Sample packs](#14--sample-packs)
+- [15 · Saving and loading (Menu)](#15--saving-and-loading-menu)
+- [16 · Live recording (REC)](#16--live-recording-rec)
+- [17 · SONG mode](#17--song-mode)
+- [18 · MIDI and tap-tempo](#18--midi-and-tap-tempo)
+- [19 · Mode & command map](#19--mode--command-map)
+- [20 · Common problems](#20--common-problems)
 
 ---
 
@@ -56,266 +59,316 @@ touches plays the notes you've put there.
   <img src="assets/grid-concept.svg" alt="The 16x16 grid: rows = colored voices, columns = steps, Play playhead" width="560">
 </p>
 
-- The **columns** (left→right) are the **16 steps** of one bar.
+- The **columns** (left→right) are the **16 steps** of one bar (a page can be chained to **32×16**).
 - Each **row** is a **voice** (a sample or a synth), identified by a **color**.
-- Several pages in a row make up a **pattern/song**.
+- Several pages in a row make up a **pattern**; several patterns make up a **song**.
 
-> 💡 Basic flow: **draw notes → press Play → loop**. You change samples, BPM and volume on the fly, without stopping.
+> 💡 Basic flow: **draw notes → press PLAY (B1) → loop**. You change samples, BPM and volume on the fly, without stopping.
 
 ---
 
-## 2 · The 3 knobs (encoders)
+## 2 · The hardware: 4 knobs + 3 buttons
 
-There are **3 knobs**: **LEFT (L)**, **CENTER (C)** and **RIGHT (R)**. Each one **turns** (moves the
-cursor or adjusts values) and **presses**. It recognizes different gestures: single *click*, *double-click*,
-*hold* (long press) and *push* (press and keep held).
+On top there are **4 encoders** — **E1 E2 E3 E4**, left to right. Below them sit **3 tact switches** —
+**B1 B2 B3**. Every encoder both **turns** and **pushes** (click).
+
+```
+   [ E1 ]   [ E2 ]   [ E3 ]   [ E4 ]     ← 4 knobs (turn + push)
+   [  B1  ] [  B2  ] [  B3  ]            ← 3 buttons
+```
 
 <p align="center">
-  <img src="assets/encoders.svg" alt="The 3 knobs: LEFT, CENTER, RIGHT with their gestures" width="720">
+  <img src="assets/encoders.svg" alt="The encoders and buttons of ichosynth with their gestures" width="720">
 </p>
 
-| Knob | Turning | Pressing (main functions) |
-|----------|---------|--------------------------------|
-| **LEFT** (L) | cursor **up/down** (Y) · *in Volume/BPM: sets the **Volume*** | click = delete note · double-click = Single mode |
-| **CENTER** (C) | selects the **page** · *in Volume/BPM: sets the **BPM*** | push = draw note · hold = continuous drawing · **double-click = Play/Pause** · click = back/exit |
-| **RIGHT** (R) | cursor **left/right** (X) | click = mute voice · hold = mute all · double-click = velocity |
+The gestures the firmware understands:
 
-The **cursor** is the pulsing white dot: it shows where you're about to act.
+| Gesture | What it means |
+|---|---|
+| **Turn** (E1–E4) | change the value / move the cursor in the current context |
+| **Short click** (push an encoder) | confirm / act (the meaning depends on the mode) |
+| **Long press** (hold an encoder) | a second action (e.g. E1 hold = mute/subpattern) |
+| **Tap a button** (B1/B2/B3) | the button's main function |
+| **Hold a button** | the button's held function (e.g. B3 held = recording count-in) |
+| **Combo B1+B2** | a shortcut — **the order you press them matters** (see ch. 11 & 12) |
 
-> 💡 The **CENTER** knob is the "richest" one: turn it for the page, **press** (push) to draw,
-> **hold** to draw continuously, **double-click** for Play/Pause, **single click** to go back from menus.
+> 💡 There is **no double-click**: the KY-040 encoders don't need one. Every action is a turn, a click, a
+> hold, a button tap or a two-button combo.
+
+What each encoder does changes with the mode. Here is the overview (details in the relevant chapters):
+
+| Mode | E1 turn | E2 turn | E3 turn | E4 turn |
+|---|---|---|---|---|
+| **DRAW** | Y / note (row) | page | quick channel filter | X / column |
+| **SINGLE** | channel | note (pitch) | — | X / column |
+| **FILTER** | slider 1 | slider 2 | slider 3 | slider 4 |
+| **MENU** | — | value | value | navigate menu pages |
+| **VELOCITY** | velocity | probability | channel volume | condition / timing |
+| **SONG** | — | pattern | — | position (1–64) |
+
+The most useful encoder **clicks** (in DRAW/SINGLE):
+
+- **E3 click** = **Play / Pause**.
+- **E1 long-press** = enter mute / subpattern (release to restore).
+- **E1 click @ row 16** (in SINGLE) = NOTE SHIFT.
+- **E4 click** = confirm / enter a sub-menu.
+- **E1 click** (in MENU) = back / exit.
 
 ---
 
-## 3 · Reading the grid
+## 3 · Reading the grid and the OLED
 
-- **Rows** = the voices (up to 8 samples + synth voices), each with its own **color** (see [ch. 11](#11--voice-colors)).
+- **Rows** = the voices (8 sample voices + 3 synth voices), each with its own **color** (see [ch. 13](#13--voice-colors-and-the-synth-voices)).
 - **Columns** = the 16 steps of the current page.
-- **Top row (status)**: on the left the **8 pages** (indicators), on the right the status lights (copy
-  active, etc.). During Play the page indicators turn **green**.
+- **Top row (status)**: page indicators and status lights (copy active, etc.). During Play the page indicators turn **green**.
 - **Play playhead**: the highlighted column that advances as you play (the ▼ in the image above).
 
-> 🆕 If you've fitted the fork's **OLED**, there you can read in plain text: mode, BPM, volume, velocity, page and
-> Play/Stop state.
+> 📟 The original TŒRN showed the live state through the **colour of the encoder rings**. Our build has no
+> RGB rings, so the **OLED** shows the same information in plain text: **current channel, mode, transport
+> (PLAY / REC / STOP), BPM, volume and page**. Glance at it any time to know exactly where you are.
 
 ---
 
-## 4 · DRAW mode (drawing)
+## 4 · The 3 buttons (B1 B2 B3)
+
+The three tact switches are the heart of the transport and navigation:
+
+| Button | Main function | Also does… |
+|---|---|---|
+| **B1 · PLAY** | start playback; toggle **SINGLE**; exit other modes back to **DRAW** | **held at power-on** = clear the RAM (fresh start) |
+| **B2 · MENU** | enter / exit the **Menu** and the sub-modes | exits a sub-mode back to DRAW/SINGLE |
+| **B3 · REC** | **record** (tap or hold) | **PAUSE** during playback · **tap-tempo BPM** · hold **>300 ms** = recording **count-in** |
+
+> 💡 **PLAY is B1** (a single tap), not an encoder gesture. **PAUSE is B3** while a song is running.
+
+---
+
+## 5 · DRAW mode (drawing)
 
 This is the main screen, the default one, where you create patterns.
 
 | Action | Gesture |
 |---|---|
-| 🧭 **Move the cursor** | turn **L** (up/down) and **R** (left/right) |
-| ✏️ **Add a note** | **push C** (center) on the cursor's spot (you hear the sound right away). Pressing again on a note **changes** the voice (cycles through them) |
-| 🎨 **Continuous drawing** *(Etch-A-Sketch)* | **hold C** to enable *paint mode*, then move the knobs to draw a trail of notes. Release/click to stop |
-| 🧽 **Delete** | **click L** = delete the note under the cursor · **hold L** = continuous deletion |
-| ▶️ **Play / Pause** | **double-click C** (center) |
+| 🧭 **Move the cursor** | turn **E1** (up/down, row/note) and **E4** (left/right, column) |
+| 📄 **Change page** | turn **E2** |
+| ✏️ **Add / change a note** | push on the cursor's spot (you hear it right away); pressing again on a note cycles the voice |
+| ▶️ **Play / Pause** | **E3 click** (Pause during play is also **B3**) |
+| 🎚️ **Quick filter the channel** | turn **E3** to soften/brighten the voice under the cursor on the fly |
+| 🔇 **Mute / subpattern** | **hold E1** (release to restore) |
+
+> 💡 E3 is the "transport" knob in DRAW: **click** it for Play/Pause, **turn** it to nudge the current
+> channel's filter without leaving the grid.
 
 ---
 
-## 5 · Pages and patterns
+## 6 · Pages, patterns and subpatterns
 
-- The grid shows **one page** (16 steps) at a time.
-- Turn **C** to change page (up to **8 pages → 128 steps** per song).
-- In Play, the pages with notes are played in sequence on a loop.
+- The grid shows **one page** (16 steps) at a time; turn **E2** to move between pages.
+- Pages with notes are played in sequence on a loop to form a **pattern**. Patterns are chained in
+  [SONG mode](#17--song-mode).
+- **Subpatterns**: **hold E1** to drop into a momentary variation of the current pattern, then release to
+  snap back — great for live fills and breaks.
+- **Note copy / paste and note-shift** let you move and duplicate steps; the active copy/note-shift state
+  shows on the grid's top row (and on the OLED).
 
-| Page action | Gesture |
+---
+
+## 7 · Mute (silencing voices)
+
+- Put the cursor on a voice and **hold E1** to mute it / drop into its subpattern; release to restore.
+- Muted channels are shown **on the grid itself**, so you can always see what's silent at a glance.
+
+---
+
+## 8 · Volume and BPM
+
+- **Volume** and **BPM** are always readable on the **OLED**.
+- **Tap-tempo**: tap **B3 (REC)** in time to set the **BPM** by ear.
+- The per-channel **volume** is adjusted in [VELOCITY mode](#9--velocity-probability-and-conditions) with **E3**.
+
+---
+
+## 9 · Velocity, probability and conditions
+
+TŒRN gives every step more than just on/off. In **VELOCITY** mode the four knobs become per-step controls:
+
+| Knob | Controls |
 |---|---|
-| 📋 **Copy / paste page** | **click L + click R** together: copy; repeat on another page to paste |
-| 🗑️ **Clear the whole page** | **hold L + hold C** together |
+| **E1** | **velocity** (how loud the step is) |
+| **E2** | **probability** (chance the step fires) |
+| **E3** | **channel volume** |
+| **E4** | **condition / timing** (e.g. play every Nth pass, micro-timing) |
+
+Use **B2 (MENU)** to step through the sub-modes; **B1 (PLAY)** returns you to DRAW.
 
 ---
 
-## 6 · Mute (silencing voices)
+## 10 · SINGLE mode (one voice only)
 
-- **Click R**: mutes/unmutes the **current voice** (the row you're on).
-- **Hold R**: mutes **everything** while you keep it held (release to reactivate). Perfect for live breaks/drops.
+Useful for working in detail on one sample (e.g. a melody across several pitches).
 
----
+- **Enter / exit SINGLE**: tap **B1 (PLAY)** to toggle SINGLE for the focused voice.
+- In SINGLE: **E1 turn** = pick the **channel**, **E2 turn** = the **note (pitch)**, **E4 turn** = the **column (X)**.
+- The same drawing/deleting gestures from DRAW apply, but only to the selected voice.
 
-## 7 · Volume and BPM
-
-- **Hold R + hold C** (together): opens the **Volume/BPM** screen.
-- Inside: **Volume** = turn **L** · **BPM** = turn **C** (range ~40–240).
-- To exit: **click C** (you return to DRAW).
-
-> 💡 Reminder for the 3-encoder build: there's no 4th knob, so the volume has been "moved" onto the
-> **LEFT** and the BPM onto the **CENTER**.
+### Note Shift (in SINGLE)
+- Put the cursor on row 16 and **click E1** to enter **NOTE SHIFT**, then move the notes with the knobs.
 
 ---
 
-## 8 · Velocity
+## 11 · FILTER mode and per-voice DSP
 
-- **Double-click R**: opens velocity mode for the note under the cursor.
-- Adjust with **C** (turn the center knob).
-- Exit by **releasing**.
+ichosynth has the full TŒRN per-voice DSP: a **lowpass filter**, **reverb**, **bitcrusher**, **detune**,
+**octave**, and a **Moog ladder** on the synth voices.
 
----
+- **Enter FILTER mode**: press **B2 + B1 together, with B2 first** (B2-first = FILTER MODE).
+  This works on the channels that have filters (1–8, 11, 13–14).
+- In FILTER mode the four knobs become **four sliders** (**E1 E2 E3 E4**) for the DSP of the selected
+  voice. The OLED shows the selected filter and its value.
+- Exit with **B2 (MENU)** or **B1 (PLAY)** back to DRAW.
 
-## 9 · SINGLE mode (one voice only)
-
-Useful for working in detail on a single sample (e.g. melodies across several pitches).
-
-- **Enter**: **double-click L** on the row of the voice you want to isolate.
-- **Exit**: **double-click L** again.
-- In SINGLE the same drawing/deletion gestures from DRAW apply, but you only act on the selected voice.
-
-### Moving notes (Note Shift, in SINGLE)
-- **Click R + hold C**: enters Note Shift.
-- Move the notes with the knobs.
-- **Click C** = confirm · **click L** = cancel.
+> 💡 For a fast, no-mode tweak you can also just **turn E3 in DRAW** to filter the channel under the
+> cursor. FILTER mode is for dialling in the full set of effects per voice.
 
 ---
 
-## 10 · Changing the sample (Sample Browser)
+## 12 · Changing the sample (Sample Browser)
 
-To assign a different WAV file to a voice:
+To assign a different WAV to one of the 8 sample voices:
 
-1. Enter **SINGLE** on the desired voice ([ch. 9](#9--single-mode-one-voice-only)).
-2. **Hold L + hold R**: opens the **sample browser** (SET_WAV).
-3. Navigate with the knob: change **folder** and **sample** (browse the SD's files); see the waveform / length preview.
-4. **Click L** = loads the selected sample onto the voice.
-5. **Click C** = exit.
+1. **Open the Sample Browser**: press **B1 + B2 together, with B1 first** (or both at once). This enters
+   SET_WAV for channels 1–8.
+2. **Navigate** with the knobs: change **folder** and **sample** (browse the SD); you can preview the
+   **length** and **waveform**, and set **seek / length / reverse**.
+3. **Confirm** with **E4 click** to load the selected sample onto the voice.
+4. **Exit** with **B2 (MENU)**.
 
-> 📁 The samples are read from the SD in the structure `/samples/<folder>/_<number>.wav`
-> (see [build manual, ch. 9](BUILD_MANUAL.md)).
+> 📁 Samples live on the microSD as `/samples/<folder>/_<number>.wav`
+> (see the [build manual](BUILD_MANUAL.md)). WAVs should be mono, 16-bit, 44.1 kHz — `wavmaker.py`
+> prepares them for you.
+
+> ⏱️ **Order matters in the combo**: **B2 first** → FILTER MODE; **B1 first (or simultaneous)** → SAMPLE
+> BROWSER. There is a short 350 ms cooldown between combos.
 
 ---
 
-## 11 · Voice colors
+## 13 · Voice colors and the synth voices
 
 Each voice has a fixed color (defined in [`colors.h`](colors.h)):
 
 <p align="center">
-  <img src="assets/voice-colors.svg" alt="Voice color legend: 1 red, 2 blue, 3 yellow, 4 green, 5 magenta, 6 lime, 7 orange, 8 turquoise, 13 purple synth, 14 white synth" width="540">
+  <img src="assets/voice-colors.svg" alt="Voice color legend: 1 red, 2 blue, 3 yellow, 4 green, 5 magenta, 6 lime, 7 orange, 8 turquoise, synth voices" width="540">
 </p>
 
-The two **synth** voices (13 and 14) play internally generated waves (*sawtooth* and *square*) and follow
-the pitches of a scale (C3…D5).
+There are **8 sample voices** plus **3 synth voices**. The synth voices play internally generated waves
+and follow the pitches of a scale; they have their own **Moog ladder** filter (set in [FILTER mode](#11--filter-mode-and-per-voice-dsp)).
+TŒRN is **polyphonic**, so several voices sound together.
 
 ---
 
-## 12 · Sample Pack (sample set)
+## 14 · Sample packs
 
-A "sample pack" is a complete set of voices saved on the SD: you recall a whole kit on the fly.
+A "sample pack" is a complete set of voices saved on the SD: recall a whole kit on the fly.
 
-- In DRAW: **hold L + hold R** opens the **Sample Pack** screen.
-- Select the pack number with the knob.
-- **Click R** = saves the current set into that pack · **Click L** = loads the pack · **Click C** = exit.
+- Open the Sample Browser ([ch. 12](#12--changing-the-sample-sample-browser)) and use the pack controls
+  to **load** a numbered pack onto the 8 sample voices.
+- Packs let you swap an entire kit between songs without rebuilding it voice by voice.
 
-> 📁 On the SD a pack is the numbered folder `1`..`99` containing `1.wav`..`12.wav` (ichosynth manages
-> them, you don't need to create them by hand).
-
----
-
-## 13 · Saving and loading your songs
-
-- In DRAW: **click L + hold C** opens the **Menu**.
-- **Click R** = **saves** the song into the current slot · **Click L** = **loads** · **Click C** = exit.
-- Songs are saved to the SD's root as `<number>.txt` (up to 100).
-
-> 💾 **Autosave/Autoload**: ichosynth saves automatically to `autosaved.txt` (e.g. when you pause) and
-> reloads that content at power-on — you find your work right where you left it.
+> 📁 On the SD a pack is a numbered folder with its `.wav` files inside; ichosynth manages them, you don't
+> need to create them by hand.
 
 ---
 
-## 14 · MIDI
+## 15 · Saving and loading (Menu)
 
-All MIDI goes through the Teensy's **USB port** (you need `USB Type = Serial + MIDI` at compile time).
-
-- **MIDI In (USB)**: ichosynth receives notes (mapping them onto the grid/current voice) and **syncs** to
-  external MIDI clock/start/stop (slave).
-- 🆕 **MIDI Clock Out (USB)** *(fork, if `MIDI_CLOCK_OUT_ENABLED = 1`)*: when you play, ichosynth sends
-  **Clock (24 PPQN), Start and Stop**, so external instruments sync to ichosynth (master).
-
-```mermaid
-flowchart TD
-    P["▶️ Press Play"] --> Q{"External MIDI clock<br/>in the last 750 ms?"}
-    Q -- "Yes" --> S["🟦 Stay SLAVE<br/>follow the external clock"]
-    Q -- "No"  --> M["🟩 Become MASTER<br/>send Start + Clock 24 PPQN"]
-    style M stroke:#2ea44f,stroke-width:2px
-    style S stroke:#3b82f6,stroke-width:2px
-```
-
-> ⚠️ The 5-pin DIN MIDI jacks (pins 0/1) are provided in the wiring but the current firmware does **not**
-> use them: MIDI works only over USB.
+- **Enter the Menu**: tap **B2 (MENU)**.
+- Navigate the menu pages with **E4** (turn), adjust values with **E2 / E3**, and **confirm / enter a
+  sub-menu with E4 click**; **E1 click = back**.
+- From the Menu you **save** and **load** songs to/from the microSD.
+- **Exit** the Menu with **B2 (MENU)** again, or **B1 (PLAY)** to jump straight back to DRAW.
 
 ---
 
-## 15 · Lowpass filter (fork)
+## 16 · Live recording (REC)
 
-🆕 *Fork feature* (if `FILTER_ENABLED = 1`, on by default). Adds a **per-voice lowpass filter**: each
-voice gets its own cutoff that softens or "closes" the sound (rolls off the highs).
+ichosynth records audio straight from its input into the current channel.
 
-> 🎛️ It needs one extra **momentary pushbutton** (see the build manual): a plain button between **pin
-> 41** and **GND**. It's not an encoder, just a button — the 3-knob hardware stays as it is.
+1. Choose the **channel** to record into.
+2. **Hold B3 (REC)** to record from the input (**MIC** or **LINE**; the choice shows on the OLED).
+3. **Hold B3 > 300 ms** to get a **count-in** first (4 beats at the current BPM), then recording starts on the beat.
+4. Release **B3** to stop; the take is saved to the SD and loaded onto the channel, so it survives a reboot.
 
-**How to use it:**
-1. Move the cursor onto the **voice** you want to filter (the row, just like for mute).
-2. **Hold the FILTER button** and **turn the CENTER knob**:
-   - clockwise = filter **open** (bright sound, up to 9 kHz);
-   - counter-clockwise = filter **closed** (dark/muffled, down to ~280 Hz).
-3. A **light bar** across the middle of the grid shows the cutoff, in the voice's color. **Release** to exit.
-
-The value is **per voice** and is **saved with the song** (it comes back identical on reload).
-
-> 💡 At power-on the filters start **open** (9 kHz): the dry sound is brighter than the original NI404
-> (which left the filters at a ~1 kHz default, slightly muffled). For behavior identical to the
-> original, set `FILTER_ENABLED 0` in `config.h` (and skip the button).
+> 💡 **B3 is multi-purpose**: a quick tap is **tap-tempo** / **PAUSE during play**; a hold is **record**.
+> The OLED's transport readout shows **REC** while you're recording.
 
 ---
 
-## 16 · Mode & command map
+## 17 · SONG mode
 
-From DRAW (the main screen) you reach all the other modes with combinations of gestures:
+SONG mode chains your patterns into a full arrangement.
+
+- In SONG mode: **E2 turn** = choose the **pattern**, **E4 turn** = the **position** in the song (1–64).
+- Build the sequence of patterns, then **PLAY (B1)** runs the whole song.
+- Mute states and the song position are shown **on the grid**, so you can follow the arrangement live.
+
+---
+
+## 18 · MIDI and tap-tempo
+
+- **USB MIDI**: ichosynth is a **USB MIDI** device. Connected over USB it plays/receives MIDI with a
+  computer or other gear.
+- **Tap-tempo**: tap **B3 (REC)** in time to set the BPM by feel — no menu needed.
+
+---
+
+## 19 · Mode & command map
+
+From DRAW (the main screen) you reach everything with knobs, buttons and the two combos:
 
 <p align="center">
-  <img src="assets/modes-map.svg" alt="Map of the 3-encoder modes and the gestures to reach them" width="720">
+  <img src="assets/modes-map.svg" alt="Map of the modes and the gestures to reach them" width="720">
 </p>
 
-Legend: **L** = left · **C** = center · **R** = right · "click" = short press · "hold" = long press ·
-"push" = press and keep held · "2× click" = double-click.
+Legend: **E1–E4** = the four knobs (turn or click) · **B1/B2/B3** = the three buttons · "click" = short
+press · "hold" = long press · "combo" = two buttons together (order matters).
 
 | You want to… | Gesture |
 |-------|-------|
-| Move cursor up/down | turn **L** |
-| Move cursor left/right | turn **R** |
-| Add a note | **push C** |
-| Continuous drawing (Etch-A-Sketch) | **hold C**, then move |
-| Delete a note | **click L** |
-| Continuous deletion | **hold L**, then move |
-| **Play / Pause** | **double-click C** |
-| Mute current voice | **click R** |
-| Mute all (momentary) | **hold R** |
-| Change page | turn **C** |
-| Copy/paste page | **click L + click R** |
-| Clear the page | **hold L + hold C** |
-| Volume / BPM (enter) | **hold R + hold C** → Vol = turn **L**, BPM = turn **C** |
-| Volume / BPM (exit) | **click C** |
-| Note velocity | **double-click R** (adjust with **C**) |
-| 🆕 Lowpass filter (current voice) | **hold the FILTER button + turn C** |
-| Enter/exit Single mode | **double-click L** |
-| Note Shift (in Single) | **click R + hold C** |
-| Sample browser (in Single) | **hold L + hold R** |
-| Sample Pack (in Draw) | **hold L + hold R** |
-| Save/load menu (in Draw) | **click L + hold C** |
+| Move cursor up/down (row/note) | turn **E1** |
+| Move cursor left/right (column) | turn **E4** |
+| Change page | turn **E2** |
+| Add / change a note | push on the cursor's spot |
+| **Play / Pause** | **E3 click** (Pause also **B3**) |
+| Quick-filter the current channel | turn **E3** (in DRAW) |
+| Mute / subpattern (current voice) | **hold E1** |
+| **PLAY** (transport) | **B1** |
+| **MENU** (save/load, settings) | **B2** |
+| **REC** / pause / tap-tempo | **B3** |
+| Clear RAM (fresh start) | **hold B1 at power-on** |
+| Enter/exit **SINGLE** | **B1** (toggle) |
+| **Note Shift** (in Single) | **E1 click @ row 16** |
+| **VELOCITY** (velocity/prob/vol/condition) | **B2** to reach it → **E1/E2/E3/E4** |
+| **FILTER mode** (per-voice DSP) | **B2 + B1, B2 first** → sliders on **E1–E4** |
+| **Sample Browser** (set WAV) | **B1 + B2, B1 first / together** → confirm **E4 click** |
+| **Menu** confirm / enter sub-menu | **E4 click** · back = **E1 click** |
+| Recording **count-in** | **hold B3 > 300 ms** |
 
-> ⚠️ **Watch out for two similar gestures**: *Clear page* = **hold** L + hold C; *Save/load menu*
-> = **click** L + hold C. Only L changes (keep held vs tap).
+> ⚠️ **The two combos differ only by order**: **B2 first** → FILTER mode; **B1 first (or both at once)** →
+> Sample Browser. Wait ~350 ms between combos.
 
 ---
 
-## 17 · Common problems
+## 20 · Common problems
 
 | Symptom | Fix |
 |---|---|
-| 🔇 **I don't hear anything** | check the volume (hold R + hold C, then turn L), that the voice isn't muted (click R), and that the sample exists on the SD in the right format |
-| ▶️ **It won't start / won't go to Play** | Play is a **double-click** on the CENTER (two quick taps), not a single click |
+| 🔇 **I don't hear anything** | check the volume/channel volume (OLED), that the voice isn't muted (**hold E1**), and that the sample exists on the SD in the right format |
+| ▶️ **It won't start** | Play is **B1** (or **E3 click**); Pause during play is **B3** |
 | ↩️ **A knob goes the wrong way** | it's a CLK/DT swap from the wiring stage (see the build manual) |
 | 🚫 **The samples won't play** | wrong SD path/structure, or WAV not mono/16-bit/44.1 kHz → use `wavmaker.py` |
-| 💾 **I lost my work** | there's the autosave (`autosaved.txt`), but also save often manually into a slot from the Menu |
-| ⏱️ **Maximum sample length** | ~30 seconds, with continuous looping |
+| 🤔 **A combo opened the wrong mode** | mind the order: **B2 first** = FILTER, **B1 first** = Sample Browser; wait ~350 ms and retry |
+| 💾 **I want a fresh start** | **hold B1 at power-on** to clear the RAM; save songs to the SD from the Menu (B2) |
+| ⏱️ **Sample length** | long samples with continuous looping are supported |
 
 ---
 
@@ -323,9 +376,7 @@ Legend: **L** = left · **C** = center · **R** = right · "click" = short press
 
 Have fun! 🎶
 
-*ichosynth is a fork (3-encoder build) of **NI404** by SP_ (soundpauli) · open-source MIT firmware.*
-
-*This firmware is declared by the author "far from complete": some functions (filters, a few shortcuts)
-are partial. You're free to modify and improve it as you like.*
+*ichosynth runs **TŒRN** by SP_ (soundpauli) · [toern.live](https://toern.live) · on a Teensy 4.1 with
+4 KY-040 encoders, 3 tact switches and an SSD1306 OLED.*
 
 </div>

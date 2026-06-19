@@ -1,14 +1,15 @@
-# NI404 / toern emulator — MIDI controller setup (MPK Mini mk2/mk3/mk4/Plus & others)
+# ichosynth emulator — MIDI controller setup (MPK Mini mk2/mk3/mk4/Plus & others)
 
-The emulator is driven by a MIDI controller. Because each controller — and even
-each MPK Mini revision — sends **different CC numbers** for its knobs, the mapping
-is **configurable at runtime** and **self-discovering**, so it works with any model
-(including the **MPK Mini mk4 / MPK Mini IV**, whose factory knob CCs differ from
-the mk3).
+The emulator can be driven by a MIDI controller (both targets: the default
+`ni404emu` bench firmware and the `toernemu` TŒRN reference). Because each
+controller — and even each MPK Mini revision — sends **different CC numbers** for
+its knobs, the mapping is **configurable at runtime** and **self-discovering**, so
+it works with any model (including the **MPK Mini mk4 / MPK Mini IV**, whose factory
+knob CCs differ from the mk3).
 
 ## The mapping (coherent 1:1)
 
-| Control on the MPK Mini | NI404/toern action            |
+| Control on the MPK Mini | ichosynth action              |
 |-------------------------|-------------------------------|
 | **Knob 1 / 2 / 3 / 4**  | turn **encoder 1 / 2 / 3 / 4**|
 | **Pad 1 / 2 / 3 / 4**   | **push** encoder 1 / 2 / 3 / 4|

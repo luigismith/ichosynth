@@ -4,35 +4,40 @@
 
 # 🎛️ ichosynth
 
-### A DIY, open-source sampler-sequencer you *draw* like an Etch-A-Sketch™
+### A hand-soldered, low-cost build of TŒRN you play with knobs and a tiny screen
 
-You sketch music onto a 16×16 RGB LED grid with **three rotary knobs**. No computer, no screen menus to memorize — just turn, push, and listen.
+ichosynth runs the **real, unmodified [TŒRN](https://toern.live) firmware** on a Teensy 4.1 — a full
+sampler-groovebox-sequencer — but swaps TŒRN's expensive input parts for cheap, solderable ones. No
+custom PCB, no fancy parts: just point-to-point hand wiring, four mechanical knobs, three buttons and a
+little OLED.
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-2ea44f.svg)](#-license)
 [![Platform: Teensy 4.1](https://img.shields.io/badge/Platform-Teensy%204.1-ee6611.svg)](https://www.pjrc.com/store/teensy41.html)
-[![Build: 4 encoders + 3 buttons](https://img.shields.io/badge/Build-4%20encoders%20%2B%203%20buttons-orange.svg)](#-how-its-wired)
+[![Build: 4 encoders + 3 buttons + OLED](https://img.shields.io/badge/Build-4%20enc%20%2B%203%20btn%20%2B%20OLED-orange.svg)](#-how-its-wired)
 [![ICHOS 2026 · Taranto](https://img.shields.io/badge/ICHOS%202026-Taranto-E83AA6.svg)](#-part-of-the-ichos-project)
-[![Fork of: NI404](https://img.shields.io/badge/Fork%20of-NI404%20by%20SP__-blueviolet.svg)](#-credits--upstream)
+[![TŒRN port](https://img.shields.io/badge/A%20DIY%20port%20of-TŒRN%20by%20SP__-blueviolet.svg)](#-credits--upstream)
 [![Manuali: Italiano](https://img.shields.io/badge/Manuali-🇮🇹%20Italiano-008C45.svg)](#-manuals--manuali-italiano)
 
 </div>
 
-> **What is this?** `ichosynth` is a friendly **fork of [NI404](#-credits--upstream)** by **SP_ (soundpauli)**,
-> wired as a **4-encoder + 3-button build**. On top of upstream it adds an optional **status OLED**, **MIDI clock
-> master sync**, a single-file **hardware config**, a **TŒRN-style per-voice lowpass filter** on the 4th encoder,
-> live **recording** (hold REC), a **desktop emulator** to try it without hardware, and **beginner-friendly manuals
-> in English & Italian**. The OLED, MIDI-clock and recording features are configurable in `config.h`.
+> **What is this?** `ichosynth` is a **hand-soldered, low-cost build of [TŒRN](https://toern.live)** —
+> the groovebox by **SP_ (soundpauli)**. It runs the *real, unmodified TŒRN firmware* on a Teensy 4.1
+> and only replaces TŒRN's costly inputs: the **4 Duppa I²C RGB encoders → 4× KY-040** mechanical
+> encoders, the **3 capacitive touch pads → 3× tact switches** (PLAY / MENU / REC), and the
+> **encoder RGB-ring feedback → 1× SSD1306 OLED**. Because TŒRN is already a Teensy 4.1 instrument,
+> **every TŒRN feature comes across** — samples, synths, effects, song mode, live recording, MIDI.
+> A bundled **desktop emulator** lets you try the same firmware on PC/Mac without hardware.
 
 ---
 
 ## 🌍 Part of the ICHOS project
 
-`ichosynth` is more than a fork — it's the instrument participants **build with their own hands** during
+`ichosynth` is the instrument participants **build with their own hands** during
 **[ICHOS 2026](https://www.francescogiannico.com/ichos-2026/)**, a residential *sound-ecology* workshop
 in **Taranto, Italy** (12–14 June 2026), conceived and led by sound artist **Francesco Giannico**.
 
 <p align="center">
-  <img src="assets/ichos-project.svg" alt="ICHOS 2026: ascolto → field recording → costruzione dell'ichosynth → performance e documentario" width="900">
+  <img src="assets/ichos-project.svg" alt="ICHOS 2026: listening → field recording → building the ichosynth → performance and documentary" width="900">
 </p>
 
 > *ichos* — from the ancient Greek **ἦχος**, *"sound"* — is described as a **"non-project"**: three days
@@ -57,39 +62,51 @@ culminates in a **sonic documentary** by **Roberta Trani**, premiering at the **
 
 ---
 
-## ✨ What this fork adds
+## ✨ What ichosynth is
 
-| | Upstream NI404 | **This fork (`ichosynth`)** |
-|---|:---:|:---:|
-| Core sampler-sequencer | ✅ | ✅ (unchanged) |
-| Pin map & feature flags | scattered in the sketch | 🆕 **one file** → [`config.h`](config.h) |
-| Status display | — | 🆕 **OLED HUD** (SSD1306 128×64) — *opt-in* |
-| MIDI clock | slave only | 🆕 **master sync** (24 PPQN Start/Clock/Stop) — *opt-in* |
-| 4 encoders + 3 buttons | partial 4th encoder | 🆕 **PLAY/MENU/REC** on 3 pushbuttons; the 4th encoder does filter/volume/seek |
-| Per-voice lowpass filter | in chain but uncontrolled | 🆕 **finished**, TŒRN-style: turn the **4th encoder** = cutoff of the cursor voice (ported from TŒRN, MIT) |
-| Live recording | — | 🆕 hold **REC** → record from the codec input into the channel (`AudioInputI2S`+`AudioRecordQueue`) |
-| Desktop emulator | — | 🆕 runs the real firmware on PC/Mac (`emulator/`), with on-screen touch controls |
-| Documentation | English README | 🆕 **Italian build + usage manuals** (`.md` + `.pdf`) |
+ichosynth is **TŒRN, made buildable by hand**. The firmware is TŒRN's own, unchanged; the project's work
+lives entirely in the **three input drivers** that re-create TŒRN's controls out of parts you can solder
+on a kitchen table.
 
-> 🎛️ **This is a 4-encoder + 3-button build** (`HAS_ENCODER4 1`). The 4th encoder is contextual
-> (filter in DRAW/SINGLE, volume in VOLUME/BPM, sample-seek in the browser); PLAY/MENU/REC sit on three
-> tact switches. Set `HAS_ENCODER4 0` for the legacy 3-encoder build (4th-knob gestures remapped onto
-> the three encoder buttons; no live filter control).
+| TŒRN's original part | **ichosynth's cheap, solderable replacement** | Driver |
+|---|---|---|
+| 4× Duppa I²C RGB encoders | 🔁 **4× KY-040** mechanical encoders (turn + push) | [`i2cEncoderLibV2`](teensy/libraries/i2cEncoderLibV2) — re-implements the Duppa API on the `Encoder` library |
+| 3× capacitive touch pads | 🔁 **3× tact switches** (PLAY / MENU / REC roles) | [`FastTouch`](teensy/libraries/FastTouch) |
+| Encoder RGB-ring feedback | 🔁 **1× I²C SSD1306 OLED** (channel / mode / transport / BPM / volume / page) | [`IchosOled`](teensy/libraries/IchosOled) — a tiny FLASHMEM SSD1306 text driver |
+
+Everything else is pure TŒRN, and **all of it works on this hardware**:
+
+- **8 sample voices + 3 synth voices**, polyphony, per-voice DSP — lowpass filter, **reverb**, bitcrusher,
+  detune, octave, and a **Moog ladder** on the synths.
+- **16×16 RGB WS2812 sequencer grid** (chainable to 32×16), pattern pages, subpatterns, **song mode**.
+- Per-step **velocity / probability / condition**, mute, note-shift, copy-paste.
+- **Sample packs + SD browser**, seek / length / reverse, SD load/save.
+- **Live recording** (hold REC) with **MIC/LINE input + count-in**.
+- **USB MIDI**, EEPROM/SD settings, tap-tempo.
+
+> 🔧 **One feature trimmed for this build:** the optional reactive 2nd LED strip (256 LEDs) is removed,
+> which frees pin 24. Everything else in TŒRN is present.
 
 <details>
-<summary><b>📂 Files changed / added by the fork</b> (click to expand)</summary>
+<summary><b>📂 What lives in this repo</b> (click to expand)</summary>
 
 ```
 ichosynth/
-├── config.h                  🆕 all pins + feature switches in one place
-├── display.h                 🆕 SSD1306 OLED status HUD (no-op when disabled)
-├── soundpauli_ni404.ino      ✏️  config/display, MIDI-clock hooks, 3-encoder gesture remap
-├── README.md                 ✏️  this file
-├── MANUALE_COSTRUZIONE.md    🆕 Italian DIY build manual (hand-wired, no PCB)
-├── MANUALE_USO.md            🆕 Italian usage manual
-├── MANUALE_*.pdf             🆕 PDF versions of both manuals
-├── colors.h / files.h / audioinit.h   (upstream, unchanged)
-└── _DOCS/ , _SDCARD/         (upstream hardware files, unchanged)
+├── teensy/
+│   ├── build_toern.py         🛠️  clones TŒRN, applies the pin remap + feature trims,
+│   │                              wires in the OLED HUD, and compiles → firmware/toern.hex
+│   ├── libraries/
+│   │   ├── i2cEncoderLibV2/   🔁 KY-040 driver (Duppa-API shim)   → ICHOS_ENC_PINS
+│   │   ├── FastTouch/         🔁 tact-switch driver (touch shim)  → ICHOS_BTN_PINS
+│   │   └── IchosOled/         📟 tiny SSD1306 text HUD
+│   ├── firmware/toern.hex     ⚡ flashable build output
+│   └── README.md              📘 the full port build doc
+├── emulator/                  🖥️  desktop build (target toernemu) — same firmware on PC/Mac
+├── _FLASHER/                  🖱️  one-click GUI flasher
+├── _DOCS/
+│   ├── MAPPA_CONTROLLI.md     🎛️ the control-map reference
+│   └── FEATURE_INVENTORY.md   📋 the full feature catalogue
+└── assets/ , _SDCARD/         🖼️ artwork + SD-card helper files
 ```
 </details>
 
@@ -98,11 +115,10 @@ ichosynth/
 ## 📑 Table of contents
 
 - [🌍 Part of the ICHOS project](#-part-of-the-ichos-project)
+- [✨ What ichosynth is](#-what-ichosynth-is)
 - [🧠 The idea in 30 seconds](#-the-idea-in-30-seconds)
 - [🔧 How it's wired](#-how-its-wired)
-- [🔌 Fork feature 1 — OLED status HUD](#-fork-feature-1--oled-status-hud)
-- [🎹 Fork feature 2 — MIDI clock OUT](#-fork-feature-2--midi-clock-out-master-sync)
-- [🔩 config.h at a glance](#-configh-at-a-glance)
+- [📟 The OLED HUD](#-the-oled-hud)
 - [🚀 Build & flash](#-build--flash)
 - [📚 Manuals (Italiano)](#-manuals--manuali-italiano)
 - [🧩 Hardware list](#-hardware-list)
@@ -115,58 +131,65 @@ ichosynth/
 
 The 16×16 panel is your sheet of music. A play-head sweeps left→right; every column it touches plays
 whatever notes you drew there. Each **row is a voice** (a sample or a synth), each **column a step**.
-Up to **8 sample voices + onboard synth voices** play together; chain pages into a song.
+Up to **8 sample voices + 3 synth voices** play together; chain pages into patterns, and patterns into
+a whole **song**.
 
 ```mermaid
 flowchart LR
-    ENC["🎚️ 3 rotary<br/>encoders"] --> T["🧠 Teensy 4.1"]
+    ENC["🎚️ 4× KY-040<br/>encoders"] --> T["🧠 Teensy 4.1<br/>(real TŒRN firmware)"]
+    BTN["🔘 3× tact switches<br/>PLAY / MENU / REC"] --> T
     SD[("💾 microSD<br/>samples / songs")] --> T
-    T --> LED["🟥 16×16 RGB<br/>LED matrix"]
-    T -. "🆕 fork" .-> OLED["📟 SSD1306<br/>status HUD"]
-    T --> AUDIO["🔊 Audio Shield<br/>SGTL5000"]
+    T --> LED["🟥 16×16 RGB<br/>WS2812 matrix"]
+    T --> OLED["📟 SSD1306<br/>status HUD"]
+    T --> AUDIO["🔊 Audio Adaptor<br/>SGTL5000"]
     AUDIO --> JACK["🎧 3.5mm out"]
     T <-. "USB-MIDI in/out" .-> HOST["💻 / 🎹 host & gear"]
 
-    style OLED stroke:#2ea44f,stroke-width:2px,stroke-dasharray:4 3
+    style OLED stroke:#2ea44f,stroke-width:2px
 ```
 
-Draw notes → press Play → loop. Tweak samples, BPM, volume, velocity live, without stopping.
-The full playing guide is in the [usage manual](USAGE_MANUAL.md).
+Draw notes → press Play → loop. Tweak samples, effects, BPM, volume and velocity live, without stopping.
+The full playing guide is in the [usage manual](USAGE_MANUAL.md); the control map is in
+[`_DOCS/MAPPA_CONTROLLI.md`](_DOCS/MAPPA_CONTROLLI.md).
 
 ---
 
 ## 🔧 How it's wired
 
-Pins live in [`config.h`](config.h) — change the build for a hardware variant by editing **one file**.
+ichosynth is **point-to-point hand wiring — no custom PCB.** The pin map below is the TŒRN port; the
+authoritative source is the drivers themselves (`ICHOS_ENC_PINS` in
+[`i2cEncoderLibV2.h`](teensy/libraries/i2cEncoderLibV2), `ICHOS_BTN_PINS` in
+[`FastTouch.h`](teensy/libraries/FastTouch)) plus [`build_toern.py`](teensy/build_toern.py).
 
-| Function | Teensy pin(s) | Macro |
-|---|---|---|
-| LED matrix DIN | `17` | `DATA_PIN` |
-| **Left** encoder (CLK / DT / btn) | `5` / `22` / `15` | `ENC_LEFT_*`, `BTN_LEFT` |
-| **Center** encoder (CLK / DT / btn) | `9` / `14` / `16` | `ENC_MIDL_*`, `BTN_MIDL` |
-| **Right** encoder (CLK / DT / btn) | `4` / `2` / `3` | `ENC_RIGHT_*`, `BTN_RIGHT` |
-| **4th** encoder (CLK / DT / btn) | `32` / `33` / `41` | `ENC_MIDR_*`, `BTN_MIDR` |
-| 🆕 **3 pushbuttons** PLAY / MENU / REC | `24` / `25` / `26` | `BTN_SW1/2/3` |
-| I2C bus (codec **+ 🆕 OLED**) | `SDA 18` / `SCL 19` | shared `Wire` |
+| Function | Teensy pin(s) (CLK / DT / SW) |
+|---|---|
+| **E1** encoder (left) | `5` / `22` / `15` |
+| **E2** encoder | `32` / `33` / `41` |
+| **E3** encoder | `9` / `14` / `16` |
+| **E4** encoder (right) | `37` / `38` / `39` |
+| **B1 / B2 / B3** buttons (PLAY / MENU / REC) | `25` / `26` / `28` |
+| LED matrix DIN | `17` |
+| OLED + audio codec (shared I²C) | `SDA 18` / `SCL 19` |
 
-> 🎛️ This build uses **4 encoders** (`HAS_ENCODER4 1`) + **3 pushbuttons** (PLAY/MENU/REC).
-> The **4th encoder is contextual**: in DRAW/SINGLE it sets the **filter** (lowpass cutoff) of the voice
-> under the cursor — TŒRN-style, *just turn it*, no dedicated button — and in VOLUME/BPM it sets volume.
-> Hold **REC** to **record** a sample from the codec input. (Old 3-encoder build: `HAS_ENCODER4 0`.)
-> Full step-by-step wiring is in the [build manual](BUILD_MANUAL.md).
+> 🎛️ The four KY-040 encoders carry TŒRN's full control language (turn + push, context-sensitive per
+> mode); the three tact switches take the PLAY / MENU / REC roles of TŒRN's touch pads; hold **REC** to
+> **record** from the codec input (MIC or LINE, with count-in). Full step-by-step wiring is in the
+> [build manual](BUILD_MANUAL.md).
 
 ---
 
-## 🔌 Fork feature 1 — OLED status HUD
+## 📟 The OLED HUD
 
-A small **SSD1306 0.96" 128×64** screen showing **mode · BPM · volume · velocity · page · play/stop**.
-It shares the same I2C bus as the audio codec (different address → no conflict), so it's just **4 wires**.
+TŒRN shows status on the RGB rings of its Duppa encoders. KY-040 knobs have no rings, so ichosynth puts
+that feedback on a small **SSD1306 0.96" 128×64** screen — **channel · mode · transport · BPM · volume ·
+page**. It shares the same I²C bus as the audio codec (different address → no conflict), so it's just
+**4 wires**, driven by the bundled [`IchosOled`](teensy/libraries/IchosOled) FLASHMEM text driver.
 
 ```mermaid
 flowchart LR
-    T["🧠 Teensy 4.1"] -- "SDA 18 / SCL 19" --> BUS{{"I2C bus"}}
-    BUS --> CODEC["🔊 SGTL5000 codec<br/>(audio shield)"]
-    BUS --> OLED["📟 SSD1306 @ 0x3C<br/>🆕 added by fork"]
+    T["🧠 Teensy 4.1"] -- "SDA 18 / SCL 19" --> BUS{{"I²C bus"}}
+    BUS --> CODEC["🔊 SGTL5000 codec<br/>(audio adaptor)"]
+    BUS --> OLED["📟 SSD1306 @ 0x3C"]
 
     style OLED stroke:#2ea44f,stroke-width:2px
 ```
@@ -178,80 +201,32 @@ flowchart LR
 | VCC | `→ 3V3` |
 | GND | `→ GND` |
 
-- **Enable:** `#define OLED_ENABLED 1` in `config.h`.
-- **Extra libraries (only when enabled):** `Adafruit_SSD1306`, `Adafruit_GFX`.
-- **Timing-safe:** refresh is throttled to `OLED_FPS` (15) and only redraws when a shown value
-  changes (dirty-flag), so it never disturbs the audio loop. Default address `0x3C` (some panels `0x3D`).
-
----
-
-## 🎹 Fork feature 2 — MIDI clock OUT (master sync)
-
-The sequencer can emit MIDI realtime **Clock (24 PPQN), Start & Stop** over USB-MIDI so external gear
-slaves to `ichosynth`. It is a polite master — it **only** generates clock when **no external clock is
-present**, preserving upstream's clock-slave behavior.
-
-```mermaid
-flowchart TD
-    P["▶️ Press Play"] --> Q{"External MIDI clock<br/>seen in last 750 ms?"}
-    Q -- "Yes" --> S["🟦 Stay SLAVE<br/>follow external clock<br/>(emit nothing)"]
-    Q -- "No"  --> M["🟩 Act as MASTER<br/>send Start + 24 PPQN Clock"]
-    M --> ST["⏹️ On Stop → send Stop"]
-
-    style M stroke:#2ea44f,stroke-width:2px
-    style S stroke:#3b82f6,stroke-width:2px
-```
-
-- **Enable:** `#define MIDI_CLOCK_OUT_ENABLED 1` in `config.h`.
-- The transport restarts from the top on play, so only **Start/Stop** are sent (no Continue).
-- All MIDI (in *and* out) goes through the **Teensy USB port** — set `USB Type = Serial + MIDI` when compiling.
-
----
-
-## 🔩 config.h at a glance
-
-| Switch | Default | Meaning |
-|---|:---:|---|
-| `OLED_ENABLED` | `0` | turn the OLED HUD on/off |
-| `OLED_I2C_ADDR` | `0x3C` | OLED address (`0x3D` on some panels) |
-| `OLED_WIDTH` / `OLED_HEIGHT` | `128` / `64` | panel size |
-| `OLED_FPS` | `15` | max display refresh (audio-safe) |
-| `MIDI_CLOCK_OUT_ENABLED` | `0` | emit MIDI clock as master |
-| `EXTERNAL_CLOCK_TIMEOUT_MS` | `750` | external-clock detection window |
-| `HAS_ENCODER4` | `1` | **this build = 4 encoders**; the 4th does filter/volume/seek. `0` = old 3-encoder build |
-| `BUTTONS3_ENABLED` | `1` | the 3 pushbuttons PLAY/MENU/REC (pins 24/25/26) |
-| `RECORD_ENABLED` | `1` | live recording (hold REC): codec input → sample on the channel, **saved to SD** |
-| `BITCRUSH_ENABLED` | `1` | per-voice bitcrusher on the 8 sample voices (1st TŒRN FX; default bypass) |
-| `LADDER_ENABLED` | `1` | per-voice Moog ladder filter after the crusher (2nd TŒRN FX; default open) |
-| `FXMODE_ENABLED` | auto | hold MENU = FX MODE: 4 encoders become sliders (cutoff/ladder cut/ladder reso/crush) |
-| `FILTER_ENABLED` | `1` | per-voice lowpass on the **4th encoder** (turn = cutoff); `0` = exact upstream sound |
+The HUD is wired in automatically by the build; default I²C address `0x3C` (some panels `0x3D`).
 
 ---
 
 ## 🚀 Build & flash
 
-> ⚡ **One-shot setup:** install [`arduino-cli`](https://arduino.github.io/arduino-cli/) and run the
-> bundled script — it installs the Teensy core + every library (with the right versions), applies the
-> ResamplingReader patch, and compile-checks the firmware:
-> - Windows: `powershell -ExecutionPolicy Bypass -File scripts\setup-dev-env.ps1`
-> - macOS/Linux: `./scripts/setup-dev-env.sh`
->
-> ⚠️ Two version notes the script handles for you: **FastLED must be 3.9.10** (3.10.x breaks on the
-> Teensy WS2812Serial path), and the two **newdigate** libraries (`teensy-variable-playback`,
-> `teensy-polyphony`) must come from GitHub HEAD — the registry copies are version-skewed.
+The whole port is produced by one script:
 
-Prefer to do it by hand in the IDE?
+```
+python teensy/build_toern.py
+```
 
-1. Install **Arduino IDE + [Teensyduino](https://www.pjrc.com/teensy/td_download.html)**.
-2. Set **Tools → USB Type = `Serial + MIDI`** (16× variant) and select **Teensy 4.1**.
-3. Install the libraries: `WS2812Serial`, **Teensy Audio** (`Audio.h`), `Encoder` (Paul Stoffregen),
-   `Mapf`, `FastLED`, `TeensyPolyphony` — plus `Adafruit_SSD1306` + `Adafruit_GFX` *only if* you enabled the OLED.
-4. ⚠️ Replace `ResamplingReader.h` inside `newdigate/teensy-variable-playback` with the copy in
-   [`_DOCS/ResamplingReader.h`](_DOCS/ResamplingReader.h) — it prevents nullptr crashes.
-5. (Optional) edit [`config.h`](config.h) to enable the OLED and/or MIDI clock out.
-6. Compile & upload. 🎉
+It **clones the TŒRN sources** if they're missing, applies the **pin remap + feature trims**, **wires in
+the OLED HUD**, and compiles a flashable **[`teensy/firmware/toern.hex`](teensy/firmware)**. It needs
+[`arduino-cli`](https://arduino.github.io/arduino-cli/) and the `teensy:avr` core.
 
-> Needs 16 MB of PSRAM (2× chips) soldered to the Teensy 4.1 — it's mandatory for the firmware.
+> ⚠️ **Why `-O1`?** The build uses `-O1` (`opt=o1std`), because the default `-O2` crashes the Teensy gcc
+> on TŒRN's huge single translation unit. The script sets this for you.
+
+Full details — toolchain, library versions, and the exact remap/trim steps — are in
+**[teensy/README.md](teensy/README.md)**.
+
+> 🖱️ **Prefer one click?** A GUI flasher lives in [`_FLASHER/`](_FLASHER) — the existing ichosynth
+> flasher — which flashes the built `.hex` to a Teensy 4.1 without the command line.
+
+> 💾 Needs **16 MB of PSRAM (both chips) soldered** to the Teensy 4.1 — it is **mandatory** for the firmware.
 
 ---
 
@@ -270,15 +245,14 @@ switcher sits at the top of every page). PDF versions are included too.
 
 ## 🧩 Hardware list
 
-- Custom PCB *(optional — you can hand-wire everything; see the build manual)*
-- 1× **Teensy 4.1**
-- 1× **Teensy Audio Adaptor** (TEENSY4_AUDIO)
-- 2× **PSRAM** chips for Teensy 4.1 *(16 MB total — required)*
-- 3× **KY-040** rotary encoders (push + 360°) — Left, Center, Right
-- 1× **16×16 RGB LED matrix**
+- 1× **Teensy 4.1** with **16 MB PSRAM (both chips) soldered** *(mandatory)*
+- 1× **Teensy Audio Adaptor** (SGTL5000; headphone out, no speaker)
+- 1× **16×16 RGB WS2812 matrix** *(chainable to 2 for a 32×16 grid)*
 - 1× **microSD** card (Class 10)
-- *(fork option)* 1× **SSD1306 0.96" 128×64 I2C** OLED
-- Jumper wires, microSD extension *(optional)*, headphones
+- 4× **KY-040** rotary encoders (turn + push) — E1…E4
+- 3× **tact switches** (PLAY / MENU / REC)
+- 1× **SSD1306 0.96" 128×64 I²C** OLED
+- Jumper wires, headphones
 
 > ℹ️ No speakers or Bluetooth on board — use **headphones**. For licensing reasons, bring your own
 > sample WAVs (mono / 16-bit / 44.1 kHz; `_SDCARD/wavmaker.py` converts them). The folder structure
@@ -292,32 +266,36 @@ switcher sits at the top of every page). PDF versions are included too.
 (sound designer & electroacoustic musician). The `ichosynth` build is led by **Luigi Massari**, with a
 sonic documentary by **Roberta Trani**.
 
-On the technical side, this instrument would not exist without **SP_ (aka soundpauli)**, creator of the
-original **NI404**, and **Paul Stoffregen / PJRC** for the Teensy platform. Special thanks to **Nic
-Newdigate** for the `teensy-polyphony` library — the *soul* of this instrument.
+On the technical side, ichosynth stands entirely on **SP_ (aka soundpauli)**, who authored **both**
+**[TŒRN](https://toern.live)** — the groovebox whose firmware this instrument runs — and the original
+**NI404**. Huge thanks also to **Paul Stoffregen / PJRC** for the Teensy platform, and to **Nic
+Newdigate** for `teensy-polyphony` / `teensy-variable-playback`, the libraries TŒRN's voices rely on.
 
-`ichosynth` is a respectful fork: all original code, hardware files and design credit remain with the
-upstream author. The fork only **adds** opt-in features and documentation. If you like the concept,
-check out SP_'s more advanced project **TOERN** ([toern.live](https://toern.live)).
+> 📜 **A note on history:** this repository began life as a fork of SP_'s **NI404**. That NI404-based
+> firmware is still here, but it now serves only as a **fallback / reference** — the product is the
+> **TŒRN port** described above.
+
+`ichosynth` is a respectful, additive port: TŒRN's firmware is used **unmodified**, and all original code,
+hardware files and design credit remain with SP_. ichosynth only **replaces the input hardware** and adds
+the OLED HUD and documentation.
 
 ### Libraries used
-`WS2812Serial` · Teensy Audio (`Audio.h` v1.0.6) · `Encoder` (Paul Stoffregen v1.4.4) ·
-`Mapf` (v1.0.2, GPL-3.0) · `FastLED` (v3.9.10, MIT) · `TeensyPolyphony` (v1.0.7, MIT) ·
-*(fork-only)* `Adafruit_SSD1306` · `Adafruit_GFX`
+TŒRN firmware (by SP_, MIT) · Teensy Audio (`Audio.h`) · `teensy-polyphony` / `teensy-variable-playback`
+(Nic Newdigate) · `WS2812Serial` · the bundled port drivers `i2cEncoderLibV2` · `FastTouch` · `IchosOled`
 
 ---
 
 ## 📄 License
 
 Released under the **MIT License** — free for personal and commercial use, modification, and
-distribution. Each bundled library keeps its own license (see above); please verify you comply with
-all of them in your build.
+distribution. The TŒRN firmware and each bundled library keep their own license (see above); please
+verify you comply with all of them in your build.
 
 <div align="center">
 
 *Made with ❤️ in Taranto for the **[ICHOS 2026](https://www.francescogiannico.com/ichos-2026/)** workshop —
 listen to a place, then play it back.*
 
-*A fork of NI404 by SP_ (Hamburg). Built by Luigi Massari · led by Francesco Giannico.*
+*A hand-soldered, low-cost build of TŒRN by SP_. Built by Luigi Massari · led by Francesco Giannico.*
 
 </div>

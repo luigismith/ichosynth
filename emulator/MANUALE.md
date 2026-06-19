@@ -1,16 +1,21 @@
-# Emulatore NI404 / TŒRN — Manuale utente
+# Emulatore ichosynth — Manuale utente
 
-Emulatore desktop (Windows e macOS) del sequencer/sampler **SP_ NI404** (Teensy 4.1
-+ Audio Shield). Esegue il **firmware reale** ricompilato in modo nativo: la stessa
-logica che gira sull'hardware, ma sul computer, con la griglia LED 16×16, il display
-OLED, l'audio e i controlli su tastiera/mouse e controller MIDI.
+Emulatore desktop (Windows e macOS) usato come **banco di prova** per ichosynth.
+Esegue un **firmware reale** ricompilato in modo nativo: la stessa logica che gira
+sull'hardware, ma sul computer, con la griglia LED 16×16, il display OLED, l'audio
+e i controlli su tastiera/mouse e controller MIDI.
 
-Si sviluppa **un solo programma**, **ichosynth** (il nostro ibrido):
+> Lo **strumento fisico** ichosynth fa girare il **firmware reale di TŒRN** (si
+> compila con `teensy/build_toern.py`). L'emulatore può eseguire **lo stesso
+> sorgente TŒRN** nel target `toernemu` (riferimento, §10), utile per provare la
+> mappatura dei controlli prima dell'hardware. Il target di default `ni404emu` è
+> invece il **firmware-banco** (l'ibrido a 4 encoder, `soundpauli_ni404.ino`) con
+> cui prototipiamo velocemente le feature in stile TŒRN su PC.
 
 | Programma | Cosa esegue |
 |---|---|
-| `ni404emu` | Il firmware **ichosynth** (`soundpauli_ni404.ino`) + display OLED SSD1306 — **questo è il build di default** |
-| `toernemu` | Il firmware **TŒRN** originale — solo come **riferimento di studio**, NON compilato di default (vedi §10) |
+| `ni404emu` | Il firmware-banco di ichosynth (`soundpauli_ni404.ino`) + OLED SSD1306 — **build di default** |
+| `toernemu` | Il firmware **TŒRN** reale (quello dello strumento fisico) — **riferimento**, NON compilato di default (vedi §10) |
 
 ---
 

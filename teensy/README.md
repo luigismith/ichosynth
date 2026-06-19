@@ -29,15 +29,17 @@ KY-040 encoders, `{CLK, DT, SW}`, left → right (override via `ICHOS_ENC_PINS`)
 | E1 (left) | 5 | 22 | 15 |
 | E2 | 32 | 33 | 41 |
 | E3 | 9 | 14 | 16 |
-| E4 (right) | 4 | 2 | 3 |
+| E4 (right) | 37 | 38 | 39 |
 
-Tact switches (`ICHOS_BTN_PINS`, other side to GND, active-low): **24, 25, 26**.
+Tact switches (`ICHOS_BTN_PINS`, other side to GND, active-low): **25, 26, 28**.
 
-> **Pin remap done by the build:** TŒRN's `SWITCH_1/2/3` default to pins 2/3/4,
-> which collide with E4 (CLK=4, DT=2, SW=3). `build_toern.py` rewrites those three
-> `#define`s to 24/25/26 so the switches land on the tact-switch pins. The TTP223
-> external-touch path (pins 5/22) is off by default (`exttouch=false`), so it does
-> not clash with E1.
+> **Pin map is collision-free with TŒRN's hard-coded GPIO and the Audio Shield.**
+> TŒRN hard-codes pins 2/3/4 (touch switches + a pin-4 output + a pin-2 read), 17
+> (matrix), 24 (an optional 2nd LED strip, removed in this build), 27 (INT), 30/36
+> (LED power), 40 (battery ADC); the Audio Shield reserves 6/7/8/10-13/18-21/23. The
+> encoders and buttons above avoid all of these. `build_toern.py` remaps TŒRN's
+> `SWITCH_1/2/3` (pins 2/3/4) to **25/26/28** to match `ICHOS_BTN_PINS`. The TTP223
+> external-touch path (pins 5/22) is off by default (`exttouch=false`), so E1 is free.
 
 ## Building
 
@@ -90,14 +92,16 @@ the end of `setup()` + a one-line `ichosOledRender(...)` glue in `loop()` readin
 globals). The render self-throttles (~12 fps) and only pushes pixels when a shown value
 changes, so it does not disturb the timing-sensitive audio loop.
 
+## Feature trims
+
+`build_toern.py` applies the requested lightening as build-time patches (the vendored
+TŒRN sources stay pristine). Currently trimmed: the optional reactive **2nd LED strip**
+(256 LEDs) — its `addLeds` on pin 24 and per-frame update are removed, freeing pin 24
+and a little CPU. See `_DOCS/FEATURE_INVENTORY.md` for the full feature catalogue and
+the `REMOVE_*` flags at the top of `build_toern.py`.
+
 ## Remaining work
 
-- **Pin reconciliation (open question for the builder).** Beyond `SWITCH_1/2/3`, TŒRN
-  hard-codes a few pins that clash with our encoder E4 (CLK=4, DT=2, SW=3): it drives
-  **pin 4** as an output (`digitalWrite(4, LOW)`), reads **pin 2** for a connection
-  check, and uses **pin 24** for an optional second LED strip. The encoder GPIO pins
-  were chosen for the NI404 fork, not from TŒRN, so the final wiring (which 15 GPIOs:
-  4 encoders × 3 + 3 buttons) needs to be settled against these before soldering.
 - **On-hardware verification** — flash and confirm encoder direction, button polarity,
   and combos behave as mapped in `_DOCS/MAPPA_CONTROLLI.md`.
 

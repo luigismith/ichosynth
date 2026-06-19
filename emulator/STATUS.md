@@ -1,10 +1,17 @@
-# NI404 Emulator — build status & roadmap
+# ichosynth Emulator — build status & roadmap
 
-Desktop emulator (Windows + macOS) of the **SP_ NI404** Teensy 4.1 sample
-sequencer. Strategy: **reuse the real firmware** (`../soundpauli_ni404.ino`,
-2845 lines) unchanged, and provide a desktop compatibility layer that emulates
-every Teensy/Arduino API it touches. This guarantees feature-parity — the actual
-sequencer/UI/MIDI/sample logic *is* the device's, not a reimplementation.
+Desktop emulator (Windows + macOS) used as a **test bench** for ichosynth.
+Strategy: **reuse a real firmware** unchanged and provide a desktop compatibility
+layer that emulates every Teensy/Arduino API it touches, so the sequencer/UI/MIDI/
+sample logic *is* the device's, not a reimplementation.
+
+> **Two firmwares, one emulator.** The default target `ni404emu` runs the
+> **hybrid bench firmware** (`../soundpauli_ni404.ino`, 2845 lines) — a 4-encoder
+> NI404 fork used to prototype TŒRN-style features on PC. The **physical
+> instrument** ichosynth runs the **real TŒRN firmware** (built with
+> `teensy/build_toern.py`); the emulator runs that same TŒRN source in the
+> reference target `toernemu` (see `STATUS-toern.md`, `EMU_BUILD_TOERN_REF=ON`).
+> The bench remains the fast iteration loop; the Teensy build is the product.
 
 Decisions locked with the user (2026-06-12):
 - Approach: **native C++ port** (max fidelity), not web/python.

@@ -1,8 +1,14 @@
 # TŒRN emulator port — status & roadmap
 
 Goal (user, 2026-06-12): run the **real TŒRN firmware** in the emulator (same
-shim technique as the NI404 build) to get ALL its features, **plus render the
-user's SSD1306 OLED HUD** (`../soundpauli_ni404.ino`'s display.h) as a window panel.
+shim technique as the bench build) to get ALL its features, **plus render the
+SSD1306 OLED HUD** as a window panel.
+
+> This is the same TŒRN firmware the **physical ichosynth runs** on the Teensy 4.1
+> (built with `teensy/build_toern.py`, with the KY-040 / FastTouch / IchosOled
+> drivers). The emulator's `toernemu` target lets you rehearse the real instrument's
+> control mapping on PC before touching hardware. It is a **reference target, OFF by
+> default** (`-DEMU_BUILD_TOERN_REF=ON`; see the 2026-06-16 update below).
 
 Source cloned to `emulator/toern-src/` (https://github.com/soundpauli/toern,
 MIT). **23,442 lines** across 12 .ino files (~8× NI404). `toern.ino` is 328 KB.
