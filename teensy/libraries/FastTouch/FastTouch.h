@@ -12,7 +12,9 @@
 #include <Arduino.h>
 
 #ifndef ICHOS_BTN_PINS
-#define ICHOS_BTN_PINS { 24, 25, 26 }   // the 3 tact switches (PLAY/MENU/REC roles)
+// the 3 tact switches (PLAY/MENU/REC roles). 24 is TŒRN's 2nd LED strip and 27 is its
+// INT pin, so the buttons sit on 25/26/28; build_toern.py remaps SWITCH_1/2/3 to match.
+#define ICHOS_BTN_PINS { 25, 26, 28 }
 #endif
 
 inline int fastTouchRead(int pin) {

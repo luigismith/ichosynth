@@ -18,7 +18,9 @@
 
 #ifndef ICHOS_ENC_PINS
 // {CLK, DT, SW} for the 4 KY-040, left -> right (see _DOCS/wiring.txt).
-#define ICHOS_ENC_PINS { {5, 22, 15}, {32, 33, 41}, {9, 14, 16}, {4, 2, 3} }
+// All pins avoid TŒRN's hard-coded GPIO (2/3/4 switches, 17 matrix, 24 strip,
+// 27 INT, 30/36 LED power, 40 batt) and the Audio Shield (6/7/8/10-13/18-21/23).
+#define ICHOS_ENC_PINS { {5, 22, 15}, {32, 33, 41}, {9, 14, 16}, {37, 38, 39} }
 #endif
 
 class i2cEncoderLibV2 {

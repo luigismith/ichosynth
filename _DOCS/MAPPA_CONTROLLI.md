@@ -98,8 +98,13 @@ sull'**OLED 128×64** — che TŒRN nemmeno ha. Info da portare su OLED:
 | Copypaste/Noteshift attivo | griglia 16×16 (riga 16) o OLED | toern_ui.ino:926 |
 | Mute canali / posizione song | **già sulla griglia** (nessun lavoro) | — |
 
-Lavoro firmware concentrato: riscrivere `drawStatus()`/`drawIndicator()`
-(toern_ui.ino:794-960) perché scrivano sull'OLED invece di colorare gli anelli.
+**FATTO (2026-06-19):** HUD OLED implementato come libreria `teensy/libraries/IchosOled`
+(driver SSD1306 minimale, tutto in FLASHMEM/PROGMEM → ~80 byte di RAM1, perché TŒRN
+lascia solo ~700 byte di RAM1 liberi e Adafruit_GFX/U8g2 lo farebbero traboccare).
+Mostra **canale corrente, modo, stato trasporto (PLAY/REC/STOP), BPM, volume, pagina**.
+`build_toern.py` lo aggancia da solo (include + `ichosOledBegin()` in setup +
+`ichosOledRender(...)` nel loop, letti dai globali `GLOB`/`SMP`/`currentMode`).
+Da fare in futuro (opzionale): MIC/LINE in registrazione e nome filtro in FILTER MODE.
 
 ## 7. Verifica nell'emulatore
 

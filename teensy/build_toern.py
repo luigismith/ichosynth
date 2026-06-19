@@ -40,11 +40,12 @@ REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 TOERN_SRC = os.path.join(REPO, "emulator", "toern-src")
 TOERN_REPO_URL = "https://github.com/soundpauli/toern.git"
 LIBRARIES = os.path.join(REPO, "teensy", "libraries")
+OLED_LIB = os.path.join(LIBRARIES, "IchosOled", "IchosOled.h")
 OUT_DIR = os.path.join(REPO, "teensy", "firmware")
 FQBN = "teensy:avr:teensy41:usb=serialmidi16,opt=o1std"
 
 # SWITCH_1/2/3 -> our three tact switches (must match ICHOS_BTN_PINS in FastTouch.h).
-PIN_REMAP = {"SWITCH_1": 24, "SWITCH_2": 25, "SWITCH_3": 26}
+PIN_REMAP = {"SWITCH_1": 25, "SWITCH_2": 26, "SWITCH_3": 28}
 
 
 def run(cmd, **kw):
@@ -88,6 +89,38 @@ def patch_pins(sketch):
     print("  pins remapped:", ", ".join(f"{k}={v}" for k, v in PIN_REMAP.items()))
 
 
+def add_oled_hud(sketch):
+    """Wire the IchosOled library HUD into the sketch.
+
+    The HUD lives in its own library (teensy/libraries/IchosOled) so its graphics
+    code compiles as a separate translation unit — adding it to TŒRN's giant single
+    TU crashes the Teensy gcc. Here we only inject a lightweight include, the begin()
+    call, and a one-line glue in loop() that reads TŒRN's globals and renders.
+    """
+    if not os.path.isfile(OLED_LIB):
+        print("  (no OLED HUD library found, skipping)")
+        return
+    ino = os.path.join(sketch, "toern.ino")
+    with open(ino, "r", encoding="utf-8", errors="surrogateescape") as f:
+        text = f.read()
+    # Lightweight include (no graphics headers) right after the FastTouch include.
+    text, n0 = re.subn(r"(#include <FastTouch.h>)",
+                       r"\1\n#include <IchosOled.h>", text, count=1)
+    # begin() at the end of setup() (codec + Wire are up by then).
+    text, n1 = re.subn(r"(\n[ \t]*// END SETUP\b)",
+                       r"\n  ichosOledBegin();\1", text, count=1)
+    # One-line glue in loop(): read globals and refresh the HUD (self-throttled).
+    glue = ("\n  if (currentMode) ichosOledRender((int)GLOB.currentChannel, "
+            "(int)GLOB.vol, (int)(SMP.bpm + 0.5f), (int)GLOB.page, "
+            "currentMode->name.c_str(), isNowPlaying, isRecording);")
+    text, n2 = re.subn(r"(void loop\(\)\s*\{)", r"\1" + glue, text, count=1)
+    if not (n0 and n1 and n2):
+        sys.exit(f"Could not inject OLED HUD (include={n0}, begin={n1}, loop={n2}).")
+    with open(ino, "w", encoding="utf-8", errors="surrogateescape") as f:
+        f.write(text)
+    print("  OLED HUD wired in (IchosOled library: include + begin + loop glue)")
+
+
 def main():
     ap = argparse.ArgumentParser(description="Build the real TŒRN firmware for our Teensy 4.1.")
     ap.add_argument("--flash", action="store_true", help="flash after building (teensy_loader_cli)")
@@ -103,6 +136,7 @@ def main():
         print("Staging TŒRN sources ...")
         sketch = stage(build_root)
         patch_pins(sketch)
+        add_oled_hud(sketch)
 
         os.makedirs(OUT_DIR, exist_ok=True)
         print(f"Compiling for {FQBN} ...")
@@ -111,11 +145,16 @@ def main():
         if r.returncode != 0:
             sys.exit("Compile failed. See output above.")
 
-        hexes = [f for f in os.listdir(OUT_DIR) if f.endswith(".hex")]
+        # arduino-cli writes "<sketch>.ino.hex"; copy it to a stable name.
+        built = os.path.join(OUT_DIR, "toern.ino.hex")
         final = os.path.join(OUT_DIR, "toern.hex")
-        if hexes:
-            shutil.copy2(os.path.join(OUT_DIR, hexes[0]), final)
-            print(f"\nFirmware ready: {final}")
+        if os.path.isfile(built):
+            try:
+                shutil.copyfile(built, final)
+                out = final
+            except OSError:
+                out = built  # dest locked (e.g. open elsewhere); the .ino.hex is valid
+            print(f"\nFirmware ready: {out}")
 
         if args.flash:
             loader = shutil.which("teensy_loader_cli")

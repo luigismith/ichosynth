@@ -13,7 +13,7 @@ parts with cheap, solderable ones.
 |---|---|---|
 | 4× Duppa I²C RGB encoders | 4× **KY-040** mechanical encoders (turn + push) | `libraries/i2cEncoderLibV2.h` — a drop-in re-implementation of the Duppa API on top of the `Encoder` library + a push pin |
 | 3× capacitive touch pads | 3× **tact switches** (HUAZIZ 4-pin kit) | `libraries/FastTouch.h` — `fastTouchRead(pin)` reads a button (INPUT_PULLUP, active-low) and returns a value over TŒRN's touch threshold |
-| encoder RGB-ring feedback | **I²C OLED** (state shown as text/bars) | OLED HUD — *in progress* (see "Remaining work") |
+| encoder RGB-ring feedback | **I²C OLED** (state shown as text) | `libraries/IchosOled/` — a tiny FLASHMEM SSD1306 driver showing channel / mode / transport / BPM / volume / page. `build_toern.py` injects its `begin()`/`render()` calls |
 
 The firmware source itself is compiled **unchanged** except for one pin remap
 (below). The two drivers expose the exact API names/constants TŒRN calls
@@ -69,13 +69,37 @@ EXTRAM: 16.5 MB
 > **Hardware requirement:** TŒRN uses ~16.5 MB of PSRAM, so the Teensy 4.1 must have
 > **both PSRAM chips soldered** (16 MB). Without them the firmware will not run.
 
+## OLED HUD
+
+The `IchosOled` library is a self-contained, minimal SSD1306 text driver — **not**
+Adafruit_GFX or U8g2. Those push several KB of code into RAM1 (Teensy 4 runs code from
+ITCM by default) and TŒRN leaves only ~700 bytes of RAM1 free, so they overflow the
+link. Every function in `IchosOled.cpp` is marked `FLASHMEM` (stays in flash) and the
+5×7 font is `PROGMEM`, so the HUD costs ~80 bytes of RAM1. It shares the Wire bus with
+the audio codec (SDA=18, SCL=19) and shows:
+
+```
+CH:5            >PLAY
+MODE: DRAW
+BPM:  120
+VOL:80  PAGE:1
+```
+
+`build_toern.py` wires it in automatically (lightweight include + `ichosOledBegin()` at
+the end of `setup()` + a one-line `ichosOledRender(...)` glue in `loop()` reading TŒRN's
+globals). The render self-throttles (~12 fps) and only pushes pixels when a shown value
+changes, so it does not disturb the timing-sensitive audio loop.
+
 ## Remaining work
 
-- **OLED HUD** — rewrite `drawStatus()`/`drawIndicator()` so the state TŒRN used to
-  show through the encoder RGB rings (current channel, volume, MIC/LINE, selected
-  filter) appears on the I²C OLED instead. See `_DOCS/MAPPA_CONTROLLI.md` §6.
-- **On-hardware verification** — flash and confirm the encoder direction, button
-  polarity, and combos behave as mapped in `_DOCS/MAPPA_CONTROLLI.md`.
+- **Pin reconciliation (open question for the builder).** Beyond `SWITCH_1/2/3`, TŒRN
+  hard-codes a few pins that clash with our encoder E4 (CLK=4, DT=2, SW=3): it drives
+  **pin 4** as an output (`digitalWrite(4, LOW)`), reads **pin 2** for a connection
+  check, and uses **pin 24** for an optional second LED strip. The encoder GPIO pins
+  were chosen for the NI404 fork, not from TŒRN, so the final wiring (which 15 GPIOs:
+  4 encoders × 3 + 3 buttons) needs to be settled against these before soldering.
+- **On-hardware verification** — flash and confirm encoder direction, button polarity,
+  and combos behave as mapped in `_DOCS/MAPPA_CONTROLLI.md`.
 
 The desktop emulator (`emulator/`, target `toernemu`) already runs all 23k lines of
 TŒRN with host shims that mirror these same drivers — use it to rehearse the control
