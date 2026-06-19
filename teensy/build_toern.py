@@ -47,6 +47,11 @@ FQBN = "teensy:avr:teensy41:usb=serialmidi16,opt=o1std"
 # SWITCH_1/2/3 -> our three tact switches (must match ICHOS_BTN_PINS in FastTouch.h).
 PIN_REMAP = {"SWITCH_1": 25, "SWITCH_2": 26, "SWITCH_3": 28}
 
+# Feature trims requested for the ichosynth build (lighten / simplify the upstream
+# TŒRN firmware). Applied as build-time source patches so emulator/toern-src stays
+# pristine. See _DOCS/FEATURE_INVENTORY.md.
+REMOVE_2ND_LED_STRIP = True   # drop the optional reactive 256-LED strip (frees pin 24)
+
 
 def run(cmd, **kw):
     print("  $", " ".join(cmd))
@@ -87,6 +92,32 @@ def patch_pins(sketch):
     with open(ino, "w", encoding="utf-8", errors="surrogateescape") as f:
         f.write(text)
     print("  pins remapped:", ", ".join(f"{k}={v}" for k, v in PIN_REMAP.items()))
+
+
+def remove_features(sketch):
+    """Apply the requested feature trims as targeted source patches."""
+    if REMOVE_2ND_LED_STRIP:
+        ino = os.path.join(sketch, "toern.ino")
+        with open(ino, "r", encoding="utf-8", errors="surrogateescape") as f:
+            text = f.read()
+        # Stop driving the 2nd strip on pin 24 (frees the pin for other use).
+        text, a = re.subn(r"^[ \t]*FastLED\.addLeds<WS2812SERIAL,\s*24,[^\n]*\n",
+                          "  // 2nd LED strip removed (ichosynth port): pin 24 freed\n",
+                          text, count=1, flags=re.M)
+        with open(ino, "w", encoding="utf-8", errors="surrogateescape") as f:
+            f.write(text)
+        # Skip the per-frame strip update (saves CPU); buffer stays but is never shown.
+        leds = os.path.join(sketch, "toern_leds.ino")
+        with open(leds, "r", encoding="utf-8", errors="surrogateescape") as f:
+            ltext = f.read()
+        ltext, b = re.subn(r"(void updateLedStrip\(\)\s*\{)",
+                           r"\1\n  return;  // 2nd LED strip removed (ichosynth port)",
+                           ltext, count=1)
+        with open(leds, "w", encoding="utf-8", errors="surrogateescape") as f:
+            f.write(ltext)
+        if not (a and b):
+            sys.exit(f"Could not remove 2nd LED strip (addLeds={a}, update={b}).")
+        print("  feature removed: 2nd LED strip (pin 24 freed)")
 
 
 def add_oled_hud(sketch):
@@ -136,6 +167,7 @@ def main():
         print("Staging TŒRN sources ...")
         sketch = stage(build_root)
         patch_pins(sketch)
+        remove_features(sketch)
         add_oled_hud(sketch)
 
         os.makedirs(OUT_DIR, exist_ok=True)
