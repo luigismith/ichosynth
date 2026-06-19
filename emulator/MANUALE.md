@@ -21,9 +21,26 @@ e i controlli su tastiera/mouse e controller MIDI.
 
 ## 1. Avvio rapido
 
-### Windows
-1. Apri la cartella `emulator\playable-2026-06-13\` (oppure `emulator\build\`).
-2. Doppio clic su **`ni404emu.exe`** (o `toernemu.exe`).
+### Con il launcher (consigliato) — compila e lancia tu il firmware
+
+Dalla cartella del repository, un solo comando compila (se serve) e avvia l'emulatore
+col firmware che vuoi provare. Trova da solo il toolchain MSYS2/MinGW64 e, se mancano,
+scarica i sorgenti di TŒRN.
+
+```
+python emulator/run.py            # firmware del PRODOTTO: il TŒRN reale (toernemu)
+python emulator/run.py --bench    # firmware-banco di fallback (ni404emu)
+python emulator/run.py --rebuild  # ricompila da zero prima di lanciare
+python emulator/run.py --build-only   # compila soltanto, non avvia
+```
+
+È così che provi le **varianti del synth sullo stesso hardware**: modifichi il firmware
+(o le rimozioni di feature), rilanci `python emulator/run.py` e lo strumento riparte con
+la variante — la stessa che poi flashi sul Teensy con `teensy/build_toern.py`.
+
+### Windows (eseguibile già compilato)
+1. Apri la cartella `emulator\build\` (o `emulator\playable-2026-06-13\`).
+2. Doppio clic su **`toernemu.exe`** (il TŒRN reale) o **`ni404emu.exe`** (il banco).
    - Tutto il necessario è già lì accanto (`SDL2.dll` e le altre librerie).
 3. Si apre la finestra con la griglia LED in alto e il display OLED in basso.
 
