@@ -42,3 +42,6 @@ _SDCARD/settings.txt
 # user-recorded / imported samples (runtime content, not shipped)
 _SDCARD/samples/
 
+
+# PDF build tooling deps
+scripts/pdf/node_modules/

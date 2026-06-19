@@ -1,0 +1,11 @@
+{
+  "name": "ichosynth-pdf",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Regenerate the ichosynth manual PDFs from their Markdown sources.",
+  "dependencies": {
+    "markdown-it": "^14.1.0",
+    "puppeteer-core": "^23.0.0"
+  }
+}
