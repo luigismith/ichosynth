@@ -18,12 +18,15 @@
 | E2 | encoder 1 (0x41) | toern.ino:1049 |
 | E3 | encoder 2 (0x20) | toern.ino:1050 |
 | E4 (destra) | encoder 3 (0x61) | toern.ino:1051 |
-| B1 | SWITCH_1 (pin 2) | toern.ino:159 |
-| B2 | SWITCH_2 (pin 3) | toern.ino:160 |
-| B3 | SWITCH_3 (pin 4) | toern.ino:161 |
+| B1 | SWITCH_1 (pin **24** nel port) | toern.ino:159 |
+| B2 | SWITCH_2 (pin **25** nel port) | toern.ino:160 |
+| B3 | SWITCH_3 (pin **26** nel port) | toern.ino:161 |
 
-> Cablaggio pulsanti: i 3 switch sono letti in `INPUT_PULLDOWN` (attivi-alti) →
-> un lato al pin, l'altro a **3V3** (toern.ino:3195-3197).
+> **Port (firmware reale sul nostro hardware):** i SWITCH_1/2/3 originali (pin 2/3/4)
+> collidono con l'encoder E4 (CLK=4, DT=2, SW=3), quindi `teensy/build_toern.py` li
+> rimappa a **24/25/26** (i 3 tact switch). Il cablaggio è **attivo-basso**: un lato
+> al pin, l'altro a **GND** (`FastTouch.h` usa `INPUT_PULLUP`). Il percorso TTP223 su
+> pin 5/22 è disattivo (`exttouch=false`), quindi non tocca E1. Vedi `teensy/README.md`.
 
 ## 2. Vocabolario dei gesti (cosa serve davvero)
 

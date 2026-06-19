@@ -9,6 +9,8 @@ build/
 *.elf
 # ...but DO ship the pre-compiled firmware the flasher flashes
 !_FLASHER/ichosynth.hex
+# TŒRN port build output (rebuild with teensy/build_toern.py)
+teensy/firmware/
 
 # Backup archives (PCB/enclosure exports)
 _DOCS/**/*.zip
