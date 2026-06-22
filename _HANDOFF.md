@@ -107,13 +107,15 @@ LED DIN = 17 · OLED+codec I²C SDA=18 / SCL=19. Pulsanti: l'altro capo a GND
 
 ```
 SD (FAT32)
-└── samples/
-    ├── 0/  _1.wav … _99.wav      (bank = numero // 100)
-    ├── 1/  _100.wav … _199.wav
-    └── …
-<pack>/<slot>.wav   ← pack-canzone (li crea lo strumento al salvataggio)
+├── 0/  1.wav … 8.wav      ← samplepack 0 (kit di fabbrica), 8 voci
+├── 1/  1.wav … 8.wav      ← samplepack 1 … fino a 99/
+├── …
+└── samples/               ← libreria del browser (SET_WAV), nomi liberi
+    ├── kick/  …  snare/  …  hat/  …  perc/  …
 ```
-wavmaker scrive esattamente in `samples/<bank>/_<n>.wav`.
+Layout TŒRN: pack = `<pack>/1.wav..8.wav`; browser = `samples/<categoria>/<nome>.wav`.
+Tutto **WAV mono / 16-bit / 44100 Hz**. `wavmaker` scrive in entrambi (vedi `_SDCARD/README.md`).
+La vecchia convenzione NI404 `samples/<bank>/_<n>.wav` non è più usata.
 
 ---
 

@@ -84,9 +84,10 @@ Encoder: pin **"+" → 3,3V**, **GND → GND**. (La 2ª striscia LED reattiva di
 
 ## 💾 5 · Preparare la SD (campioni)
 
-- [ ] apri **`_SDCARD/wavmaker.exe`** → **🔍 Scansiona** la SD (crea/formatta la struttura se serve)
-- [ ] **Aggiungi file/cartella** WAV → **Converti** (diventano mono · 16-bit · 44.1 kHz, nominati `_<n>.wav`)
-- [ ] struttura finale: `samples/0/_1.wav … _99.wav`, `samples/1/_100.wav …`
+- [ ] modo più rapido: copia il contenuto di **`_SDCARD/`** sulla radice della SD (set già pronto)
+- [ ] oppure apri **`_SDCARD/wavmaker.exe`** → **🔍 Scansiona** la SD (formatta FAT32 se serve)
+- [ ] scegli **modalità**: *Samplepack* (8 voci → `<pack>/1-8.wav`) o *Libreria* (`samples/<cat>/<nome>.wav`)
+- [ ] **Aggiungi file/cartella** WAV → **Converti** (diventano mono · 16-bit · 44.1 kHz)
 
 ---
 

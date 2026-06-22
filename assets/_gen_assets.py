@@ -330,13 +330,13 @@ def gen_wiring():
 # 5) SD STRUCTURE
 # =========================================================================
 def gen_sd():
-    W, H = 640, 470
-    o = header(W, "Struttura della micro SD",
-               "Dove ichosynth cerca campioni, sample-pack e song.")
+    W, H = 660, 500
+    o = header(W, "Struttura della micro SD (TŒRN)",
+               "Samplepack <pack>/1-8.wav + libreria browser samples/<cat>/<nome>.wav")
 
     def folder(x, y, w, label, accent="#FF8A1A"):
         o.append(f'<path d="M{x} {y+8} q0 -8 8 -8 h22 l8 8 h{w-46} q8 0 8 8 v22 q0 8 -8 8 h{-(w-16)} q-8 0 -8 -8 z" fill="{PANEL}" stroke="{accent}" stroke-width="1.5"/>')
-        o.append(text(x + 16, y + 25, label, size=12.5, fill=INK, weight="600", family=MONO))
+        o.append(text(x + 16, y + 25, label, size=12, fill=INK, weight="600", family=MONO))
 
     def file(x, y, w, label, col=INK):
         o.append(rrect(x, y, w, 24, 5, "#1b2230", LINE, 1))
@@ -347,34 +347,42 @@ def gen_sd():
         o.append(line(x, y2, x2, y2, LINE, 1.5))
 
     # SD root
-    o.append(rrect(28, 100, 150, 56, 8, "#10212e", "#1f6feb", 1.5))
-    o.append(f'<path d="M40 100 v-0 h12 v0" fill="none"/>')
-    o.append(text(103, 124, "microSD", size=13.5, fill=INK, anchor="middle", weight="700"))
-    o.append(text(103, 142, "FAT32", size=11, fill=SUB, anchor="middle"))
+    o.append(rrect(28, 110, 150, 56, 8, "#10212e", "#1f6feb", 1.5))
+    o.append(text(103, 134, "microSD", size=13.5, fill=INK, anchor="middle", weight="700"))
+    o.append(text(103, 152, "FAT32", size=11, fill=SUB, anchor="middle"))
 
     bx = 210
-    # samples/
-    folder(bx, 100, 150, "samples/")
-    elbow(190, 128, 128, bx)
-    subs = [("0/", ["_1.wav", "_2.wav", "…", "_99.wav"], 152),
-            ("1/", ["_100.wav", "…", "_199.wav"], 252),
-            ("2/", ["_200.wav", "…"], 332)]
-    for name, files, y in subs:
-        folder(bx + 60, y, 110, name, accent="#36C24A")
-        elbow(bx + 20, 136, y + 18, bx + 60)
-        fx = bx + 190
-        for k, fn in enumerate(files):
-            fy = y + k * 28 - (len(files) - 1) * 14 + 4
-            file(fx, fy, 116, fn)
-            o.append(line(bx + 170, y + 18, fx, fy + 12, LINE, 1))
+    # --- samplepacks: <pack>/1.wav .. 8.wav ---
+    o.append(text(bx, 100, "Samplepack — 8 voci per cartella (caricati interi):", size=11, fill=SUB))
+    packs = [("0/", "kit di fabbrica", 110, "#36C24A"),
+             ("1/", "808", 178, "#36C24A"),
+             ("…  99/", "fino a 100 pack", 246, "#36C24A")]
+    for name, note, y, ac in packs:
+        folder(bx, y, 110, name, accent=ac)
+        elbow(190, 138, y + 18, bx)
+        file(bx + 130, y, 130, "1.wav … 8.wav")
+        o.append(line(bx + 110, y + 18, bx + 130, y + 12, LINE, 1))
+        o.append(text(bx + 270, y + 16, "← " + note, size=10.5, fill=SUB))
 
-    # packs + songs
-    folder(bx, 372, 230, "1/ … 99/  →  1.wav … 12.wav", accent="#9A57E8")
-    o.append(text(bx, 366, "Sample-pack (gestiti da ichosynth):", size=11, fill=SUB))
-    file(bx, 414, 150, "1.txt … 100.txt")
-    o.append(text(bx + 160, 430, "← le tue song", size=11, fill=SUB))
-    file(bx, 442, 150, "autosaved.txt")
-    o.append(text(bx + 160, 458, "← autosalvataggio", size=11, fill=SUB))
+    # --- browser library: samples/<cat>/<name>.wav ---
+    o.append(text(bx, 300, "Libreria del browser (SET_WAV) — nomi liberi:", size=11, fill=SUB))
+    folder(bx, 310, 110, "samples/", accent="#E8D23A")
+    elbow(190, 138, 328, bx)
+    cats = [("kick/", 310), ("snare/", 354), ("hat/", 398)]
+    for name, y in cats:
+        folder(bx + 130, y, 100, name, accent="#E8D23A")
+        elbow(bx + 90, 328, y + 18, bx + 130)
+        file(bx + 240, y, 150, "<nome>.wav")
+        o.append(line(bx + 230, y + 18, bx + 240, y + 12, LINE, 1))
+
+    # --- songs + autosave (root) ---
+    file(bx, 452, 140, "1.txt … 999.txt")
+    o.append(text(bx + 150, 468, "← le tue song", size=10.5, fill=SUB))
+    file(bx + 290, 452, 140, "autosaved.txt")
+    o.append(text(bx + 290, 446, "autosalvataggio:", size=10.5, fill=SUB))
+
+    o.append(text(W / 2, H - 14, "Tutti i WAV: mono · 16-bit · 44100 Hz",
+                  size=11, fill=SUB, anchor="middle"))
     write("sd-structure.svg", svg(W, H, o))
 
 

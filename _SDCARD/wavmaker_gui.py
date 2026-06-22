@@ -1,79 +1,130 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-ichosynth - WAV Maker (GUI)
-===========================
-Friendly graphical converter that turns any WAV into the format the ichosynth
-sampler needs - MONO / 16-bit / 44100 Hz - and names the files _<n>.wav.
+ichosynth / TŒRN — WAV Maker (GUI)
+==================================
+Friendly graphical converter that turns any WAV into the format the TŒRN
+firmware loads — MONO / 16-bit / 44100 Hz — and writes it where the firmware
+reads it.
 
-- pick individual files or a whole folder
-- see each file's current format and its target name before converting
-- prepare an SD card: scan it, understand what's already there, find where to
-  continue numbering, and (if needed) format it FAT32 and build the directory
-  structure the firmware expects (samples/0..9/_<n>.wav)
+The firmware has TWO sample systems, so the app has two modes:
+
+  • Samplepack  — a numbered folder <pack>/ with 8 voices 1.wav .. 8.wav,
+                  loaded as a set at boot / via the pack selector.
+  • Libreria    — free WAV files under samples/<categoria>/<nome>.wav, browsed
+                  voice-by-voice in SET_WAV (names are kept, just tidied).
+
+Features:
+- pick individual files or a whole folder; see each file's current format and
+  its destination before converting
+- prepare an SD card: scan it (detect packs + browser library), and on Windows
+  format it FAT32 / create the samples/ folder
 - progress bar + log; conversion runs off the UI thread
 
-Pure standard library (tkinter + wave + audioop) for the conversion; SD scan /
-format on Windows shell out to PowerShell. On Python 3.13+ install the
-'audioop-lts' backport so `import audioop` works.
+Pure standard library — the WAV converter is hand-rolled (no ffmpeg, no audioop),
+so it works on any Python 3.8+ including 3.13/3.14 where audioop was removed.
+SD scan/format on Windows shell out to PowerShell.
 
 Run:  python wavmaker_gui.py      (or launch the bundled wavmaker.exe)
 """
+import io
 import os
-import sys
 import re
+import sys
 import json
+import struct
 import shutil
 import subprocess
-import wave
 import threading
 import queue
 import webbrowser
 import tkinter as tk
 from tkinter import ttk, filedialog, messagebox
 
-APP_VERSION = "1.1"
+APP_VERSION = "2.0"
 APP_AUTHOR = "Luigi Massari (luigismith)"
 REPO_URL = "https://github.com/luigismith/ichosynth"
 
-try:
-    import audioop
-except ModuleNotFoundError:  # Python 3.13+ without the backport
-    audioop = None
-
 TARGET_CH, TARGET_WIDTH, TARGET_RATE = 1, 2, 44100
 
-# ------- ichosynth-ish palette -------
-BG      = "#0d1117"
-PANEL   = "#161b22"
-INK     = "#e6edf3"
-SUB     = "#9aa4b2"
-LINE    = "#30363d"
-ACCENT  = "#2ea44f"
+# voices in a samplepack (labels are cosmetic; the firmware just loads 1..8)
+VOICE_LABELS = ["KICK", "SNARE", "HAT ch.", "HAT ap.", "CLAP", "TOM", "PERC", "PERC"]
+MAX_VOICES = 8
+MAX_PACK = 99
+# suggested browser categories (the user can type any name)
+CATEGORIES = ["kick", "snare", "hat", "clap", "tom", "perc", "fx", "bass", "synth", "loop"]
+
+# ------- ichosynth palette -------
+BG = "#0d1117"
+PANEL = "#161b22"
+INK = "#e6edf3"
+SUB = "#9aa4b2"
+LINE = "#30363d"
+ACCENT = "#2ea44f"
 ACCENT2 = "#1f6feb"
-WARN    = "#d29922"
-RED     = "#e5534b"
-ROW_OK  = "#16241b"
+WARN = "#d29922"
+RED = "#e5534b"
+ROW_OK = "#16241b"
 
-# ------- SD structure the firmware reads (authoritative) -------
-#   samples/<bank>/_<n>.wav   with   bank = n // 100,   bank in 0..maxFolders
-SD_DIRNAME   = "samples"
-MAX_BANK     = 9                       # firmware: maxFolders = 9  -> banks 0..9
+SD_BROWSER_DIR = "samples"
 FORMAT_LABEL = "ICHOSYNTH"
-FAT32_MAX    = 32 * 1024 ** 3          # Windows refuses to create FAT32 above ~32 GiB
-IS_WIN       = sys.platform.startswith("win")
-_WAV_RE      = re.compile(r"^_(\d+)\.wav$", re.IGNORECASE)
-_FS_OK       = ("FAT", "FAT16", "FAT32", "EXFAT")   # filesystems the Teensy SdFat can read
+IS_WIN = sys.platform.startswith("win")
+_FS_OK = ("FAT", "FAT16", "FAT32", "EXFAT")
 
 
 # =========================================================================
-# audio core
+# audio core — pure-python WAV decode/encode (mono / 16-bit / 44100 Hz)
 # =========================================================================
+def _iter_chunks(b):
+    pos, n = 12, len(b)
+    while pos + 8 <= n:
+        cid = b[pos:pos + 4]
+        size = struct.unpack("<I", b[pos + 4:pos + 8])[0]
+        yield cid, b[pos + 8:pos + 8 + size]
+        pos += 8 + size + (size & 1)
+
+
+def _parse_fmt(b):
+    """Return (tag, channels, rate, bits, data_bytes) or None."""
+    if b[:4] != b"RIFF" or b[8:12] != b"WAVE":
+        return None
+    tag = ch = rate = bits = None
+    data_bytes = 0
+    for cid, body in _iter_chunks(b):
+        if cid == b"fmt ":
+            tag, ch, rate, _br, _ba, bits = struct.unpack("<HHIIHH", body[:16])
+            if tag == 0xFFFE and len(body) >= 26:
+                tag = struct.unpack("<H", body[24:26])[0]
+        elif cid == b"data":
+            data_bytes = len(body)
+    if tag is None:
+        return None
+    return tag, ch, rate, bits, data_bytes
+
+
 def read_format(path):
-    """Return (channels, sampwidth, framerate, nframes) or None if unreadable."""
+    """Return (channels, sampwidth_bytes, rate, nframes, tag) or None."""
     try:
-        with wave.open(path, "rb") as w:
-            return w.getnchannels(), w.getsampwidth(), w.getframerate(), w.getnframes()
+        with open(path, "rb") as f:
+            head = f.read(1 << 20)  # 1 MB is plenty for the header chunks
+        info = _parse_fmt(head)
+        if not info:
+            # data chunk may be beyond the first MB; re-read fully for size only
+            with open(path, "rb") as f:
+                info = _parse_fmt(f.read())
+        if not info:
+            return None
+        tag, ch, rate, bits, dbytes = info
+        # if data was truncated in the 1MB read, get the true size from file
+        nbytes = max(1, (bits // 8) * ch)
+        # use on-disk size as a robust frame estimate when header was partial
+        try:
+            full = os.path.getsize(path)
+            est_data = max(dbytes, full - 44)
+        except OSError:
+            est_data = dbytes
+        nframes = est_data // nbytes
+        return ch, bits // 8, rate, nframes, tag
     except Exception:
         return None
 
@@ -85,37 +136,119 @@ def is_target(fmt):
 def fmt_label(fmt):
     if fmt is None:
         return "non leggibile"
-    ch, width, rate, nframes = fmt
+    ch, width, rate, nframes, tag = fmt
     chl = {1: "mono", 2: "stereo"}.get(ch, f"{ch}ch")
+    kind = "float" if tag == 3 else "PCM"
     secs = nframes / rate if rate else 0
-    return f"{chl} · {width*8}-bit · {rate} Hz · {secs:0.1f}s"
+    return f"{chl} · {width*8}-bit {kind} · {rate} Hz · {secs:0.1f}s"
+
+
+def decode_wav(b):
+    info = _parse_fmt(b)
+    if not info:
+        raise ValueError("not a RIFF/WAVE file")
+    tag, ch, rate, bits, _db = info
+    data = None
+    for cid, body in _iter_chunks(b):
+        if cid == b"data":
+            data = body
+    if data is None:
+        raise ValueError("missing data chunk")
+    nbytes = bits // 8
+    frame = nbytes * ch
+    if frame == 0:
+        raise ValueError("bad fmt")
+    nframes = len(data) // frame
+
+    if tag == 3:
+        if bits == 32:
+            rd = lambda o: struct.unpack_from("<f", data, o)[0]
+        elif bits == 64:
+            rd = lambda o: struct.unpack_from("<d", data, o)[0]
+        else:
+            raise ValueError("float bits %d" % bits)
+    elif tag == 1:
+        if bits == 8:
+            rd = lambda o: (data[o] - 128) / 128.0
+        elif bits == 16:
+            rd = lambda o: struct.unpack_from("<h", data, o)[0] / 32768.0
+        elif bits == 24:
+            def rd(o):
+                v = data[o] | (data[o + 1] << 8) | (data[o + 2] << 16)
+                return (v - 0x1000000 if v & 0x800000 else v) / 8388608.0
+        elif bits == 32:
+            rd = lambda o: struct.unpack_from("<i", data, o)[0] / 2147483648.0
+        else:
+            raise ValueError("pcm bits %d" % bits)
+    else:
+        raise ValueError("format tag %d" % tag)
+
+    mono = [0.0] * nframes
+    inv = 1.0 / ch
+    for i in range(nframes):
+        base = i * frame
+        acc = 0.0
+        for c in range(ch):
+            acc += rd(base + c * nbytes)
+        mono[i] = acc * inv
+    return rate, mono
+
+
+def resample(mono, src_rate, dst_rate):
+    if src_rate == dst_rate or not mono:
+        return mono
+    out_n = max(1, int(round(len(mono) * dst_rate / src_rate)))
+    out = [0.0] * out_n
+    step = src_rate / dst_rate
+    pos = 0.0
+    last = len(mono) - 1
+    for i in range(out_n):
+        idx = int(pos)
+        if idx >= last:
+            out[i] = mono[last]
+        else:
+            frac = pos - idx
+            out[i] = mono[idx] * (1.0 - frac) + mono[idx + 1] * frac
+        pos += step
+    return out
+
+
+def encode_wav_mono16(mono):
+    pcm = bytearray(len(mono) * 2)
+    for i, v in enumerate(mono):
+        v = 1.0 if v > 1.0 else (-1.0 if v < -1.0 else v)
+        struct.pack_into("<h", pcm, i * 2, int(round(v * 32767.0)))
+    db = len(pcm)
+    o = io.BytesIO()
+    o.write(b"RIFF"); o.write(struct.pack("<I", 36 + db)); o.write(b"WAVE")
+    o.write(b"fmt "); o.write(struct.pack("<IHHIIHH", 16, 1, 1, TARGET_RATE, TARGET_RATE * 2, 2, 16))
+    o.write(b"data"); o.write(struct.pack("<I", db)); o.write(pcm)
+    return o.getvalue()
 
 
 def convert_file(src, dst):
-    """Convert src WAV to mono/16-bit/44100 Hz, write to dst."""
-    with wave.open(src, "rb") as w:
-        ch = w.getnchannels()
-        width = w.getsampwidth()
-        rate = w.getframerate()
-        frames = w.readframes(w.getnframes())
+    """Convert src WAV to mono/16-bit/44100, write to dst (atomic)."""
+    with open(src, "rb") as f:
+        rate, mono = decode_wav(f.read())
+    out = encode_wav_mono16(resample(mono, rate, TARGET_RATE))
+    os.makedirs(os.path.dirname(os.path.abspath(dst)), exist_ok=True)
+    tmp = dst + ".tmp"
+    with open(tmp, "wb") as f:
+        f.write(out)
+    os.replace(tmp, dst)
 
-    if ch > 1:
-        frames = audioop.tomono(frames, width, 0.5, 0.5)
-    if width != TARGET_WIDTH:
-        frames = audioop.lin2lin(frames, width, TARGET_WIDTH)
-        width = TARGET_WIDTH
-    if rate != TARGET_RATE:
-        frames, _ = audioop.ratecv(frames, TARGET_WIDTH, 1, rate, TARGET_RATE, None)
 
-    with wave.open(dst, "wb") as out:
-        out.setnchannels(TARGET_CH)
-        out.setsampwidth(TARGET_WIDTH)
-        out.setframerate(TARGET_RATE)
-        out.writeframes(frames)
+def sanitize_name(basename):
+    """Turn a source filename into a tidy browser name (keeps it readable)."""
+    name = os.path.splitext(os.path.basename(basename))[0]
+    name = name.strip().lower()
+    name = re.sub(r"[^a-z0-9._-]+", "-", name)
+    name = re.sub(r"-{2,}", "-", name).strip("-._")
+    return (name or "sample") + ".wav"
 
 
 # =========================================================================
-# SD card helpers  (scan / structure / format)  — Windows-focused
+# SD card helpers (scan / structure / format) — Windows-focused
 # =========================================================================
 def human_size(n):
     if n is None:
@@ -129,23 +262,21 @@ def human_size(n):
 
 
 def _ps(script, timeout=120):
-    """Run a PowerShell command with no visible window. Returns CompletedProcess or None."""
     if not IS_WIN:
         return None
     si = subprocess.STARTUPINFO()
     si.dwFlags |= subprocess.STARTF_USESHOWWINDOW
-    si.wShowWindow = 0  # SW_HIDE
+    si.wShowWindow = 0
     try:
         return subprocess.run(
             ["powershell", "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-Command", script],
             capture_output=True, text=True, timeout=timeout,
-            startupinfo=si, creationflags=0x08000000)  # CREATE_NO_WINDOW
+            startupinfo=si, creationflags=0x08000000)
     except Exception:
         return None
 
 
 def drive_letter_of(path):
-    """'E:\\samples' -> 'E'  (or None if the path has no drive letter)."""
     if not path:
         return None
     drv = os.path.splitdrive(os.path.abspath(path))[0]
@@ -155,17 +286,12 @@ def drive_letter_of(path):
 
 
 def volume_info(path):
-    """Inspect the volume that `path` lives on.
-
-    Returns a dict: letter, fs, drive_type, size, free, label, removable, system, readable.
-    """
     info = {"letter": drive_letter_of(path), "fs": None, "drive_type": None,
             "size": None, "free": None, "label": None,
             "removable": None, "system": False, "readable": False}
     sysdrive = os.environ.get("SystemDrive", "C:")[0].upper()
     if info["letter"] and info["letter"] == sysdrive:
         info["system"] = True
-
     root = (info["letter"] + ":\\") if info["letter"] else path
     try:
         u = shutil.disk_usage(root)
@@ -173,7 +299,6 @@ def volume_info(path):
         info["readable"] = True
     except Exception:
         info["readable"] = False
-
     if IS_WIN and info["letter"]:
         r = _ps(f"Get-Volume -DriveLetter {info['letter']} -ErrorAction SilentlyContinue | "
                 f"Select-Object FileSystemType,DriveType,Size,SizeRemaining,FileSystemLabel | "
@@ -199,76 +324,61 @@ def fs_is_compatible(fs):
     return bool(fs) and fs.upper() in _FS_OK
 
 
-def scan_samples(sd_root):
-    """Inspect <sd_root>/samples and the card root.
+def scan_sd_layout(root):
+    """Inspect a card root for TŒRN content.
 
-    Returns: structured, banks [(bank,count)], files, max_num, next_num, packs, songs.
+    Returns: packs {pack_num: voice_count}, browser_files int,
+             browser_cats {category: count}, next_pack int.
     """
-    res = {"structured": False, "banks": [], "files": 0, "max_num": 0,
-           "next_num": 1, "packs": [], "songs": 0}
-    samples = os.path.join(sd_root, SD_DIRNAME)
-    if os.path.isdir(samples):
-        for b in range(0, MAX_BANK + 1):
-            bp = os.path.join(samples, str(b))
-            if os.path.isdir(bp):
-                cnt = 0
-                try:
-                    for name in os.listdir(bp):
-                        m = _WAV_RE.match(name)
-                        if m:
-                            n = int(m.group(1))
-                            cnt += 1
-                            res["files"] += 1
-                            if n > res["max_num"]:
-                                res["max_num"] = n
-                except Exception:
-                    pass
-                res["banks"].append((b, cnt))
-        res["structured"] = len(res["banks"]) > 0
-        res["next_num"] = (res["max_num"] + 1) if res["files"] else 1
-    # informational: song packs (numeric dirs at root) and pattern files (<n>.txt)
+    res = {"packs": {}, "browser_files": 0, "browser_cats": {}, "next_pack": 1}
     try:
-        for name in os.listdir(sd_root):
-            full = os.path.join(sd_root, name)
-            if os.path.isdir(full) and name.isdigit():
-                res["packs"].append(name)
-            elif os.path.isfile(full) and name.lower().endswith(".txt") and name[:-4].isdigit():
-                res["songs"] += 1
+        for name in os.listdir(root):
+            full = os.path.join(root, name)
+            if os.path.isdir(full) and name.isdigit() and 0 <= int(name) <= MAX_PACK:
+                voices = 0
+                for v in range(1, MAX_VOICES + 1):
+                    if os.path.isfile(os.path.join(full, f"{v}.wav")):
+                        voices += 1
+                res["packs"][int(name)] = voices
     except Exception:
         pass
+    # next free pack number (skip 0, which is the factory/default pack)
+    n = 1
+    while n in res["packs"] and n <= MAX_PACK:
+        n += 1
+    res["next_pack"] = n
+    # browser library
+    sdir = os.path.join(root, SD_BROWSER_DIR)
+    if os.path.isdir(sdir):
+        for dirpath, _dirs, files in os.walk(sdir):
+            wavs = [f for f in files if f.lower().endswith(".wav")]
+            if not wavs:
+                continue
+            res["browser_files"] += len(wavs)
+            cat = os.path.relpath(dirpath, sdir).replace("\\", "/")
+            if cat == ".":
+                cat = "(radice)"
+            res["browser_cats"][cat] = res["browser_cats"].get(cat, 0) + len(wavs)
     return res
 
 
-def create_structure(sd_root, banks=None):
-    """mkdir samples/ and samples/<bank>/ for every bank. Returns created paths."""
-    if banks is None:
-        banks = range(0, MAX_BANK + 1)
-    created = []
-    samples = os.path.join(sd_root, SD_DIRNAME)
-    for d in [samples] + [os.path.join(samples, str(b)) for b in banks]:
-        if not os.path.isdir(d):
-            os.makedirs(d, exist_ok=True)
-            created.append(d)
+def ensure_browser_dir(root):
+    d = os.path.join(root, SD_BROWSER_DIR)
+    created = not os.path.isdir(d)
+    os.makedirs(d, exist_ok=True)
     return created
 
 
 def format_fat32(letter, label=FORMAT_LABEL, deep=False):
-    """Format the removable volume at `letter` to FAT32.
-
-    Returns (True, new_drive_letter) on success, or (False, error_message).
-    `deep=True` wipes ALL partitions on the backing removable disk and rebuilds one.
-    """
     if not IS_WIN:
         return False, "La formattazione automatica è disponibile solo su Windows."
     letter = letter.upper()
     sysdrive = os.environ.get("SystemDrive", "C:")[0].upper()
     if letter == sysdrive:
         return False, "Rifiuto: è l'unità di sistema."
-
     if not deep:
         r = _ps(f"Format-Volume -DriveLetter {letter} -FileSystem FAT32 "
-                f"-NewFileSystemLabel '{label}' -Force -Confirm:$false -ErrorAction Stop",
-                timeout=300)
+                f"-NewFileSystemLabel '{label}' -Force -Confirm:$false -ErrorAction Stop", timeout=300)
         new_letter = letter
     else:
         script = (
@@ -286,7 +396,6 @@ def format_fat32(letter, label=FORMAT_LABEL, deep=False):
             f"Write-Output ('NEWLETTER=' + $np.DriveLetter)")
         r = _ps(script, timeout=480)
         new_letter = letter
-
     if r is None:
         return False, "Impossibile avviare PowerShell."
     out = (r.stdout or "") + "\n" + (r.stderr or "")
@@ -299,7 +408,6 @@ def format_fat32(letter, label=FORMAT_LABEL, deep=False):
         if m:
             new_letter = m.group(1).upper()
         return True, new_letter
-    # friendly diagnosis of common failures
     if "denied" in low or "administrator" in low or "negato" in low or "amministrat" in low:
         return False, ("Accesso negato: serve eseguire l'app come Amministratore "
                        "(clic destro sull'app → «Esegui come amministratore»).")
@@ -317,23 +425,23 @@ class WavMakerApp(ttk.Frame):
     def __init__(self, master):
         super().__init__(master, padding=0)
         self.master = master
-        self.items = []            # list of dict: path, fmt
+        self.items = []
         self.q = queue.Queue()
         self.sdq = queue.Queue()
         self.worker = None
-        self.sd_root = None        # set when an SD has been scanned & chosen as target
-        self.sd_info = None        # last volume_info()
-        self.sd_scan = None        # last scan_samples()
-        self.deduced_start = 1     # next free number deduced from the SD scan
+        self.sd_root = None
+        self.sd_info = None
+        self.sd_scan = None
+        self.deduced_pack = 1
         self._sd_inflight = 0
         self._last_out = ""
 
         self._build_style()
         self._build_ui()
         self.pack(fill="both", expand=True)
-        self._refresh_targets()
+        self._on_mode_change()
         self._log("Pronto. Aggiungi file WAV o una cartella per iniziare.")
-        self._log("Suggerimento: scansiona la SD per preparala e numerare in automatico.", SUB)
+        self._log("Scegli la modalità: Samplepack (8 voci) o Libreria browser.", SUB)
 
     # ---- styling ----
     def _build_style(self):
@@ -354,8 +462,7 @@ class WavMakerApp(ttk.Frame):
         st.configure("Title.TLabel", background=BG, foreground=INK, font=("Segoe UI", 17, "bold"))
         st.configure("H2.TLabel", background=BG, foreground=INK, font=("Segoe UI", 10, "bold"))
         st.configure("PanelH2.TLabel", background=PANEL, foreground=INK, font=("Segoe UI", 10, "bold"))
-        st.configure("TButton", background=PANEL, foreground=INK, bordercolor=LINE,
-                     focuscolor=BG, padding=6)
+        st.configure("TButton", background=PANEL, foreground=INK, bordercolor=LINE, focuscolor=BG, padding=6)
         st.map("TButton", background=[("active", "#21262d")])
         st.configure("Accent.TButton", background=ACCENT, foreground="#06210f",
                      font=("Segoe UI", 11, "bold"), padding=9)
@@ -366,41 +473,44 @@ class WavMakerApp(ttk.Frame):
         st.configure("Danger.TButton", background=RED, foreground="#2a0707",
                      font=("Segoe UI", 10, "bold"), padding=7)
         st.map("Danger.TButton", background=[("active", "#f2645b"), ("disabled", LINE)])
-        st.configure("Info.TButton", background=PANEL, foreground=ACCENT2,
-                     font=("Segoe UI", 13, "bold"), padding=2)
+        st.configure("Info.TButton", background=PANEL, foreground=ACCENT2, font=("Segoe UI", 13, "bold"), padding=2)
         st.map("Info.TButton", background=[("active", "#21262d")])
         st.configure("TCheckbutton", background=PANEL, foreground=INK)
         st.map("TCheckbutton", background=[("active", PANEL)])
+        st.configure("TRadiobutton", background=PANEL, foreground=INK)
+        st.map("TRadiobutton", background=[("active", PANEL)])
         st.configure("TEntry", fieldbackground="#0b0f14", foreground=INK)
         st.configure("TSpinbox", fieldbackground="#0b0f14", foreground=INK, arrowsize=14)
+        st.configure("TCombobox", fieldbackground="#0b0f14", foreground=INK)
         st.configure("Treeview", background=PANEL, fieldbackground=PANEL, foreground=INK,
                      rowheight=24, borderwidth=0)
-        st.configure("Treeview.Heading", background="#0b0f14", foreground=SUB,
-                     font=("Segoe UI", 9, "bold"))
+        st.configure("Treeview.Heading", background="#0b0f14", foreground=SUB, font=("Segoe UI", 9, "bold"))
         st.map("Treeview", background=[("selected", ACCENT2)])
-        st.configure("green.Horizontal.TProgressbar", background=ACCENT, troughcolor="#0b0f14",
-                     bordercolor=LINE)
+        st.configure("green.Horizontal.TProgressbar", background=ACCENT, troughcolor="#0b0f14", bordercolor=LINE)
 
     # ---- layout ----
     def _build_ui(self):
         self.master.title("ichosynth — WAV Maker")
-        self.master.minsize(760, 640)
+        self.master.minsize(780, 680)
 
-        # header (title block on the left, info button top-right)
         head = ttk.Frame(self, padding=(18, 14, 18, 6))
         head.pack(fill="x")
-        info_btn = ttk.Button(head, text="ⓘ", width=3, style="Info.TButton", command=self.show_about)
-        info_btn.pack(side="right", anchor="n")
+        ttk.Button(head, text="ⓘ", width=3, style="Info.TButton", command=self.show_about).pack(side="right", anchor="n")
         titlebox = ttk.Frame(head)
         titlebox.pack(side="left", anchor="w")
         ttk.Label(titlebox, text="🎵  ichosynth — WAV Maker", style="Title.TLabel").pack(anchor="w")
-        ttk.Label(titlebox, text="Converte i WAV in  mono · 16-bit · 44100 Hz  e prepara la scheda SD del synth",
+        ttk.Label(titlebox, text="Converte i WAV in  mono · 16-bit · 44100 Hz  per il firmware TŒRN",
                   style="Sub.TLabel").pack(anchor="w", pady=(2, 0))
 
-        if audioop is None:
-            warn = tk.Label(self, text="⚠  Modulo 'audioop' assente (Python 3.13+). Installa:  pip install audioop-lts",
-                            bg=WARN, fg="#1a1300", font=("Segoe UI", 9, "bold"))
-            warn.pack(fill="x", padx=18, pady=(0, 4))
+        # mode selector
+        modebar = ttk.Frame(self, style="Panel.TFrame", padding=(12, 8))
+        modebar.pack(fill="x", padx=18, pady=(4, 2))
+        ttk.Label(modebar, text="Modalità:", style="Panel.TLabel").pack(side="left")
+        self.mode_var = tk.StringVar(value="pack")
+        ttk.Radiobutton(modebar, text="Samplepack (8 voci → <pack>/1-8.wav)", value="pack",
+                        variable=self.mode_var, command=self._on_mode_change).pack(side="left", padx=(12, 0))
+        ttk.Radiobutton(modebar, text="Libreria browser (samples/<cat>/<nome>.wav)", value="browser",
+                        variable=self.mode_var, command=self._on_mode_change).pack(side="left", padx=(16, 0))
 
         # toolbar
         bar = ttk.Frame(self, padding=(18, 6, 18, 6))
@@ -409,23 +519,30 @@ class WavMakerApp(ttk.Frame):
         ttk.Button(bar, text="📁  Aggiungi cartella", command=self.add_folder).pack(side="left", padx=6)
         ttk.Button(bar, text="🗑  Rimuovi", command=self.remove_selected).pack(side="left")
         ttk.Button(bar, text="Svuota", command=self.clear_all).pack(side="left", padx=6)
+        self.up_btn = ttk.Button(bar, text="↑", width=3, command=lambda: self.move_selected(-1))
+        self.up_btn.pack(side="left", padx=(12, 0))
+        self.down_btn = ttk.Button(bar, text="↓", width=3, command=lambda: self.move_selected(1))
+        self.down_btn.pack(side="left", padx=(4, 0))
         self.count_lbl = ttk.Label(bar, text="0 file", style="Sub.TLabel")
         self.count_lbl.pack(side="right")
 
         # file table
         table = ttk.Frame(self, style="Panel.TFrame", padding=1)
         table.pack(fill="both", expand=True, padx=18, pady=(2, 6))
-        cols = ("file", "fmt", "arrow", "dst")
+        cols = ("slot", "file", "fmt", "arrow", "dst")
         self.tree = ttk.Treeview(table, columns=cols, show="headings", selectmode="extended")
+        self.tree.heading("slot", text="#")
         self.tree.heading("file", text="FILE")
         self.tree.heading("fmt", text="FORMATO ATTUALE")
         self.tree.heading("arrow", text="")
         self.tree.heading("dst", text="DESTINAZIONE")
-        self.tree.column("file", width=230, anchor="w")
+        self.tree.column("slot", width=70, anchor="w")
+        self.tree.column("file", width=210, anchor="w")
         self.tree.column("fmt", width=210, anchor="w")
         self.tree.column("arrow", width=28, anchor="center")
-        self.tree.column("dst", width=190, anchor="w")
+        self.tree.column("dst", width=180, anchor="w")
         self.tree.tag_configure("ok", background=ROW_OK)
+        self.tree.tag_configure("over", foreground=RED)
         vs = ttk.Scrollbar(table, orient="vertical", command=self.tree.yview)
         self.tree.configure(yscrollcommand=vs.set)
         self.tree.pack(side="left", fill="both", expand=True)
@@ -435,73 +552,64 @@ class WavMakerApp(ttk.Frame):
         sdp = ttk.Frame(self, style="Panel.TFrame", padding=12)
         sdp.pack(fill="x", padx=18, pady=(0, 6))
         sdp.columnconfigure(1, weight=1)
-
         ttk.Label(sdp, text="💾  Scheda SD", style="PanelH2.TLabel").grid(row=0, column=0, columnspan=4, sticky="w")
-
         ttk.Label(sdp, text="Percorso SD", style="Panel.TLabel").grid(row=1, column=0, sticky="w", pady=(8, 0))
         self.sd_path_var = tk.StringVar(value="")
-        sde = ttk.Entry(sdp, textvariable=self.sd_path_var)
-        sde.grid(row=1, column=1, sticky="ew", padx=(12, 6), pady=(8, 0))
+        ttk.Entry(sdp, textvariable=self.sd_path_var).grid(row=1, column=1, sticky="ew", padx=(12, 6), pady=(8, 0))
         ttk.Button(sdp, text="Sfoglia…", command=self.pick_sd).grid(row=1, column=2, sticky="e", pady=(8, 0))
         self.sd_scan_btn = ttk.Button(sdp, text="🔍  Scansiona", style="Scan.TButton", command=self.scan_sd)
         self.sd_scan_btn.grid(row=1, column=3, sticky="e", padx=(6, 0), pady=(8, 0))
-
         self.sd_status = tk.Label(sdp, text="Indica la cartella della SD (es. E:\\) e premi Scansiona.",
-                                  bg=PANEL, fg=SUB, justify="left", anchor="w",
-                                  font=("Segoe UI", 9), wraplength=660)
+                                  bg=PANEL, fg=SUB, justify="left", anchor="w", font=("Segoe UI", 9), wraplength=680)
         self.sd_status.grid(row=2, column=0, columnspan=4, sticky="ew", pady=(10, 0))
-
         actions = ttk.Frame(sdp, style="Panel.TFrame")
         actions.grid(row=3, column=0, columnspan=4, sticky="w", pady=(8, 0))
-        self.sd_btn_struct = ttk.Button(actions, text="📁  Crea/completa struttura",
-                                        command=self.do_create_structure)
+        self.sd_btn_struct = ttk.Button(actions, text="📁  Crea cartella samples/", command=self.do_create_structure)
         self.sd_btn_format = ttk.Button(actions, text="⚠  Formatta e prepara (FAT32)",
                                         style="Danger.TButton", command=self.do_format)
-        # both start hidden; scan decides what to show
         self._show_sd_actions(struct=False, fmt=False)
 
-        # destination summary (derived from the SD scan) + collapsible advanced
+        # ---------- destination options (mode-specific) ----------
         opt = ttk.Frame(self, style="Panel.TFrame", padding=12)
         opt.pack(fill="x", padx=18, pady=(0, 6))
-        opt.columnconfigure(0, weight=1)
+        opt.columnconfigure(3, weight=1)
 
-        self.target_lbl = ttk.Label(opt, text="", style="Panel.TLabel", justify="left")
-        self.target_lbl.grid(row=0, column=0, sticky="w")
-        self.adv_btn = ttk.Button(opt, text="▸ Avanzate", width=14, command=self._toggle_adv)
-        self.adv_btn.grid(row=0, column=1, sticky="e")
+        # pack mode controls
+        self.pack_lbl = ttk.Label(opt, text="Numero pack (0-99):", style="Panel.TLabel")
+        self.pack_var = tk.IntVar(value=1)
+        self.pack_sp = ttk.Spinbox(opt, from_=0, to=MAX_PACK, textvariable=self.pack_var, width=6,
+                                   command=self._refresh_targets)
+        self.pack_sp.bind("<KeyRelease>", lambda e: self._refresh_targets())
 
-        # state vars (no longer shown as primary fields — deduced from the scan)
-        self.start_var = tk.IntVar(value=1)
-        self.force_start_var = tk.BooleanVar(value=False)
+        # browser mode controls
+        self.cat_lbl = ttk.Label(opt, text="Categoria:", style="Panel.TLabel")
+        self.cat_var = tk.StringVar(value="kick")
+        self.cat_cb = ttk.Combobox(opt, textvariable=self.cat_var, values=CATEGORIES, width=14)
+        self.cat_cb.bind("<KeyRelease>", lambda e: self._refresh_targets())
+        self.cat_cb.bind("<<ComboboxSelected>>", lambda e: self._refresh_targets())
+
+        # common: write to local folder instead of the SD
         self.local_mode_var = tk.BooleanVar(value=False)
+        self.local_chk = ttk.Checkbutton(opt, text="Scrivi in una cartella locale invece che sulla SD",
+                                         variable=self.local_mode_var, command=self._on_dest_change)
         self.out_var = tk.StringVar(value="")
+        self.out_entry = ttk.Entry(opt, textvariable=self.out_var)
+        self.out_btn = ttk.Button(opt, text="Sfoglia…", command=self.pick_output)
         self.delete_var = tk.BooleanVar(value=False)
-        self.adv_open = False
+        self.delete_chk = ttk.Checkbutton(opt, text="Elimina gli originali dopo la conversione (attenzione!)",
+                                         variable=self.delete_var)
 
-        self.adv = ttk.Frame(opt, style="Panel.TFrame")
-        self.adv.grid(row=1, column=0, columnspan=2, sticky="ew", pady=(10, 0))
-        self.adv.columnconfigure(1, weight=1)
-        self.adv.grid_remove()  # hidden until toggled
-
-        ttk.Checkbutton(self.adv, text="Forza numero di partenza", variable=self.force_start_var,
-                        command=self._on_adv_change).grid(row=0, column=0, sticky="w")
-        self.start_sp = ttk.Spinbox(self.adv, from_=0, to=999, textvariable=self.start_var, width=8,
-                                    command=self._on_adv_change)
-        self.start_sp.grid(row=0, column=1, sticky="w", padx=(12, 0))
-        self.start_sp.bind("<KeyRelease>", lambda e: self._on_adv_change())
-
-        ttk.Checkbutton(self.adv, text="Scrivi in una cartella locale invece che sulla SD",
-                        variable=self.local_mode_var, command=self._on_adv_change
-                        ).grid(row=1, column=0, columnspan=3, sticky="w", pady=(8, 0))
-        self.out_entry = ttk.Entry(self.adv, textvariable=self.out_var)
-        self.out_entry.grid(row=2, column=1, sticky="ew", padx=(12, 6), pady=(4, 0))
-        self.out_btn = ttk.Button(self.adv, text="Sfoglia…", command=self.pick_output)
-        self.out_btn.grid(row=2, column=2, sticky="e", pady=(4, 0))
-
-        ttk.Checkbutton(self.adv, text="Elimina gli originali dopo la conversione (attenzione!)",
-                        variable=self.delete_var).grid(row=3, column=0, columnspan=3, sticky="w", pady=(8, 0))
-
-        self._on_adv_change()  # set initial enabled/disabled states + target label
+        # grid placement
+        self.pack_lbl.grid(row=0, column=0, sticky="w")
+        self.pack_sp.grid(row=0, column=1, sticky="w", padx=(10, 0))
+        self.cat_lbl.grid(row=0, column=0, sticky="w")
+        self.cat_cb.grid(row=0, column=1, sticky="w", padx=(10, 0))
+        self.target_lbl = ttk.Label(opt, text="", style="PanelSub.TLabel", justify="left")
+        self.target_lbl.grid(row=1, column=0, columnspan=4, sticky="w", pady=(10, 0))
+        self.local_chk.grid(row=2, column=0, columnspan=4, sticky="w", pady=(8, 0))
+        self.out_entry.grid(row=3, column=1, columnspan=2, sticky="ew", padx=(10, 6), pady=(4, 0))
+        self.out_btn.grid(row=3, column=3, sticky="w", pady=(4, 0))
+        self.delete_chk.grid(row=4, column=0, columnspan=4, sticky="w", pady=(8, 0))
 
         # action + progress
         act = ttk.Frame(self, padding=(18, 4, 18, 4))
@@ -535,54 +643,90 @@ class WavMakerApp(ttk.Frame):
 
     def _default_output(self):
         if self.items:
-            return os.path.join(os.path.dirname(self.items[0]["path"]), "wav_convertiti")
-        return os.path.join(os.path.expanduser("~"), "Desktop", "wav_convertiti")
+            return os.path.dirname(self.items[0]["path"])
+        return os.path.join(os.path.expanduser("~"), "Desktop", "ichosynth_sd")
 
-    def _effective_target(self):
-        """Return (root_or_None, start_number, mode) where mode is 'sd' | 'local' | 'none'."""
-        try:
-            forced = int(self.start_var.get())
-        except (tk.TclError, ValueError):
-            forced = 0
-        use_force = self.force_start_var.get()
-        if self.local_mode_var.get():
-            root = self.out_var.get().strip() or self._default_output()
-            return root, (forced if use_force else 1), "local"
-        if self.sd_root:
-            return self.sd_root, (forced if use_force else self.deduced_start), "sd"
-        return None, (forced if use_force else 1), "none"
-
-    def _refresh_targets(self):
-        root, start, mode = self._effective_target()
-        if mode == "sd":
-            self.target_lbl.configure(
-                text=f"🎯  Scrivo sulla SD in  {SD_DIRNAME}/  —  i campioni partono da  _{start}")
-        elif mode == "local":
-            self.target_lbl.configure(
-                text=f"🎯  Scrivo in  {os.path.join(root, SD_DIRNAME)}  —  partono da  _{start}")
+    def _on_mode_change(self):
+        pack = self.mode_var.get() == "pack"
+        if pack:
+            self.pack_lbl.grid()
+            self.pack_sp.grid()
+            self.cat_lbl.grid_remove()
+            self.cat_cb.grid_remove()
+            self.tree.heading("slot", text="VOCE")
         else:
-            self.target_lbl.configure(
-                text="🎯  Scansiona una SD  (oppure scegli una cartella locale in «Avanzate»)")
-        for i, iid in enumerate(self.tree.get_children()):
-            n = start + i
-            self.tree.set(iid, "dst", f"{SD_DIRNAME}/{n // 100}/_{n}.wav")
-        self.count_lbl.configure(text=f"{len(self.items)} file")
+            self.pack_lbl.grid_remove()
+            self.pack_sp.grid_remove()
+            self.cat_lbl.grid()
+            self.cat_cb.grid()
+            self.tree.heading("slot", text="#")
+        self._refresh_targets()
 
-    def _toggle_adv(self):
-        self.adv_open = not self.adv_open
-        if self.adv_open:
-            self.adv.grid()
-            self.adv_btn.configure(text="▾ Avanzate")
-        else:
-            self.adv.grid_remove()
-            self.adv_btn.configure(text="▸ Avanzate")
-
-    def _on_adv_change(self):
-        self.start_sp.configure(state="normal" if self.force_start_var.get() else "disabled")
+    def _on_dest_change(self):
         st = "normal" if self.local_mode_var.get() else "disabled"
         self.out_entry.configure(state=st)
         self.out_btn.configure(state=st)
+        if self.local_mode_var.get() and not self.out_var.get():
+            self.out_var.set(self._default_output())
         self._refresh_targets()
+
+    def _dest_root(self):
+        """Return (root, mode) where mode is 'sd' | 'local' | 'none'."""
+        if self.local_mode_var.get():
+            return (self.out_var.get().strip() or self._default_output()), "local"
+        if self.sd_root:
+            return self.sd_root, "sd"
+        return None, "none"
+
+    def _refresh_targets(self):
+        root, mode = self._dest_root()
+        is_pack = self.mode_var.get() == "pack"
+        # header line
+        if mode == "none":
+            self.target_lbl.configure(text="🎯  Scansiona una SD oppure scegli una cartella locale qui sotto.")
+        else:
+            where = "sulla SD" if mode == "sd" else f"in  {root}"
+            if is_pack:
+                try:
+                    pk = int(self.pack_var.get())
+                except (tk.TclError, ValueError):
+                    pk = 0
+                note = "  (pack 0 = kit di fabbrica)" if pk == 0 else ""
+                self.target_lbl.configure(text=f"🎯  Scrivo {where}  →  {pk}/1.wav … {pk}/8.wav{note}")
+            else:
+                cat = (self.cat_var.get().strip() or "perc")
+                self.target_lbl.configure(text=f"🎯  Scrivo {where}  →  {SD_BROWSER_DIR}/{cat}/<nome>.wav")
+        # per-row destination + slot
+        try:
+            pk = int(self.pack_var.get())
+        except (tk.TclError, ValueError):
+            pk = 0
+        cat = (self.cat_var.get().strip() or "perc")
+        seen = {}
+        for i, iid in enumerate(self.tree.get_children()):
+            tags = list(self.tree.item(iid, "tags"))
+            tags = [t for t in tags if t != "over"]
+            if is_pack:
+                if i < MAX_VOICES:
+                    self.tree.set(iid, "slot", f"{i+1} · {VOICE_LABELS[i]}")
+                    self.tree.set(iid, "dst", f"{pk}/{i+1}.wav")
+                else:
+                    self.tree.set(iid, "slot", "—")
+                    self.tree.set(iid, "dst", "(ignorato: max 8)")
+                    tags.append("over")
+            else:
+                self.tree.set(iid, "slot", str(i + 1))
+                nm = sanitize_name(self.items[i]["path"])
+                # de-dup within this batch
+                key = (cat, nm.lower())
+                if key in seen:
+                    seen[key] += 1
+                    nm = f"{nm[:-4]}-{seen[key]}.wav"
+                else:
+                    seen[key] = 1
+                self.tree.set(iid, "dst", f"{SD_BROWSER_DIR}/{cat}/{nm}")
+            self.tree.item(iid, tags=tuple(tags))
+        self.count_lbl.configure(text=f"{len(self.items)} file")
 
     def _add_paths(self, paths):
         existing = {it["path"] for it in self.items}
@@ -593,7 +737,7 @@ class WavMakerApp(ttk.Frame):
             fmt = read_format(p)
             self.items.append({"path": p, "fmt": fmt})
             tags = ("ok",) if is_target(fmt) else ()
-            self.tree.insert("", "end", values=(os.path.basename(p), fmt_label(fmt), "→", ""), tags=tags)
+            self.tree.insert("", "end", values=("", os.path.basename(p), fmt_label(fmt), "→", ""), tags=tags)
             existing.add(p)
             added += 1
         if added:
@@ -608,21 +752,47 @@ class WavMakerApp(ttk.Frame):
     def add_folder(self):
         d = filedialog.askdirectory(title="Scegli una cartella con WAV")
         if d:
-            paths = [os.path.join(d, f) for f in sorted(os.listdir(d)) if f.lower().endswith(".wav")]
-            self._add_paths(paths)
+            self._add_paths([os.path.join(d, f) for f in sorted(os.listdir(d)) if f.lower().endswith(".wav")])
 
     def remove_selected(self):
         sel = set(self.tree.selection())
         if not sel:
             return
-        keep = []
+        keep, kept_iids = [], []
         for iid, it in zip(self.tree.get_children(), self.items):
             if iid not in sel:
                 keep.append(it)
+                kept_iids.append(iid)
         for iid in sel:
             self.tree.delete(iid)
         self.items = keep
         self._refresh_targets()
+
+    def move_selected(self, delta):
+        sel = self.tree.selection()
+        if len(sel) != 1:
+            return
+        iids = list(self.tree.get_children())
+        i = iids.index(sel[0])
+        j = i + delta
+        if j < 0 or j >= len(iids):
+            return
+        self.items[i], self.items[j] = self.items[j], self.items[i]
+        # rebuild rows preserving format/tags
+        self._rebuild_rows(select_index=j)
+
+    def _rebuild_rows(self, select_index=None):
+        for iid in self.tree.get_children():
+            self.tree.delete(iid)
+        new_iids = []
+        for it in self.items:
+            tags = ("ok",) if is_target(it["fmt"]) else ()
+            iid = self.tree.insert("", "end", values=("", os.path.basename(it["path"]),
+                                                       fmt_label(it["fmt"]), "→", ""), tags=tags)
+            new_iids.append(iid)
+        self._refresh_targets()
+        if select_index is not None and 0 <= select_index < len(new_iids):
+            self.tree.selection_set(new_iids[select_index])
 
     def clear_all(self):
         for iid in self.tree.get_children():
@@ -631,23 +801,23 @@ class WavMakerApp(ttk.Frame):
         self._refresh_targets()
 
     def pick_output(self):
-        d = filedialog.askdirectory(title="Cartella di destinazione locale")
+        d = filedialog.askdirectory(title="Cartella di destinazione locale (radice della SD)")
         if d:
             self.out_var.set(d)
             self.local_mode_var.set(True)
-            self._on_adv_change()
+            self._on_dest_change()
 
     # =====================================================================
-    # SD card  (scan / structure / format)
+    # SD card (scan / structure / format)
     # =====================================================================
     def pick_sd(self):
         d = filedialog.askdirectory(title="Scegli la scheda SD (la sua radice, es. E:\\)")
         if d:
             self.sd_path_var.set(d)
 
-    # ---- async plumbing for SD ops (keep UI responsive) ----
     def _run_sd_async(self, fn, on_done):
         self._sd_inflight += 1
+
         def runner():
             try:
                 res = ("ok", fn())
@@ -691,7 +861,6 @@ class WavMakerApp(ttk.Frame):
         if fmt:
             self.sd_btn_format.pack(side="left", padx=(0, 8))
 
-    # ---- scan ----
     def scan_sd(self):
         path = self.sd_path_var.get().strip()
         if not path:
@@ -703,9 +872,8 @@ class WavMakerApp(ttk.Frame):
         def work():
             info = volume_info(path)
             root = (info["letter"] + ":\\") if info["letter"] else path
-            scan = scan_samples(root) if os.path.isdir(root) else None
+            scan = scan_sd_layout(root) if os.path.isdir(root) else None
             return root, info, scan
-
         self._run_sd_async(work, self._after_scan)
 
     def _after_scan(self, result):
@@ -723,88 +891,64 @@ class WavMakerApp(ttk.Frame):
     def _render_sd(self, root, info, scan):
         letter = info.get("letter")
         fs = info.get("fs")
-        size_s = human_size(info.get("size"))
-        free_s = human_size(info.get("free"))
-        label = info.get("label") or "(senza etichetta)"
-        drive_type = info.get("drive_type") or "?"
-
-        head = f"Unità {letter}:  ·  {label}  ·  {size_s} ({free_s} liberi)  ·  {drive_type}"
+        head = (f"Unità {letter}:  ·  {info.get('label') or '(senza etichetta)'}  ·  "
+                f"{human_size(info.get('size'))} ({human_size(info.get('free'))} liberi)  ·  "
+                f"{info.get('drive_type') or '?'}")
         fs_s = fs or "non rilevato"
-
-        # ----- decide verdict -----
         readable = info.get("readable")
         compatible = fs_is_compatible(fs) if IS_WIN else readable
 
         if IS_WIN and (not readable or fs is None or not compatible):
-            # not formatted / incompatible filesystem (e.g. NTFS) / unreadable
             reason = ("filesystem non rilevato (probabilmente non formattata)"
                       if not fs else f"filesystem «{fs_s}» non compatibile col Teensy")
             self.sd_status.configure(
-                text=(f"{head}\nFilesystem: {fs_s}\n"
-                      f"⚠  {reason}.\n"
-                      f"Serve formattarla FAT32 e creare la struttura. Usa «Formatta e prepara»."),
-                fg=WARN)
+                text=(f"{head}\nFilesystem: {fs_s}\n⚠  {reason}.\n"
+                      f"Serve formattarla FAT32. Usa «Formatta e prepara»."), fg=WARN)
             self._show_sd_actions(struct=False, fmt=True)
-            self._clear_sd_mode(log=False)
+            self._clear_sd_mode()
             self._log(f"  ⚠ SD non pronta: {reason}", WARN)
             return
 
-        # compatible filesystem -> look at the structure
-        if scan and scan["structured"]:
-            nb = sum(1 for _b, c in scan["banks"])
-            nfiles = scan["files"]
-            nxt = scan["next_num"]
-            extra = ""
-            if scan["packs"]:
-                extra += f"  ·  pack-canzone: {', '.join(scan['packs'][:8])}"
-            if scan["songs"]:
-                extra += f"  ·  {scan['songs']} pattern .txt"
-            self.sd_status.configure(
-                text=(f"{head}\nFilesystem: {fs_s}  ✓\n"
-                      f"✓  Struttura presente: {SD_DIRNAME}/ con {nb} bank · {nfiles} campioni"
-                      f" (max _{scan['max_num']}){extra}\n"
-                      f"▶  Riprendo la numerazione da  _{nxt}  →  {SD_DIRNAME}/{nxt // 100}/"),
-                fg=ACCENT)
-            self._set_sd_mode(root, nxt)
-            self._show_sd_actions(struct=True, fmt=IS_WIN)   # struct = "completa eventuali bank mancanti"
-            self._log(f"  ✓ SD pronta. Prossimo numero: _{nxt}", ACCENT)
+        packs = scan["packs"] if scan else {}
+        nxt = scan["next_pack"] if scan else 1
+        if packs:
+            pk_desc = ", ".join(f"{p}({v}/8)" for p, v in sorted(packs.items())[:12])
+            packline = f"✓  Samplepack presenti: {pk_desc}"
         else:
-            # healthy filesystem but no samples/ structure yet
-            self.sd_status.configure(
-                text=(f"{head}\nFilesystem: {fs_s}  ✓\n"
-                      f"📁  Filesystem ok ma manca la cartella «{SD_DIRNAME}/». "
-                      f"Premi «Crea/completa struttura» (non cancella nulla)."),
-                fg=INK)
-            self._show_sd_actions(struct=True, fmt=IS_WIN)
-            self._clear_sd_mode(log=False)
-            self._log("  📁 SD sana ma senza struttura: pronta da creare.", SUB)
+            packline = "·  Nessun samplepack (verrà creato al primo «Converti»)"
+        if scan and scan["browser_files"]:
+            cats = ", ".join(f"{c}:{n}" for c, n in sorted(scan["browser_cats"].items())[:8])
+            brline = f"✓  Libreria browser: {scan['browser_files']} file ({cats})"
+        else:
+            brline = "·  Libreria browser vuota"
+        self.sd_status.configure(
+            text=(f"{head}\nFilesystem: {fs_s}  ✓\n{packline}\n{brline}\n"
+                  f"▶  Prossimo pack libero: {nxt}"), fg=ACCENT)
+        self._set_sd_mode(root, nxt)
+        self._show_sd_actions(struct=True, fmt=IS_WIN)
+        self._log(f"  ✓ SD pronta. Prossimo pack libero: {nxt}", ACCENT)
 
-    def _set_sd_mode(self, root, next_num):
+    def _set_sd_mode(self, root, next_pack):
         self.sd_root = root
         try:
-            self.deduced_start = int(next_num)
+            self.deduced_pack = int(next_pack)
         except Exception:
-            self.deduced_start = 1
-        if not self.force_start_var.get():
-            self.start_var.set(self.deduced_start)
-        self._refresh_targets()
+            self.deduced_pack = 1
+        if self.mode_var.get() == "pack":
+            self.pack_var.set(self.deduced_pack)
+        self.local_mode_var.set(False)
+        self._on_dest_change()
 
-    def _clear_sd_mode(self, msg=None, log=True):
-        was = self.sd_root is not None
+    def _clear_sd_mode(self):
         self.sd_root = None
         self._refresh_targets()
-        if msg and log:
-            self._log(f"  · {msg}", SUB)
-        if was and msg:
-            self.sd_status.configure(text=msg, fg=SUB)
 
-    # ---- create structure ----
     def do_create_structure(self):
         root = self._current_sd_root()
         if not root:
             return
-        self._sd_busy("Creazione struttura…")
-        self._run_sd_async(lambda: create_structure(root), self._after_structure)
+        self._sd_busy("Creazione cartella samples/…")
+        self._run_sd_async(lambda: ensure_browser_dir(root), self._after_structure)
 
     def _after_structure(self, result):
         self._sd_idle()
@@ -812,12 +956,9 @@ class WavMakerApp(ttk.Frame):
         if kind == "err":
             messagebox.showerror("Errore", f"Impossibile creare la struttura:\n{payload}")
             return
-        created = payload
-        self._log(f"  ✓ struttura creata/completata ({len(created)} cartelle nuove)", ACCENT)
-        # re-scan to refresh verdict and enter SD mode
+        self._log("  ✓ cartella samples/ pronta", ACCENT)
         self.scan_sd()
 
-    # ---- format ----
     def _current_sd_root(self):
         path = self.sd_path_var.get().strip()
         letter = drive_letter_of(path)
@@ -830,7 +971,7 @@ class WavMakerApp(ttk.Frame):
         if not IS_WIN:
             messagebox.showinfo("Solo Windows",
                                 "La formattazione automatica è disponibile solo su Windows.\n"
-                                "Su macOS/Linux formatta la SD in FAT32 a mano, poi usa «Crea struttura».")
+                                "Su macOS/Linux formatta la SD in FAT32 a mano.")
             return
         info = self.sd_info or volume_info(self.sd_path_var.get())
         letter = info.get("letter")
@@ -848,63 +989,43 @@ class WavMakerApp(ttk.Frame):
                     "Unità non rimovibile",
                     f"L'unità {letter}: NON risulta rimovibile (tipo: {info.get('drive_type')}).\n\n"
                     "Formattare un disco fisso interno cancellerebbe dati importanti.\n"
-                    "Sei DAVVERO sicuro che sia la SD del synth?",
-                    icon="warning"):
+                    "Sei DAVVERO sicuro che sia la SD del synth?", icon="warning"):
                 return
-
         proceed, deep = self._confirm_format(letter, info)
         if not proceed:
             return
-
         self._sd_busy("Formattazione FAT32 in corso… (non rimuovere la scheda)")
         self._log(f"--- formattazione {letter}: in FAT32{' (ripulitura completa)' if deep else ''} ---", WARN)
         self._run_sd_async(lambda: format_fat32(letter, deep=deep), self._after_format)
 
     def _confirm_format(self, letter, info):
-        """Modal destructive-confirmation. Returns (proceed, deep)."""
         win = tk.Toplevel(self.master)
         win.title("Conferma formattazione")
         win.configure(bg=BG)
         win.resizable(False, False)
         win.transient(self.master)
         result = {"proceed": False, "deep": False}
-
         frm = ttk.Frame(win, padding=20)
         frm.pack(fill="both", expand=True)
         ttk.Label(frm, text="⚠  Formattazione scheda SD", style="Title.TLabel").pack(anchor="w")
-        ttk.Label(frm,
-                  text=(f"Unità {letter}:  ·  {info.get('label') or '(senza etichetta)'}\n"
-                        f"{human_size(info.get('size'))}  ·  tipo: {info.get('drive_type') or '?'}"),
+        ttk.Label(frm, text=(f"Unità {letter}:  ·  {info.get('label') or '(senza etichetta)'}\n"
+                             f"{human_size(info.get('size'))}  ·  tipo: {info.get('drive_type') or '?'}"),
                   style="Sub.TLabel", justify="left").pack(anchor="w", pady=(6, 12))
-        msg = tk.Label(frm,
-                       text=("Verranno CANCELLATI TUTTI i dati sull'unità "
-                             f"{letter}:\ne creata la struttura ichosynth (FAT32, samples/0..9).\n"
-                             "L'operazione è IRREVERSIBILE."),
-                       bg=BG, fg=RED, justify="left", font=("Segoe UI", 9, "bold"))
-        msg.pack(anchor="w", pady=(0, 12))
-
+        tk.Label(frm, text=(f"Verranno CANCELLATI TUTTI i dati sull'unità {letter}:\n"
+                            "e la scheda sarà formattata FAT32.\nL'operazione è IRREVERSIBILE."),
+                 bg=BG, fg=RED, justify="left", font=("Segoe UI", 9, "bold")).pack(anchor="w", pady=(0, 12))
         deep_var = tk.BooleanVar(value=False)
         ttk.Checkbutton(frm, variable=deep_var,
-                        text="Ripulisci anche partizioni strane (cancella e ripartiziona tutto il disco) — avanzato"
-                        ).pack(anchor="w")
-
+                        text="Ripulisci anche partizioni strane (ripartiziona tutto il disco) — avanzato").pack(anchor="w")
         ack_var = tk.BooleanVar(value=False)
-        ack = ttk.Checkbutton(frm, variable=ack_var,
-                              text=f"Ho capito: cancella tutto su {letter}:")
-        ack.pack(anchor="w", pady=(8, 14))
-
+        ttk.Checkbutton(frm, variable=ack_var, text=f"Ho capito: cancella tutto su {letter}:").pack(anchor="w", pady=(8, 14))
         btns = ttk.Frame(frm)
         btns.pack(fill="x")
-        go = ttk.Button(btns, text=f"Formatta {letter}:", style="Danger.TButton",
-                        state="disabled",
+        go = ttk.Button(btns, text=f"Formatta {letter}:", style="Danger.TButton", state="disabled",
                         command=lambda: (result.update(proceed=True, deep=deep_var.get()), win.destroy()))
         go.pack(side="right")
         ttk.Button(btns, text="Annulla", command=win.destroy).pack(side="right", padx=(0, 8))
-
-        def _toggle(*_):
-            go.configure(state="normal" if ack_var.get() else "disabled")
-        ack_var.trace_add("write", _toggle)
-
+        ack_var.trace_add("write", lambda *_: go.configure(state="normal" if ack_var.get() else "disabled"))
         win.update_idletasks()
         px, py = self.master.winfo_rootx(), self.master.winfo_rooty()
         pw, ph = self.master.winfo_width(), self.master.winfo_height()
@@ -929,47 +1050,41 @@ class WavMakerApp(ttk.Frame):
             self._log(f"  ✗ {info}", RED)
             return
         new_letter = info
-        self._log(f"  ✓ formattata. Creo la struttura su {new_letter}:\\", ACCENT)
+        self._log(f"  ✓ formattata. Preparo {new_letter}:\\", ACCENT)
         root = new_letter + ":\\"
         self.sd_path_var.set(root)
         try:
-            create_structure(root)
+            ensure_browser_dir(root)
         except Exception as e:
-            messagebox.showwarning("Struttura",
-                                   f"Formattata, ma non sono riuscito a creare la struttura:\n{e}")
+            messagebox.showwarning("Struttura", f"Formattata, ma non sono riuscito a creare samples/:\n{e}")
         messagebox.showinfo("Fatto", f"Scheda {new_letter}: formattata FAT32 e pronta.")
         self.scan_sd()
 
-    # ---- about / info ----
+    # ---- about ----
     def show_about(self):
         win = tk.Toplevel(self.master)
         win.title("Informazioni")
         win.configure(bg=BG)
         win.resizable(False, False)
         win.transient(self.master)
-
         frm = ttk.Frame(win, padding=22)
         frm.pack(fill="both", expand=True)
         ttk.Label(frm, text="🎵  ichosynth — WAV Maker", style="Title.TLabel").pack(anchor="w")
         ttk.Label(frm, text=f"Versione {APP_VERSION}", style="Sub.TLabel").pack(anchor="w", pady=(0, 14))
-
         ttk.Label(frm, text="Sviluppato da", style="Sub.TLabel").pack(anchor="w")
         ttk.Label(frm, text=APP_AUTHOR, style="H2.TLabel").pack(anchor="w", pady=(0, 12))
-
-        ttk.Label(frm, text="Prepara i campioni audio per il sampler ichosynth:\n"
-                            "li converte in mono · 16-bit · 44100 Hz, prepara la SD\n"
-                            "(scan / struttura / formattazione FAT32) e li nomina _<n>.wav.",
+        ttk.Label(frm, text=("Prepara i campioni per il firmware TŒRN:\n"
+                             "li converte in mono · 16-bit · 44100 Hz e li scrive come\n"
+                             "samplepack (<pack>/1-8.wav) o nella libreria browser\n"
+                             "(samples/<categoria>/<nome>.wav). Prepara anche la SD (FAT32)."),
                   style="Sub.TLabel", justify="left").pack(anchor="w", pady=(0, 12))
-
         link = tk.Label(frm, text=REPO_URL.replace("https://", ""), bg=BG, fg=ACCENT2,
                         cursor="hand2", font=("Segoe UI", 9, "underline"))
         link.pack(anchor="w")
         link.bind("<Button-1>", lambda e: webbrowser.open(REPO_URL))
-
         ttk.Label(frm, text="Parte del progetto ichosynth · un TŒRN (SP_) su hardware DIY · licenza MIT",
                   style="Sub.TLabel").pack(anchor="w", pady=(12, 16))
         ttk.Button(frm, text="Chiudi", command=win.destroy).pack(anchor="e")
-
         win.update_idletasks()
         px, py = self.master.winfo_rootx(), self.master.winfo_rooty()
         pw, ph = self.master.winfo_width(), self.master.winfo_height()
@@ -979,44 +1094,74 @@ class WavMakerApp(ttk.Frame):
         win.focus_set()
 
     # ---- conversion (threaded) ----
+    def _build_jobs(self):
+        """Return (jobs, base_desc) or (None, error_message)."""
+        root, mode = self._dest_root()
+        if mode == "none":
+            return None, ("Scansiona prima una scheda SD, oppure attiva «Scrivi in una cartella locale».")
+        if mode == "local":
+            try:
+                os.makedirs(root, exist_ok=True)
+            except Exception as e:
+                return None, f"Cartella non scrivibile:\n{e}"
+
+        jobs = []
+        if self.mode_var.get() == "pack":
+            try:
+                pk = int(self.pack_var.get())
+            except (tk.TclError, ValueError):
+                return None, "Numero pack non valido."
+            if not (0 <= pk <= MAX_PACK):
+                return None, "Il numero del pack deve essere tra 0 e 99."
+            if len(self.items) > MAX_VOICES:
+                if not messagebox.askyesno("Troppi file",
+                                           f"Un pack ha 8 voci ma hai {len(self.items)} file.\n"
+                                           "Userò solo i primi 8 (le voci 1-8). Procedo?"):
+                    return None, "__cancel__"
+            dst_dir = os.path.join(root, str(pk))
+            for i, it in enumerate(self.items[:MAX_VOICES], start=1):
+                jobs.append((it["path"], os.path.join(dst_dir, f"{i}.wav")))
+            base_desc = f"{pk}/ (voci 1-{len(jobs)})"
+        else:
+            cat = (self.cat_var.get().strip() or "perc")
+            cat = re.sub(r"[^a-z0-9._/-]+", "-", cat.lower()).strip("-/") or "perc"
+            dst_dir = os.path.join(root, SD_BROWSER_DIR, cat)
+            seen = {}
+            for it in self.items:
+                nm = sanitize_name(it["path"])
+                key = nm.lower()
+                if key in seen:
+                    seen[key] += 1
+                    nm = f"{nm[:-4]}-{seen[key]}.wav"
+                else:
+                    seen[key] = 1
+                jobs.append((it["path"], os.path.join(dst_dir, nm)))
+            base_desc = f"{SD_BROWSER_DIR}/{cat}/"
+        return jobs, base_desc
+
     def start_convert(self):
-        if audioop is None:
-            messagebox.showerror("audioop mancante",
-                                 "Serve il modulo audioop.\nPython 3.13+:  pip install audioop-lts")
-            return
         if not self.items:
             messagebox.showinfo("Niente da fare", "Aggiungi prima qualche file WAV.")
             return
-
-        root, start, mode = self._effective_target()
-        if mode == "none":
-            messagebox.showinfo(
-                "Destinazione mancante",
-                "Scansiona prima una scheda SD, oppure attiva «Scrivi in una cartella locale» in «Avanzate».")
+        jobs, info = self._build_jobs()
+        if jobs is None:
+            if info != "__cancel__":
+                messagebox.showinfo("Destinazione", info)
             return
-        base = os.path.join(root, SD_DIRNAME)
-        jobs = []
-        try:
-            for i, it in enumerate(self.items):
-                n = start + i
-                bank = os.path.join(base, str(n // 100))
-                os.makedirs(bank, exist_ok=True)
-                jobs.append((it["path"], os.path.join(bank, f"_{n}.wav")))
-        except Exception as e:
-            messagebox.showerror("Destinazione non scrivibile",
-                                 f"Impossibile preparare le cartelle:\n{e}")
-            return
-        self._last_out = base
-
+        # warn on overwrite
+        existing = [d for _s, d in jobs if os.path.exists(d)]
+        if existing:
+            if not messagebox.askyesno("Sovrascrivo?",
+                                       f"{len(existing)} file esistenti verranno sovrascritti.\nProcedo?"):
+                return
         if self.delete_var.get():
-            if not messagebox.askyesno("Confermi?",
-                                       "Eliminerò gli ORIGINALI dopo la conversione.\nProcedo?"):
+            if not messagebox.askyesno("Confermi?", "Eliminerò gli ORIGINALI dopo la conversione.\nProcedo?"):
                 return
         delete = self.delete_var.get()
-
+        self._last_out = os.path.dirname(jobs[0][1])
         self.convert_btn.configure(state="disabled")
         self.pbar.configure(maximum=len(jobs), value=0)
-        self._log(f"--- conversione di {len(jobs)} file in: {self._last_out} ---", ACCENT2)
+        self._log(f"--- conversione di {len(jobs)} file → {info} ---", ACCENT2)
         self.worker = threading.Thread(target=self._worker, args=(jobs, delete), daemon=True)
         self.worker.start()
         self.after(80, self._poll)
@@ -1028,7 +1173,10 @@ class WavMakerApp(ttk.Frame):
             try:
                 convert_file(src, dst)
                 if delete and os.path.abspath(src) != os.path.abspath(dst):
-                    os.remove(src)
+                    try:
+                        os.remove(src)
+                    except OSError:
+                        pass
                 self.q.put(("ok", f"  ✓ {name}  →  {os.path.basename(dst)}"))
                 done += 1
             except Exception as e:
@@ -1050,8 +1198,7 @@ class WavMakerApp(ttk.Frame):
                     self.status.configure(text=f"Fatto: {payload}/{len(self.items)}")
                     self._log(f"--- completato: {payload} file convertiti ---", ACCENT2)
                     self.convert_btn.configure(state="normal")
-                    messagebox.showinfo("Completato",
-                                        f"{payload} file convertiti in:\n{self._last_out}")
+                    messagebox.showinfo("Completato", f"{payload} file convertiti in:\n{self._last_out}")
                     return
         except queue.Empty:
             pass
@@ -1061,9 +1208,8 @@ class WavMakerApp(ttk.Frame):
 
 def main():
     root = tk.Tk()
-    root.geometry("800x760")
+    root.geometry("820x800")
     app = WavMakerApp(root)
-    # smoke-test hook: build the window then close immediately
     if "--selftest" in sys.argv:
         root.after(300, root.destroy)
     root.mainloop()

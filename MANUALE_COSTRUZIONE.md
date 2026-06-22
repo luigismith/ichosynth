@@ -320,54 +320,58 @@ scheda, scegli il `.hex`, premi flash. Nessun Arduino IDE richiesto.
 
 ## 9 · Preparare la micro SD (campioni)
 
-Il firmware cerca i campioni sulla SD con questa **struttura precisa**:
+Il firmware legge i campioni dalla SD con **due** sistemi:
 
 <p align="center">
-  <img src="assets/sd-structure.svg" alt="Struttura SD: samples/<cartella>/_<numero>.wav, sample-pack 1..99, song .txt e autosaved.txt" width="620">
+  <img src="assets/sd-structure.svg" alt="Struttura SD: samplepack <pack>/1-8.wav e libreria browser samples/<categoria>/<nome>.wav" width="620">
 </p>
 
-```
-/samples/<cartella>/_<numero>.wav      con  <numero> = cartella*100 + indice
-```
-
-Esempi reali (vedi cartella `_SDCARD/` del progetto):
+**1 · Samplepack** — una cartella numerata `0`..`99` sulla **radice**, ognuna con esattamente
+**8 voci** `1.wav`..`8.wav` (una per canale campione). Il firmware carica un intero pack
+all'avvio e quando ne scegli uno dal menu.
 
 ```
-/samples/0/_1.wav      (cartella 0, campione 1)
-/samples/0/_99.wav
-/samples/1/_100.wav    (cartella 1, campione 0)
-/samples/2/_200.wav    (cartella 2, campione 0)
+/0/1.wav .. /0/8.wav     (pack 0 = kit di fabbrica)
+/1/1.wav .. /1/8.wav     (pack 1)
+/2/1.wav .. /2/8.wav     …
 ```
 
-**Regole:**
-- Crea sulla **radice** della SD una cartella `samples`, e dentro le cartelle numerate `0`, `1`, `2`, … (fino a 9).
-- I file devono chiamarsi `_<numero>.wav` con la numerazione qui sopra.
-- ⚠️ **Formato audio richiesto: WAV mono, 16 bit, 44100 Hz.**
+**2 · Libreria browser** — file WAV liberi in `samples/<categoria>/<nome>.wav`, da sfogliare
+voce per voce in **SET_WAV** (fino a 999 file, nomi qualsiasi).
+
+```
+/samples/kick/...   /samples/snare/...   /samples/hat/...   /samples/perc/...
+```
+
+> ⚠️ **Formato richiesto (entrambi i sistemi): WAV mono, 16 bit, 44100 Hz.** La vecchia
+> convenzione NI404 (`samples/0/_1.wav`, `_<n>.wav`) **non** viene letta dal firmware TŒRN.
+
+La cartella `_SDCARD/` del progetto contiene già un set pronto (6 pack + libreria browser):
+basta copiarne il contenuto sulla radice della scheda. Vedi `_SDCARD/README.md`.
 
 ### Convertire i tuoi campioni
-Nella cartella `_SDCARD/` trovi gli strumenti che convertono qualsiasi WAV nel formato giusto e lo
-rinominano `_N.wav`.
+In `_SDCARD/` trovi gli strumenti che convertono qualsiasi WAV nel formato giusto e lo collocano.
 
 **🪟 `wavmaker.exe` — interfaccia grafica (Windows, nessun Python richiesto), consigliato**
 
 Doppio click: si apre una finestra. Poi:
-1. **Aggiungi file** (o **Aggiungi cartella**) con i tuoi WAV — la lista mostra il **formato attuale**
-   di ognuno e il **nome di destinazione** (`_1.wav`, `_2.wav`, …). Le righe **verdi** sono già nel
-   formato giusto.
-2. Imposta il **Numero di partenza** (es. `1` per `samples/0`, `100` per `samples/1`, …): la finestra
-   ti ricorda in quale cartella SD finiranno.
-3. Scegli la **Cartella di destinazione** (di default una nuova cartella `wav_convertiti`: gli
-   **originali NON vengono toccati**).
-4. Premi **Converti**. Barra di avanzamento + log, poi sposti i `_N.wav` in `samples/<n>/` sulla SD.
+1. Scegli una **modalità** in alto:
+   - **Samplepack (8 voci)** — i file diventano `<pack>/1.wav … 8.wav`.
+   - **Libreria browser** — i file vanno in `samples/<categoria>/<nome>.wav` (nomi mantenuti).
+2. **Aggiungi file** (o **Aggiungi cartella**) — la lista mostra il **formato attuale** e la
+   **destinazione** di ogni file. Le righe **verdi** sono già mono/16-bit/44100. In modalità
+   samplepack usa i pulsanti **↑ ↓** per decidere quale file è quale voce.
+3. **Scansiona** la SD (rileva i pack presenti e il prossimo pack libero), oppure spunta
+   *"Scrivi in una cartella locale"* per preparare la scheda offline.
+4. Scegli il **numero del pack** (o la **categoria**) e premi **Converti**.
 
-> ✅ La GUI è **non distruttiva**: scrive i convertiti in una cartella separata. Solo se spunti
-> *"Elimina gli originali"* (con conferma) cancella i file di partenza.
+> ✅ Non distruttiva di default — gli originali restano, a meno che tu spunti *"Elimina gli originali"*.
 
-**🐍 Versioni Python** (Windows/macOS/Linux, serve Python): `python wavmaker_gui.py` (stessa GUI) oppure
-`python wavmaker.py` (versione da riga di comando). Su Python 3.13+ serve `pip install audioop-lts`.
+**🐍 Versioni Python** (Windows/macOS/Linux): `python wavmaker_gui.py` (stessa GUI) oppure
+`python wavmaker.py` (riga di comando). Non serve `audioop`/ffmpeg — il convertitore è incluso,
+quindi funziona anche su Python 3.13/3.14.
 
-> 📁 **Sample pack** (vedi manuale d'uso): cartelle numerate `1`..`99` sulla radice, ognuna con dentro
-> `1.wav`..`12.wav`. Le crea/usa direttamente ichosynth dal menu, non devi prepararle a mano.
+> 🧱 Per rigenerare l'intero set di fabbrica da fonti public-domain: `python _SDCARD/build_samples.py`.
 
 ---
 
