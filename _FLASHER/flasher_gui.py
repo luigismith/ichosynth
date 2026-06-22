@@ -516,7 +516,7 @@ class FlasherApp(ttk.Frame):
                         cursor="hand2", font=("Segoe UI", 9, "underline"))
         link.pack(anchor="w")
         link.bind("<Button-1>", lambda e: webbrowser.open(REPO_URL))
-        ttk.Label(frm, text="Parte del progetto ichosynth · fork di NI404 (SP_) · licenza MIT",
+        ttk.Label(frm, text="Parte del progetto ichosynth · un TŒRN (SP_) su hardware DIY · licenza MIT",
                   style="Sub.TLabel").pack(anchor="w", pady=(12, 16))
         ttk.Button(frm, text="Chiudi", command=win.destroy).pack(anchor="e")
         win.update_idletasks()

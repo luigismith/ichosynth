@@ -1,39 +1,44 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 916 170" width="916" height="170" role="img">
-<rect x="0" y="0" width="916" height="999" rx="0" ry="0" fill="#0d1117"/>
-<text x="28" y="40" font-family="'Segoe UI',Helvetica,Arial,sans-serif" font-size="22" fill="#e6edf3" text-anchor="start" font-weight="700">Montaggio: i 6 passi</text>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 996 170" width="996" height="170" role="img">
+<rect x="0" y="0" width="996" height="999" rx="0" ry="0" fill="#0d1117"/>
+<text x="28" y="40" font-family="'Segoe UI',Helvetica,Arial,sans-serif" font-size="22" fill="#e6edf3" text-anchor="start" font-weight="700">Montaggio: i passi</text>
 <text x="28" y="64" font-family="'Segoe UI',Helvetica,Arial,sans-serif" font-size="13.5" fill="#9aa4b2" text-anchor="start" font-weight="400">Dal Teensy nudo al dispositivo pronto per il firmware.</text>
-<line x1="28" y1="78" x2="888" y2="78" stroke="#30363d" stroke-width="1" stroke-linecap="round"/>
-<rect x="28" y="92" width="104" height="56" rx="9" ry="9" fill="#161b22" stroke="#1f6feb" stroke-width="2"/>
-<text x="80.0" y="118.0" font-family="'Segoe UI',Helvetica,Arial,sans-serif" font-size="12.5" fill="#e6edf3" text-anchor="middle" font-weight="700">1 · Teensy</text>
-<text x="80.0" y="135.0" font-family="'Segoe UI',Helvetica,Arial,sans-serif" font-size="10.5" fill="#9aa4b2" text-anchor="middle" font-weight="400">PSRAM + header</text>
-<line x1="132" y1="120.0" x2="145.0" y2="120.0" stroke="#8a8f98" stroke-width="2" stroke-linecap="round"/>
-<polygon points="154.0,120.0 145.3,125.0 145.3,115.0" fill="#8a8f98"/>
-<rect x="154" y="92" width="104" height="56" rx="9" ry="9" fill="#161b22" stroke="#2AD4B8" stroke-width="2"/>
-<text x="206.0" y="118.0" font-family="'Segoe UI',Helvetica,Arial,sans-serif" font-size="12.5" fill="#e6edf3" text-anchor="middle" font-weight="700">2 · Audio</text>
-<text x="206.0" y="135.0" font-family="'Segoe UI',Helvetica,Arial,sans-serif" font-size="10.5" fill="#9aa4b2" text-anchor="middle" font-weight="400">scheda audio</text>
-<line x1="258" y1="120.0" x2="271.0" y2="120.0" stroke="#8a8f98" stroke-width="2" stroke-linecap="round"/>
-<polygon points="280.0,120.0 271.3,125.0 271.3,115.0" fill="#8a8f98"/>
-<rect x="280" y="92" width="104" height="56" rx="9" ry="9" fill="#161b22" stroke="#E83A3A" stroke-width="2"/>
-<text x="332.0" y="118.0" font-family="'Segoe UI',Helvetica,Arial,sans-serif" font-size="12.5" fill="#e6edf3" text-anchor="middle" font-weight="700">3 · Matrice</text>
-<text x="332.0" y="135.0" font-family="'Segoe UI',Helvetica,Arial,sans-serif" font-size="10.5" fill="#9aa4b2" text-anchor="middle" font-weight="400">LED 16×16</text>
-<line x1="384" y1="120.0" x2="397.0" y2="120.0" stroke="#8a8f98" stroke-width="2" stroke-linecap="round"/>
-<polygon points="406.0,120.0 397.3,125.0 397.3,115.0" fill="#8a8f98"/>
-<rect x="406" y="92" width="104" height="56" rx="9" ry="9" fill="#161b22" stroke="#E8D23A" stroke-width="2"/>
-<text x="458.0" y="118.0" font-family="'Segoe UI',Helvetica,Arial,sans-serif" font-size="12.5" fill="#e6edf3" text-anchor="middle" font-weight="700">4 · Encoder</text>
-<text x="458.0" y="135.0" font-family="'Segoe UI',Helvetica,Arial,sans-serif" font-size="10.5" fill="#9aa4b2" text-anchor="middle" font-weight="400">×3</text>
-<line x1="510" y1="120.0" x2="523.0" y2="120.0" stroke="#8a8f98" stroke-width="2" stroke-linecap="round"/>
-<polygon points="532.0,120.0 523.3,125.0 523.3,115.0" fill="#8a8f98"/>
-<rect x="532" y="92" width="104" height="56" rx="9" ry="9" fill="#161b22" stroke="#2ea44f" stroke-width="2" stroke-dasharray="6 4"/>
-<text x="584.0" y="118.0" font-family="'Segoe UI',Helvetica,Arial,sans-serif" font-size="12.5" fill="#e6edf3" text-anchor="middle" font-weight="700">5 · OLED</text>
-<text x="584.0" y="135.0" font-family="'Segoe UI',Helvetica,Arial,sans-serif" font-size="10.5" fill="#9aa4b2" text-anchor="middle" font-weight="400">fork (opz.)</text>
-<line x1="636" y1="120.0" x2="649.0" y2="120.0" stroke="#8a8f98" stroke-width="2" stroke-linecap="round"/>
-<polygon points="658.0,120.0 649.3,125.0 649.3,115.0" fill="#8a8f98"/>
-<rect x="658" y="92" width="104" height="56" rx="9" ry="9" fill="#161b22" stroke="#FF7A1A" stroke-width="2"/>
-<text x="710.0" y="118.0" font-family="'Segoe UI',Helvetica,Arial,sans-serif" font-size="12.5" fill="#e6edf3" text-anchor="middle" font-weight="700">6 · Check</text>
-<text x="710.0" y="135.0" font-family="'Segoe UI',Helvetica,Arial,sans-serif" font-size="10.5" fill="#9aa4b2" text-anchor="middle" font-weight="400">multimetro</text>
-<line x1="762" y1="120.0" x2="775.0" y2="120.0" stroke="#8a8f98" stroke-width="2" stroke-linecap="round"/>
-<polygon points="784.0,120.0 775.3,125.0 775.3,115.0" fill="#8a8f98"/>
-<rect x="784" y="92" width="104" height="56" rx="9" ry="9" fill="#161b22" stroke="#2ea44f" stroke-width="2"/>
-<text x="836.0" y="118.0" font-family="'Segoe UI',Helvetica,Arial,sans-serif" font-size="12.5" fill="#e6edf3" text-anchor="middle" font-weight="700">✅ Pronto</text>
-<text x="836.0" y="135.0" font-family="'Segoe UI',Helvetica,Arial,sans-serif" font-size="10.5" fill="#9aa4b2" text-anchor="middle" font-weight="400">firmware</text>
+<line x1="28" y1="78" x2="968" y2="78" stroke="#30363d" stroke-width="1" stroke-linecap="round"/>
+<rect x="28" y="92" width="100" height="56" rx="9" ry="9" fill="#161b22" stroke="#1f6feb" stroke-width="2"/>
+<text x="78.0" y="118.0" font-family="'Segoe UI',Helvetica,Arial,sans-serif" font-size="12.5" fill="#e6edf3" text-anchor="middle" font-weight="700">1 · Teensy</text>
+<text x="78.0" y="135.0" font-family="'Segoe UI',Helvetica,Arial,sans-serif" font-size="10.5" fill="#9aa4b2" text-anchor="middle" font-weight="400">PSRAM + header</text>
+<line x1="128" y1="120.0" x2="139.0" y2="120.0" stroke="#8a8f98" stroke-width="2" stroke-linecap="round"/>
+<polygon points="148.0,120.0 139.3,125.0 139.3,115.0" fill="#8a8f98"/>
+<rect x="148" y="92" width="100" height="56" rx="9" ry="9" fill="#161b22" stroke="#2AD4B8" stroke-width="2"/>
+<text x="198.0" y="118.0" font-family="'Segoe UI',Helvetica,Arial,sans-serif" font-size="12.5" fill="#e6edf3" text-anchor="middle" font-weight="700">2 · Audio</text>
+<text x="198.0" y="135.0" font-family="'Segoe UI',Helvetica,Arial,sans-serif" font-size="10.5" fill="#9aa4b2" text-anchor="middle" font-weight="400">scheda audio</text>
+<line x1="248" y1="120.0" x2="259.0" y2="120.0" stroke="#8a8f98" stroke-width="2" stroke-linecap="round"/>
+<polygon points="268.0,120.0 259.3,125.0 259.3,115.0" fill="#8a8f98"/>
+<rect x="268" y="92" width="100" height="56" rx="9" ry="9" fill="#161b22" stroke="#E83A3A" stroke-width="2"/>
+<text x="318.0" y="118.0" font-family="'Segoe UI',Helvetica,Arial,sans-serif" font-size="12.5" fill="#e6edf3" text-anchor="middle" font-weight="700">3 · Matrice</text>
+<text x="318.0" y="135.0" font-family="'Segoe UI',Helvetica,Arial,sans-serif" font-size="10.5" fill="#9aa4b2" text-anchor="middle" font-weight="400">LED 16×16</text>
+<line x1="368" y1="120.0" x2="379.0" y2="120.0" stroke="#8a8f98" stroke-width="2" stroke-linecap="round"/>
+<polygon points="388.0,120.0 379.3,125.0 379.3,115.0" fill="#8a8f98"/>
+<rect x="388" y="92" width="100" height="56" rx="9" ry="9" fill="#161b22" stroke="#E8D23A" stroke-width="2"/>
+<text x="438.0" y="118.0" font-family="'Segoe UI',Helvetica,Arial,sans-serif" font-size="12.5" fill="#e6edf3" text-anchor="middle" font-weight="700">4 · Encoder</text>
+<text x="438.0" y="135.0" font-family="'Segoe UI',Helvetica,Arial,sans-serif" font-size="10.5" fill="#9aa4b2" text-anchor="middle" font-weight="400">×4</text>
+<line x1="488" y1="120.0" x2="499.0" y2="120.0" stroke="#8a8f98" stroke-width="2" stroke-linecap="round"/>
+<polygon points="508.0,120.0 499.3,125.0 499.3,115.0" fill="#8a8f98"/>
+<rect x="508" y="92" width="100" height="56" rx="9" ry="9" fill="#161b22" stroke="#FF8A1A" stroke-width="2"/>
+<text x="558.0" y="118.0" font-family="'Segoe UI',Helvetica,Arial,sans-serif" font-size="12.5" fill="#e6edf3" text-anchor="middle" font-weight="700">5 · Pulsanti</text>
+<text x="558.0" y="135.0" font-family="'Segoe UI',Helvetica,Arial,sans-serif" font-size="10.5" fill="#9aa4b2" text-anchor="middle" font-weight="400">×3</text>
+<line x1="608" y1="120.0" x2="619.0" y2="120.0" stroke="#8a8f98" stroke-width="2" stroke-linecap="round"/>
+<polygon points="628.0,120.0 619.3,125.0 619.3,115.0" fill="#8a8f98"/>
+<rect x="628" y="92" width="100" height="56" rx="9" ry="9" fill="#161b22" stroke="#2ea44f" stroke-width="2"/>
+<text x="678.0" y="118.0" font-family="'Segoe UI',Helvetica,Arial,sans-serif" font-size="12.5" fill="#e6edf3" text-anchor="middle" font-weight="700">6 · OLED</text>
+<text x="678.0" y="135.0" font-family="'Segoe UI',Helvetica,Arial,sans-serif" font-size="10.5" fill="#9aa4b2" text-anchor="middle" font-weight="400">I²C</text>
+<line x1="728" y1="120.0" x2="739.0" y2="120.0" stroke="#8a8f98" stroke-width="2" stroke-linecap="round"/>
+<polygon points="748.0,120.0 739.3,125.0 739.3,115.0" fill="#8a8f98"/>
+<rect x="748" y="92" width="100" height="56" rx="9" ry="9" fill="#161b22" stroke="#9A57E8" stroke-width="2"/>
+<text x="798.0" y="118.0" font-family="'Segoe UI',Helvetica,Arial,sans-serif" font-size="12.5" fill="#e6edf3" text-anchor="middle" font-weight="700">7 · Check</text>
+<text x="798.0" y="135.0" font-family="'Segoe UI',Helvetica,Arial,sans-serif" font-size="10.5" fill="#9aa4b2" text-anchor="middle" font-weight="400">multimetro</text>
+<line x1="848" y1="120.0" x2="859.0" y2="120.0" stroke="#8a8f98" stroke-width="2" stroke-linecap="round"/>
+<polygon points="868.0,120.0 859.3,125.0 859.3,115.0" fill="#8a8f98"/>
+<rect x="868" y="92" width="100" height="56" rx="9" ry="9" fill="#161b22" stroke="#2ea44f" stroke-width="2"/>
+<text x="918.0" y="118.0" font-family="'Segoe UI',Helvetica,Arial,sans-serif" font-size="12.5" fill="#e6edf3" text-anchor="middle" font-weight="700">✅ Pronto</text>
+<text x="918.0" y="135.0" font-family="'Segoe UI',Helvetica,Arial,sans-serif" font-size="10.5" fill="#9aa4b2" text-anchor="middle" font-weight="400">firmware</text>
 </svg>

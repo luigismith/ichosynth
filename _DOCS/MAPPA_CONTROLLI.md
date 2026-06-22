@@ -18,15 +18,17 @@
 | E2 | encoder 1 (0x41) | toern.ino:1049 |
 | E3 | encoder 2 (0x20) | toern.ino:1050 |
 | E4 (destra) | encoder 3 (0x61) | toern.ino:1051 |
-| B1 | SWITCH_1 (pin **24** nel port) | toern.ino:159 |
-| B2 | SWITCH_2 (pin **25** nel port) | toern.ino:160 |
-| B3 | SWITCH_3 (pin **26** nel port) | toern.ino:161 |
+| B1 | SWITCH_1 (pin **25** nel port) | toern.ino:159 |
+| B2 | SWITCH_2 (pin **26** nel port) | toern.ino:160 |
+| B3 | SWITCH_3 (pin **28** nel port) | toern.ino:161 |
 
 > **Port (firmware reale sul nostro hardware):** i SWITCH_1/2/3 originali (pin 2/3/4)
-> collidono con l'encoder E4 (CLK=4, DT=2, SW=3), quindi `teensy/build_toern.py` li
-> rimappa a **24/25/26** (i 3 tact switch). Il cablaggio è **attivo-basso**: un lato
-> al pin, l'altro a **GND** (`FastTouch.h` usa `INPUT_PULLUP`). Il percorso TTP223 su
-> pin 5/22 è disattivo (`exttouch=false`), quindi non tocca E1. Vedi `teensy/README.md`.
+> collidono con i pin che TŒRN usa internamente, quindi `teensy/build_toern.py` li
+> rimappa a **25/26/28** (i 3 tact switch). Anche gli encoder evitano i pin riservati
+> di TŒRN: **E4 = 37/38/39** (non i 4/2/3 di default). Il cablaggio dei pulsanti è
+> **attivo-basso**: un lato al pin, l'altro a **GND** (`FastTouch.h` usa `INPUT_PULLUP`).
+> Il percorso TTP223 su pin 5/22 è disattivo (`exttouch=false`), quindi non tocca E1.
+> Mappa pin completa e definitiva in `teensy/README.md`.
 
 ## 2. Vocabolario dei gesti (cosa serve davvero)
 
@@ -113,9 +115,15 @@ centro = premi) e i pulsanti B1/B2/B3 (+ FILT per il build NI404). Serve a confe
 le voci **[conferma]** e a provare la navigabilità reale prima di toccare l'hardware.
 Tasti equivalenti: Q/A W/S E/D R/F = ruota, Z X C V = premi, 1 2 3 = B1/B2/B3.
 
-## 8. Stato implementazione in ichosynth (2026-06-16)
+## 8. Firmware di fallback NI404 (riferimento storico)
 
-Già nel firmware ichosynth (`config.h` + `soundpauli_ni404.ino`):
+> ⚠️ **Questa sezione NON descrive il prodotto.** Il prodotto è il firmware reale di
+> TŒRN (sezioni 1-7, build con `teensy/build_toern.py`). Qui sotto è documentato il
+> vecchio firmware-banco basato su NI404 (`config.h` + `soundpauli_ni404.ino`), tenuto
+> solo come fallback/riferimento. **I suoi pin sono diversi** da quelli del port (vedi
+> §1 e `teensy/README.md`): qui valgono i pin del fork, non quelli definitivi.
+
+Nel firmware NI404 di fallback (`config.h` + `soundpauli_ni404.ino`):
 - **4 encoder** (`HAS_ENCODER4 1`): 4° encoder su pin **32/33** (CLK/DT), pulsante **41**.
 - **Filtro alla TŒRN ("fast filter")**: in DRAW/SINGLE la **rotazione del 4° encoder**
   regola il cutoff lowpass della voce sotto il cursore — niente pulsante dedicato; la

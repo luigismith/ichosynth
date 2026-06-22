@@ -18,8 +18,9 @@ Two things this script takes care of that a naive `arduino-cli compile` does not
      -O1 builds cleanly and the result still fits with room to spare.
 
   2. SWITCH_1/2/3 pin remap.  TŒRN's touch switches default to pins 2/3/4, which
-     collide with our right-hand KY-040 (CLK=4, DT=2, SW=3).  We remap them to the
-     three tact-switch pins 24/25/26 (matching ICHOS_BTN_PINS in FastTouch.h).
+     clash with TŒRN's own hard-coded use of those pins; we remap them to the three
+     tact-switch pins 25/26/28 (matching ICHOS_BTN_PINS in FastTouch.h). The encoders
+     likewise avoid TŒRN's reserved GPIO (E4 = 37/38/39, not the default 4/2/3).
 
 Usage:
     python teensy/build_toern.py            # build -> teensy/firmware/toern.hex

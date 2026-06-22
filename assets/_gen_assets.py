@@ -168,29 +168,27 @@ def gen_grid():
 # 2) ENCODERS
 # =========================================================================
 def gen_encoders():
-    W, H = 760, 420
-    o = header(W, "Le 3 manopole (encoder): gira e premi",
-               "Versione a 3 encoder. Ogni manopola si gira (cursore/valori) e si preme (azioni).")
+    W, H = 760, 470
+    o = header(W, "I comandi: 4 encoder + 3 pulsanti",
+               "4 manopole (gira e premi) + 3 tact switch. Lo stato si legge sull'OLED.")
 
     knobs = [
-        ("SX", "SINISTRA", "cursore ↑↓ · Volume", "#3A6BE8",
-         ["click → cancella nota", "hold → cancella continuo", "2× click → Single"]),
-        ("C", "CENTRALE", "pagina · BPM", "#36C24A",
-         ["push → disegna · hold → paint", "2× click → Play / Pausa", "click → indietro/Vol·BPM"]),
-        ("DX", "DESTRA", "cursore ←→", "#E83AA6",
-         ["click → mute voce", "hold → mute tutto", "2× click → velocity"]),
+        ("E1", "SINISTRA", "Y / canale", "#3A6BE8"),
+        ("E2", "CENTRO-SX", "pagina / nota", "#36C24A"),
+        ("E3", "CENTRO-DX", "filtro / valore", "#E8D23A"),
+        ("E4", "DESTRA", "X / colonna", "#E83AA6"),
     ]
     n = len(knobs)
     colw = (W - 56) / n
-    cy = 172
-    r = 46
-    for i, (tag, name, turn, col, gestures) in enumerate(knobs):
+    cy = 168
+    r = 44
+    for i, (tag, name, turn, col) in enumerate(knobs):
         cx = 28 + colw * i + colw / 2
         # rotation arc + arrows
-        o.append(f'<path d="M {cx-62} {cy-6} A 62 62 0 0 1 {cx+62} {cy-6}" fill="none" stroke="{SUB}" stroke-width="1.5" opacity="0.7"/>')
-        o.append(f'<polygon points="{cx+62},{cy-6} {cx+55},{cy-12} {cx+56},{cy-2}" fill="{SUB}"/>')
-        o.append(f'<polygon points="{cx-62},{cy-6} {cx-56},{cy-12} {cx-55},{cy-2}" fill="{SUB}"/>')
-        o.append(text(cx, cy - 70, "gira", size=11.5, fill=SUB, anchor="middle"))
+        o.append(f'<path d="M {cx-60} {cy-6} A 60 60 0 0 1 {cx+60} {cy-6}" fill="none" stroke="{SUB}" stroke-width="1.5" opacity="0.7"/>')
+        o.append(f'<polygon points="{cx+60},{cy-6} {cx+53},{cy-12} {cx+54},{cy-2}" fill="{SUB}"/>')
+        o.append(f'<polygon points="{cx-60},{cy-6} {cx-54},{cy-12} {cx-53},{cy-2}" fill="{SUB}"/>')
+        o.append(text(cx, cy - 66, "gira + premi", size=11, fill=SUB, anchor="middle"))
         # knob body
         o.append(circle(cx, cy, r + 6, PANEL, LINE, 1.5))
         o.append(circle(cx, cy, r, "#222a35", col, 2.5))
@@ -200,16 +198,29 @@ def gen_encoders():
         # push center
         o.append(circle(cx, cy, 10, col, opacity=0.25))
         o.append(circle(cx, cy, 5, col))
-        o.append(text(cx, cy + 4, "", size=10))
         # labels
-        o.append(text(cx, cy + r + 26, name, size=13.5, fill=INK, anchor="middle", weight="700"))
-        o.append(text(cx, cy + r + 44, turn, size=11.5, fill=SUB, anchor="middle"))
-        # gesture chips
-        gy = cy + r + 60
-        for j, g in enumerate(gestures):
-            yy = gy + j * 26
-            o.append(rrect(cx - colw / 2 + 18, yy, colw - 36, 21, 6, "#1b2230", LINE, 1))
-            o.append(text(cx, yy + 15, g, size=11, fill=INK, anchor="middle"))
+        o.append(text(cx, cy + r + 24, tag + " · " + name, size=12.5, fill=INK, anchor="middle", weight="700"))
+        o.append(text(cx, cy + r + 42, turn, size=11, fill=SUB, anchor="middle"))
+
+    # 3 buttons row
+    btns = [("B1", "PLAY", "play · SINGLE", "#36C24A"),
+            ("B2", "MENU", "menu · tieni = FX", "#E8D23A"),
+            ("B3", "REC", "rec · tieni = count-in", "#E83A3A")]
+    by = cy + r + 64
+    bw = 200
+    bgap = (W - 56 - 3 * bw) / 2
+    for i, (tag, name, act, col) in enumerate(btns):
+        bx = 28 + i * (bw + bgap)
+        o.append(rrect(bx, by, bw, 40, 9, PANEL, col, 2))
+        o.append(text(bx + 16, by + 25, tag + " · " + name, size=13, fill=INK, weight="700"))
+        o.append(text(bx + bw - 12, by + 25, act, size=10.5, fill=SUB, anchor="end"))
+
+    # OLED note
+    oy = by + 56
+    o.append(rrect(28, oy, W - 56, 34, 8, "#10212e", GREEN, 1.5))
+    o.append(text(W / 2, oy + 21,
+                  "OLED: canale · modo · trasporto (PLAY/REC/STOP) · BPM · volume · pagina",
+                  size=11.5, fill=INK, anchor="middle"))
     write("encoders.svg", svg(W, H, o))
 
 
@@ -239,17 +250,18 @@ def gen_voices():
 # 4) WIRING MAP
 # =========================================================================
 def gen_wiring():
-    W, H = 860, 660
+    W, H = 900, 700
     o = header(W, "Mappa di cablaggio (tutti i pin del Teensy)",
-               "I numeri sono pin Teensy 4.1, come in config.h. GND sempre in comune.")
+               "I numeri sono pin GPIO del Teensy 4.1. GND sempre in comune.")
 
     # Teensy center
-    tx, ty, tw, th = 330, 250, 200, 210
+    tx, ty, tw, th = 350, 270, 200, 210
     o.append(rrect(tx, ty, tw, th, 14, "#10212e", "#1f6feb", 2))
     o.append(text(tx + tw / 2, ty + 28, "Teensy 4.1", size=17, fill=INK, anchor="middle", weight="700"))
     o.append(text(tx + tw / 2, ty + 48, "+ 16 MB PSRAM", size=11.5, fill=SUB, anchor="middle"))
     o.append(rrect(tx + 30, ty + 64, tw - 60, 26, 6, "#0d1117", "#1f6feb", 1))
     o.append(text(tx + tw / 2, ty + 81, "Audio Shield (impilata)", size=11, fill=INK, anchor="middle"))
+    o.append(text(tx + tw / 2, ty + 150, "ichosynth · firmware TŒRN", size=10.5, fill=SUB, anchor="middle"))
 
     def node(x, y, w, h, title, sub, accent, dash=None):
         o.append(rrect(x, y, w, h, 10, PANEL, accent, 2, dash=dash))
@@ -267,37 +279,44 @@ def gen_wiring():
             o.append(text(mx, my + 2, label, size=10.5, fill=INK, anchor="middle", family=MONO))
 
     # LED matrix (top)
-    node(345, 100, 170, 64, "Matrice LED 16×16", "WS2812B · 256 LED", "#E83A3A")
-    conn(430, 164, 420, 250, DATA, "DIN 17", 470, 205)
-    conn(400, 164, 360, 250, RED, "5V", 360, 205)
+    node(365, 110, 170, 64, "Matrice LED 16×16", "WS2812B · 256 LED", "#E83A3A")
+    conn(450, 174, 440, 270, DATA, "DIN 17", 490, 218)
+    conn(420, 174, 380, 270, RED, "5V", 378, 218)
 
-    # Encoders (left) — 3-encoder build
+    # Encoders + buttons (left) — 4 encoders, collision-free pins
     encs = [
-        ("SINISTRO", "5 / 22 / 15", "#3A6BE8", 112),
-        ("CENTRALE", "9 / 14 / 16", "#36C24A", 232),
-        ("DESTRO", "4 / 2 / 3", "#E83AA6", 352),
+        ("E1 SINISTRO", "5 / 22 / 15", "#3A6BE8", 100),
+        ("E2 CENTRALE", "32 / 33 / 41", "#36C24A", 188),
+        ("E3 CENTRALE", "9 / 14 / 16", "#E8D23A", 276),
+        ("E4 DESTRO", "37 / 38 / 39", "#E83AA6", 364),
     ]
     for name, pins, col, y in encs:
-        node(40, y, 200, 68, "Encoder " + name, "CLK / DT / SW", col)
-        o.append(text(140, y + 58, pins, size=12, fill=INK, anchor="middle", family=MONO))
-        conn(240, y + 34, tx, min(max(y + 34, ty + 20), ty + th - 20), col, None)
-    o.append(text(287, 240, "CLK·DT·SW + 3V3 + GND", size=10.5, fill=SUB, anchor="middle"))
+        node(40, y, 210, 64, name, "CLK / DT / SW", col)
+        o.append(text(145, y + 56, pins, size=12, fill=INK, anchor="middle", family=MONO))
+        conn(250, y + 32, tx, min(max(y + 32, ty + 20), ty + th - 20), col, None)
+    o.append(text(297, 258, "CLK·DT·SW + 3V3 + GND", size=10.5, fill=SUB, anchor="middle"))
+
+    # 3 buttons node (bottom-left)
+    node(40, 470, 210, 78, "3 pulsanti (tact switch)", "B1 PLAY · B2 MENU · B3 REC", "#FF8A1A")
+    o.append(text(145, 528, "25 / 26 / 28", size=12, fill=INK, anchor="middle", family=MONO))
+    o.append(text(145, 542, "un piedino al pin, l'altro a GND", size=9.5, fill=SUB, anchor="middle"))
+    conn(250, 500, tx, ty + th - 16, "#FFB454", None)
 
     # Audio shield power note (right top)
-    node(620, 250, 200, 70, "Teensy Audio Shield", "SGTL5000 · jack 3.5mm", "#2AD4B8")
-    conn(620, 285, tx + tw, 300, GREY, "I2S+I2C", 590, 270)
-    o.append(text(720, 305, "7·8·18·19·20·21·23", size=10.5, fill=SUB, anchor="middle", family=MONO))
+    node(650, 270, 200, 70, "Teensy Audio Shield", "SGTL5000 · jack 3.5mm", "#2AD4B8")
+    conn(650, 305, tx + tw, 320, GREY, "I2S+I2C", 610, 290)
+    o.append(text(750, 325, "7·8·18·19·20·21·23", size=10.5, fill=SUB, anchor="middle", family=MONO))
 
-    # OLED (fork) right bottom, dashed green
-    node(620, 380, 200, 78, "OLED SSD1306", "0x3C · 128×64", GREEN, dash="6 4")
-    o.append(rrect(792, 386, 22, 16, 4, GREEN))
-    o.append(text(803, 398, "fork", size=10, fill="#0d1117", anchor="middle", weight="700"))
-    conn(620, 410, tx + tw, 360, DATA2, "SDA 18", 588, 392)
-    conn(620, 428, tx + tw, 380, DATA2, "SCL 19", 590, 430)
+    # OLED right bottom — now standard, solid green
+    node(650, 400, 200, 70, "OLED SSD1306", "0x3C · 128×64 · 3V3", GREEN)
+    o.append(text(750, 455, "condivide I²C col codec", size=9.5, fill=SUB, anchor="middle"))
+    conn(650, 425, tx + tw, 380, DATA2, "SDA 18", 618, 408)
+    conn(650, 443, tx + tw, 400, DATA2, "SCL 19", 620, 446)
 
     # legend
     ly = H - 40
-    items = [("5V", RED), ("3V3", ORANGE), ("GND", GREY), ("dati", DATA), ("I2C/OLED", DATA2)]
+    items = [("5V", RED), ("3V3", ORANGE), ("GND", GREY), ("dati", DATA),
+             ("I2C/OLED", DATA2), ("pulsanti", "#FFB454")]
     lx = 40
     o.append(text(lx, ly - 16, "Legenda cavi:", size=12, fill=SUB, weight="600"))
     for lab, col in items:
@@ -396,7 +415,7 @@ def _arrow(x1, y1, x2, y2, color=GREY, label=None):
 def gen_midi():
     W, H = 560, 360
     o = header(W, "MIDI clock: master o slave?",
-               "ichosynth genera il proprio clock solo se non ne riceve uno esterno.")
+               "ichosynth fa da master, oppure segue un clock MIDI esterno se presente.")
     o += _box(230, 104, 100, 46, "Premi Play", "#1f6feb")
     o += _box(170, 196, 220, 52, "Clock esterno", "#d29922", sub="ricevuto negli ultimi 750 ms?")
     o += _arrow(280, 150, 280, 196, GREY)
@@ -411,29 +430,60 @@ def gen_midi():
 # 7) MODES MAP (state machine)
 # =========================================================================
 def gen_modes():
-    W, H = 740, 560
-    o = header(W, "Mappa delle modalità (3 encoder)",
-               "Da DRAW raggiungi ogni modalità con un gesto. Ritorno: click CENTRALE.")
-    # DRAW
-    o += _box(36, 250, 150, 60, "DRAW", "#e6edf3", sub="schermata principale")
-    sat = [
-        (320, 94, "Volume / BPM", "#FF7A1A", "hold DX + CENTRO", "click CENTRO"),
-        (320, 172, "Velocity", "#E83AA6", "2× click DX", "rilascia"),
-        (320, 255, "SINGLE", "#3A6BE8", "2× click SX", "2× click SX"),
-        (320, 394, "Sample Pack", "#9A57E8", "hold SX + DX", "click CENTRO"),
-        (320, 478, "Menu salva/carica", "#2AD4B8", "click SX + hold CENTRO", "click CENTRO"),
+    # Per-mode table: what each of the 4 encoders does. From _DOCS/MAPPA_CONTROLLI.md §5.
+    cols = ["", "E1 ruota", "E2 ruota", "E3 ruota", "E4 ruota"]
+    rows = [
+        ("DRAW",     "Y / nota",  "pagina",      "filtro rapido", "X / colonna", "#e6edf3"),
+        ("SINGLE",   "canale",    "nota (pitch)", "—",            "X / colonna", "#3A6BE8"),
+        ("FILTER",   "slider 1",  "slider 2",    "slider 3",      "slider 4",    "#00FFFF"),
+        ("MENU",     "—",         "valore",      "valore",        "naviga pagine", "#36C24A"),
+        ("VELOCITY", "velocity",  "probabilità", "volume canale", "condizione",  "#E83AA6"),
+        ("SONG",     "—",         "pattern",     "—",             "posizione",   "#E8D23A"),
     ]
-    for x, y, name, col, g, _back in sat:
-        o += _box(x, y, 190, 54, name, col)
-        o += _arrow(186, 280, x, y + 27, col, g)
-    # SINGLE children
-    children = [
-        (560, 178, "Sample Browser", "hold SX + DX"),
-        (560, 336, "Note Shift", "click DX + hold CENTRO"),
-    ]
-    for x, y, name, g in children:
-        o += _box(x, y, 160, 50, name, "#3A6BE8")
-        o += _arrow(510, 282, x, y + 25, "#3A6BE8", g)
+    W = 860
+    x0, y0 = 28, 100
+    cw = [120, 168, 168, 168, 168]
+    rh = 46
+    H = y0 + (len(rows) + 1) * rh + 96
+    o = header(W, "Mappa delle modalità — cosa fa ogni encoder",
+               "I 4 encoder cambiano funzione col modo. I 3 pulsanti restano costanti.")
+
+    # header row
+    cx = x0
+    for j, c in enumerate(cols):
+        o.append(rrect(cx, y0, cw[j], rh, 7, "#10212e", "#1f6feb", 1))
+        o.append(text(cx + cw[j] / 2, y0 + rh / 2 + 4, c, size=12.5, fill=INK,
+                      anchor="middle", weight="700"))
+        cx += cw[j]
+    # data rows
+    for i, row in enumerate(rows):
+        name, e1, e2, e3, e4, col = row
+        ry = y0 + (i + 1) * rh
+        cx = x0
+        cells = [name, e1, e2, e3, e4]
+        for j, val in enumerate(cells):
+            fill = PANEL if j else "#1b2230"
+            o.append(rrect(cx, ry, cw[j], rh, 7, fill, LINE, 1))
+            if j == 0:
+                o.append(rrect(cx + 8, ry + 9, 6, rh - 18, 3, col))
+                o.append(text(cx + 22, ry + rh / 2 + 4, val, size=12.5, fill=INK, weight="700"))
+            else:
+                o.append(text(cx + cw[j] / 2, ry + rh / 2 + 4, val, size=11.5,
+                              fill=SUB if val == "—" else INK, anchor="middle"))
+            cx += cw[j]
+
+    # buttons strip
+    by = y0 + (len(rows) + 1) * rh + 18
+    o.append(text(x0, by - 4, "I 3 pulsanti (sempre attivi):", size=12, fill=SUB, weight="600"))
+    btns = [("B1 PLAY", "play/pausa · SINGLE · esci", "#36C24A"),
+            ("B2 MENU", "menu · tieni = FX MODE", "#E8D23A"),
+            ("B3 REC", "rec · tap-tempo · tieni = count-in", "#E83A3A")]
+    bw = (W - 56 - 2 * 16) / 3
+    for i, (t, s, c) in enumerate(btns):
+        bx = x0 + i * (bw + 16)
+        o.append(rrect(bx, by + 6, bw, 46, 8, PANEL, c, 2))
+        o.append(text(bx + 14, by + 26, t, size=12.5, fill=INK, weight="700"))
+        o.append(text(bx + 14, by + 43, s, size=10, fill=SUB))
     write("modes-map.svg", svg(W, H, o))
 
 
@@ -445,20 +495,20 @@ def gen_assembly():
         ("1 · Teensy", "PSRAM + header", "#1f6feb"),
         ("2 · Audio", "scheda audio", "#2AD4B8"),
         ("3 · Matrice", "LED 16×16", "#E83A3A"),
-        ("4 · Encoder", "×3", "#E8D23A"),
-        ("5 · OLED", "fork (opz.)", GREEN),
-        ("6 · Check", "multimetro", "#FF7A1A"),
+        ("4 · Encoder", "×4", "#E8D23A"),
+        ("5 · Pulsanti", "×3", "#FF8A1A"),
+        ("6 · OLED", "I²C", GREEN),
+        ("7 · Check", "multimetro", "#9A57E8"),
         ("✅ Pronto", "firmware", GREEN),
     ]
-    bw, bh, gap = 104, 56, 22
+    bw, bh, gap = 100, 56, 20
     W = 28 * 2 + len(steps) * bw + (len(steps) - 1) * gap
     H = 170
-    o = header(W, "Montaggio: i 6 passi", "Dal Teensy nudo al dispositivo pronto per il firmware.")
+    o = header(W, "Montaggio: i passi", "Dal Teensy nudo al dispositivo pronto per il firmware.")
     x = 28
     y = 92
     for i, (t, s, c) in enumerate(steps):
-        dash = "6 4" if t.startswith("5") else None
-        o += _box(x, y, bw, bh, t, c, sub=s, dash=dash)
+        o += _box(x, y, bw, bh, t, c, sub=s)
         if i < len(steps) - 1:
             o += _arrow(x + bw, y + bh / 2, x + bw + gap, y + bh / 2, GREY)
         x += bw + gap
@@ -470,17 +520,16 @@ def gen_assembly():
 # =========================================================================
 def gen_flash():
     steps = [
-        ("Arduino IDE", "+ Teensyduino", "#1f6feb"),
-        ("Librerie", "FastLED, Audio…", "#2AD4B8"),
-        ("ResamplingReader.h", "⚠ sostituisci", "#d29922"),
-        ("USB Type", "Serial + MIDI", "#9A57E8"),
-        ("config.h", "OLED / MIDI (opz.)", GREEN),
-        ("Upload ▶", "carica sul Teensy", "#E83A3A"),
+        ("arduino-cli", "+ core teensy:avr", "#1f6feb"),
+        ("build_toern.py", "compila (-O1)", "#2AD4B8"),
+        ("toern.hex", "in teensy/firmware/", GREEN),
+        ("Flash ▶", "GUI (_FLASHER) o CLI", "#E83A3A"),
     ]
-    bw, bh, gap = 132, 56, 22
+    bw, bh, gap = 150, 56, 26
     W = 28 * 2 + len(steps) * bw + (len(steps) - 1) * gap
     H = 170
-    o = header(W, "Caricare il firmware: la sequenza", "Segui l'ordine; il passo 3 è obbligatorio.")
+    o = header(W, "Caricare il firmware: la sequenza",
+               "Un comando compila il vero TŒRN e produce l'.hex da flashare.")
     x = 28
     y = 92
     for i, (t, s, c) in enumerate(steps):

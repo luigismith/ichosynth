@@ -16,7 +16,7 @@ sample logic *is* the device's, not a reimplementation.
 Decisions locked with the user (2026-06-12):
 - Approach: **native C++ port** (max fidelity), not web/python.
 - Integration: **standalone** — computer keyboard/mouse drive the 16×16 grid and
-  the 3 encoders + buttons; audio goes to the default output. No real MIDI I/O.
+  the 4 encoders + buttons; audio goes to the default output. No real MIDI I/O.
 - Samples: **reuse `../_SDCARD`** as the SD filesystem (`<folder>/_N.wav`).
 
 ## Architecture
@@ -105,7 +105,7 @@ recursive mutex); noteEvent/playRaw must also take it (they touch reader state).
 
 ### Frontend (`src/main.cpp` + `src/ni404_host.h`)
 - [x] SDL2 window + 16×16 LED grid renderer (scaled; values bumped ×4 for visibility)  **(builds+links SDL2)**
-- [x] Keyboard map: 3 encoders (Q/A, W/S, E/D), buttons (Z/X/C), filter (F)  **(works)**
+- [x] Keyboard map: 4 encoders (Q/A, W/S, E/D, R/F), buttons (Z/X/C)  **(works)**
 - [x] Audio device open + callback -> ni404_audio_render (graph pull)  **(works)**
 - [x] Calls ni404_setup() once + ni404_loop() per frame
 - [x] `--selftest` headless harness  **VERIFIED: audio peak 0.27, LED animates every frame**
@@ -133,7 +133,7 @@ mk1/mk2/mk3 and MPK Mini Plus.
   channel's sample chromatically; handleClock/Start/Stop sync the sequencer).
 - [x] Real MIDI input backend (Windows winmm; macOS CoreMIDI), thread-safe queue (`src/midi_in.cpp`)  **(Win builds+runs)**
 - [x] usb_midi shim: stores typed handlers + read() drains & dispatches queued messages
-- [x] Control map (`src/midi_map.cpp`): knobs CC70/71/72 -> 3 encoders; pads notes 36–43 -> buttons + grid step; keys -> firmware note play/record
+- [x] Control map (`src/midi_map.cpp`): knobs CC70-73 -> 4 encoders; pads notes 36–43 -> buttons + grid step; keys -> firmware note play/record
 - [x] Verified in selftest: CC#71 drives center encoder (firmware processes it); pad note 36 fires the firmware's BTN_L push/release callbacks.
 - [x] Per-model preset docs (mk1/mk2/mk3/Plus): `presets/README.md` (knob CC / pad notes / channel to enter in each Akai editor)
 - [ ] Optional: generate proprietary Akai editor binary program files (need editor+version); MIDI-learn / config-file remapping
