@@ -89,7 +89,9 @@ Tutto viene alimentato dalla porta **USB (5V)**.
 | **3** | Tact switch (momentaneo, tactile/push) | PLAY · MENU · REC (ognuno: un capo al pin, l'altro a GND) |
 | 1 | Micro SD Card, **Class 10** | per campioni e pattern |
 | 1 | Cavo micro-USB + alimentatore 5V (≥ 2A consigliato) | alimentazione e programmazione |
-| 1 | Cuffie con jack 3,5 mm | ichosynth non ha altoparlanti |
+| 1 | Cuffie con jack 3,5 mm | ichosynth non ha altoparlanti; jack integrato per il monitoraggio |
+| **3** | **Jack mono TS da 6,35 mm (1/4")** | audio I/O: 1× Line In (mono) + 2× Line Out (L + R) → pad LINE IN / LINE OUT della scheda audio |
+| q.b. | *(opzionale)* Condensatore elettrolitico da 10 µF | blocco DC in serie sui jack di linea, solo se l'apparecchiatura collegata ronza |
 | 1 | OLED **SSD1306 0,96" 128×64 I²C** | schermo di stato (sostituisce gli anelli RGB degli encoder di TŒRN) |
 | q.b. | Cavetti jumper Dupont (~10 cm), strip di pin header | per i collegamenti |
 | 1 | *(opzionale)* Contenitore stampato 3D | file STL in `_DOCS/_ENCLOSURE/` |
@@ -157,6 +159,38 @@ Se invece la cabli a mano, collega:
 | RX (DOUT dal codec) | **8** | | | |
 
 > ℹ️ La SD si usa dallo **slot integrato del Teensy 4.1**, non da quello della scheda audio.
+
+### 6.2.1 Jack audio I/O (Line In + Line Out)
+Oltre al jack cuffie 3,5 mm integrato, aggiungi tre **jack mono TS da 6,35 mm (1/4")** per collegarti
+ad apparecchiature esterne: **1× Line In** (mono) e **2× Line Out** (stereo: L + R). Si cablano alle
+**piazzole di saldatura della Teensy Audio Adaptor** (i pad LINE IN / LINE OUT sulla scheda codec) —
+**non** ai pin GPIO del Teensy.
+
+<p align="center">
+  <img src="assets/audio-io.svg" alt="Cablaggio audio I/O: tre jack mono TS da 6,35 mm (Line In, Line Out L, Line Out R) ai pad LINE IN / LINE OUT della scheda audio, più il jack cuffie 3,5 mm integrato" width="680">
+</p>
+
+Ogni jack da 6,35 mm è **TS mono**: **punta (tip) = segnale**, **manica (sleeve) = GND** (massa comune
+con il resto della build).
+
+| Jack 6,35 mm | Punta (segnale) → pad scheda audio | Manica |
+|---|---|---|
+| **Line In** (mono) | **LINE IN L** | **GND** |
+| **Line Out L** | **LINE OUT L** | **GND** |
+| **Line Out R** | **LINE OUT R** | **GND** |
+| Cuffie | *(nessuno — jack 3,5 mm integrato esistente)* | — |
+
+- **Il Line In è mono.** TŒRN registra/monitora il canale **SINISTRO** del line-in come campione mono, e
+  LINE IN è già l'ingresso di registrazione predefinito del firmware — quindi **nessuna modifica al
+  firmware è necessaria**.
+- **Il Line Out è stereo** (due jack, L + R). Il DAC SGTL5000 pilota insieme Line Out e l'uscita cuffie;
+  poiché TŒRN ha vero panning stereo, i due jack preservano l'immagine stereo.
+- *(Opzionale)* Se un dispositivo collegato ronza, aggiungi un **condensatore elettrolitico da 10 µF in
+  serie** (blocco DC) su ogni segnale. Il cablaggio diretto di solito va bene, quindi è opzionale.
+
+> 🎚️ **A cosa servono:** **Line In** = campiona strumenti esterni / un registratore da campo / altre
+> apparecchiature direttamente nel campionatore. **Line Out (L+R)** = verso ampli / mixer / PA / scheda
+> audio. **Cuffie** (jack 3,5 mm integrato) = monitoraggio.
 
 ### 6.3 Encoder (CLK, DT, SW = pulsante)
 Monti **4 encoder**. Ogni encoder ha 3 segnali (CLK, DT, SW) + alimentazione. Disponili da sinistra a

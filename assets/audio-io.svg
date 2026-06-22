@@ -1,0 +1,40 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 780 380" width="780" height="380" role="img">
+<rect x="0" y="0" width="780" height="999" rx="0" ry="0" fill="#0d1117"/>
+<text x="28" y="40" font-family="'Segoe UI',Helvetica,Arial,sans-serif" font-size="22" fill="#e6edf3" text-anchor="start" font-weight="700">Audio I/O: Line In/Out 6.35mm + cuffie</text>
+<text x="28" y="64" font-family="'Segoe UI',Helvetica,Arial,sans-serif" font-size="13.5" fill="#9aa4b2" text-anchor="start" font-weight="400">I jack si collegano ai pad LINE IN / LINE OUT dell'Audio Shield (non ai GPIO).</text>
+<line x1="28" y1="78" x2="752" y2="78" stroke="#30363d" stroke-width="1" stroke-linecap="round"/>
+<rect x="48" y="116" width="210" height="196" rx="12" ry="12" fill="#10212e" stroke="#2AD4B8" stroke-width="2"/>
+<text x="153.0" y="142" font-family="'Segoe UI',Helvetica,Arial,sans-serif" font-size="13.5" fill="#e6edf3" text-anchor="middle" font-weight="700">Teensy Audio Shield</text>
+<text x="153.0" y="160" font-family="'Segoe UI',Helvetica,Arial,sans-serif" font-size="11" fill="#9aa4b2" text-anchor="middle" font-weight="400">SGTL5000</text>
+<rect x="166" y="173" width="84" height="24" rx="5" ry="5" fill="#0d1117" stroke="#2ea44f" stroke-width="1"/>
+<text x="208" y="189" font-family="'JetBrains Mono','Consolas','Courier New',monospace" font-size="9.5" fill="#e6edf3" text-anchor="middle" font-weight="400">LINE IN  L</text>
+<rect x="520" y="169" width="210" height="32" rx="7" ry="7" fill="#161b22" stroke="#2ea44f" stroke-width="1.5"/>
+<circle cx="538" cy="185" r="7" fill="#0d1117" stroke="#2ea44f" stroke-width="1.5"/>
+<text x="554" y="189" font-family="'Segoe UI',Helvetica,Arial,sans-serif" font-size="11.5" fill="#e6edf3" text-anchor="start" font-weight="700">Line IN (mono)</text>
+<line x1="250" y1="186" x2="520" y2="186" stroke="#2ea44f" stroke-width="2" stroke-linecap="round"/>
+<text x="385.0" y="180" font-family="'Segoe UI',Helvetica,Arial,sans-serif" font-size="13" fill="#2ea44f" text-anchor="middle" font-weight="400">←</text>
+<rect x="166" y="213" width="84" height="24" rx="5" ry="5" fill="#0d1117" stroke="#E83AA6" stroke-width="1"/>
+<text x="208" y="229" font-family="'JetBrains Mono','Consolas','Courier New',monospace" font-size="9.5" fill="#e6edf3" text-anchor="middle" font-weight="400">LINE OUT L</text>
+<rect x="520" y="209" width="210" height="32" rx="7" ry="7" fill="#161b22" stroke="#E83AA6" stroke-width="1.5"/>
+<circle cx="538" cy="225" r="7" fill="#0d1117" stroke="#E83AA6" stroke-width="1.5"/>
+<text x="554" y="229" font-family="'Segoe UI',Helvetica,Arial,sans-serif" font-size="11.5" fill="#e6edf3" text-anchor="start" font-weight="700">Line OUT  L</text>
+<line x1="250" y1="226" x2="520" y2="226" stroke="#E83AA6" stroke-width="2" stroke-linecap="round"/>
+<text x="385.0" y="220" font-family="'Segoe UI',Helvetica,Arial,sans-serif" font-size="13" fill="#E83AA6" text-anchor="middle" font-weight="400">→</text>
+<rect x="166" y="253" width="84" height="24" rx="5" ry="5" fill="#0d1117" stroke="#E83AA6" stroke-width="1"/>
+<text x="208" y="269" font-family="'JetBrains Mono','Consolas','Courier New',monospace" font-size="9.5" fill="#e6edf3" text-anchor="middle" font-weight="400">LINE OUT R</text>
+<rect x="520" y="249" width="210" height="32" rx="7" ry="7" fill="#161b22" stroke="#E83AA6" stroke-width="1.5"/>
+<circle cx="538" cy="265" r="7" fill="#0d1117" stroke="#E83AA6" stroke-width="1.5"/>
+<text x="554" y="269" font-family="'Segoe UI',Helvetica,Arial,sans-serif" font-size="11.5" fill="#e6edf3" text-anchor="start" font-weight="700">Line OUT  R</text>
+<line x1="250" y1="266" x2="520" y2="266" stroke="#E83AA6" stroke-width="2" stroke-linecap="round"/>
+<text x="385.0" y="260" font-family="'Segoe UI',Helvetica,Arial,sans-serif" font-size="13" fill="#E83AA6" text-anchor="middle" font-weight="400">→</text>
+<rect x="166" y="293" width="84" height="24" rx="5" ry="5" fill="#0d1117" stroke="#E8D23A" stroke-width="1"/>
+<text x="208" y="309" font-family="'JetBrains Mono','Consolas','Courier New',monospace" font-size="9.5" fill="#e6edf3" text-anchor="middle" font-weight="400">HP (su scheda)</text>
+<rect x="520" y="289" width="210" height="32" rx="7" ry="7" fill="#161b22" stroke="#E8D23A" stroke-width="1.5"/>
+<circle cx="538" cy="305" r="7" fill="#0d1117" stroke="#E8D23A" stroke-width="1.5"/>
+<text x="554" y="309" font-family="'Segoe UI',Helvetica,Arial,sans-serif" font-size="11.5" fill="#e6edf3" text-anchor="start" font-weight="700">Cuffie 3.5mm</text>
+<text x="722" y="309" font-family="'Segoe UI',Helvetica,Arial,sans-serif" font-size="9.5" fill="#9aa4b2" text-anchor="end" font-weight="400">(integrato)</text>
+<line x1="250" y1="306" x2="520" y2="306" stroke="#E8D23A" stroke-width="1.5" stroke-linecap="round" stroke-dasharray="4 3"/>
+<text x="48" y="338" font-family="'Segoe UI',Helvetica,Arial,sans-serif" font-size="11.5" fill="#9aa4b2" text-anchor="start" font-weight="400">Tutti i 6.35mm sono TS mono: tip = segnale, sleeve = GND (massa in comune).</text>
+<text x="48" y="358" font-family="'Segoe UI',Helvetica,Arial,sans-serif" font-size="11.5" fill="#9aa4b2" text-anchor="start" font-weight="400">Line Out è stereo su due jack (L + R). Line In è mono: TŒRN campiona il canale L.</text>
+<text x="48" y="378" font-family="'Segoe UI',Helvetica,Arial,sans-serif" font-size="11.5" fill="#9aa4b2" text-anchor="start" font-weight="400">Ingresso di default = LINE IN (registrazione). Nessuna modifica al firmware.</text>
+</svg>

@@ -18,6 +18,17 @@ You draw music on a 16×16 grid with **4 knobs** and **3 buttons**. No computer,
 > 🎧 **You don't need a computer to play**: your **ichosynth** generates everything on its own. Plug in
 > your **headphones**, power it via USB, and off you go.
 
+> 🔌 **Connections — getting sound out (and in)**: the instrument has three audio jacks.
+> - **Line Out** — 2× **6.35 mm (1/4") MONO** jacks, **L + R = stereo**. Plug them into an amplifier,
+>   mixer, PA or audio interface. The output is stereo (TŒRN pans the voices), so use **both L and R**;
+>   for a mono rig just use the **L** jack.
+> - **Line In** — 1× **6.35 mm (1/4") MONO** jack. Feed in an instrument, another synth, a field
+>   recorder or a mixer send to **record/sample it** (see [ch. 16](#16--live-recording-rec)).
+> - **Headphone** — the on-board **3.5 mm stereo** jack, for monitoring.
+>
+> All three jacks share the device's ground, and **Line Out and headphone play at the same time** — no
+> menu setup needed.
+
 > ℹ️ **This is the real TŒRN.** ichosynth runs the full **TŒRN firmware** (by SP_/soundpauli,
 > [toern.live](https://toern.live)) on a Teensy 4.1, built with cheap hand-soldered parts: **4 KY-040
 > encoders**, **3 tact switches** and an **SSD1306 OLED**. Where the original TŒRN told you the state
@@ -293,8 +304,13 @@ A "sample pack" is a complete set of voices saved on the SD: recall a whole kit 
 
 ichosynth records audio straight from its input into the current channel.
 
+> 🔌 **The Line In jack is the default record source.** Connect an instrument, another synth, a field
+> recorder or a mixer send to the **6.35 mm (1/4") MONO Line In** jack and you can sample it straight
+> in — no menu setup needed (the take is a mono sample). See the **Connections** note at the top of the
+> manual for the jacks.
+
 1. Choose the **channel** to record into.
-2. **Hold B3 (REC)** to record from the input (**MIC** or **LINE**; the choice shows on the OLED).
+2. **Hold B3 (REC)** to record from the input (**MIC** or **LINE**, the default; the choice shows on the OLED).
 3. **Hold B3 > 300 ms** to get a **count-in** first (4 beats at the current BPM), then recording starts on the beat.
 4. Release **B3** to stop; the take is saved to the SD and loaded onto the channel, so it survives a reboot.
 

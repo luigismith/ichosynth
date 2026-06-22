@@ -82,6 +82,9 @@ Tutto il resto è puro TŒRN, e **funziona tutto su questo hardware**:
 - Per step: **velocity / probabilità / condizione**, mute, note-shift, copia-incolla.
 - **Sample pack + browser SD**, seek / lunghezza / reverse, caricamento/salvataggio su SD.
 - **Registrazione dal vivo** (tieni REC) con ingresso **MIC/LINE + count-in**.
+- **Audio I/O su jack**: un **Line In mono da 6.35mm (1/4")** per campionare/registrare gear esterno,
+  strumenti o un field-recorder direttamente nel sampler, più **2× Line Out mono da 6.35mm (L + R)** verso
+  ampli / mixer / PA / scheda audio. Il **jack cuffie stereo da 3.5mm a bordo resta per il monitoraggio**.
 - **USB MIDI**, impostazioni su EEPROM/SD, tap-tempo.
 
 > 🔧 **Una funzione tagliata in questa build:** la seconda striscia LED reattiva opzionale (256 LED) è
@@ -143,10 +146,15 @@ flowchart LR
     T --> OLED["📟 SSD1306<br/>HUD di stato"]
     T --> AUDIO["🔊 Audio Adaptor<br/>SGTL5000"]
     AUDIO --> JACK["🎧 uscita 3.5mm"]
+    AUDIO --> LINE["🔌 Line In + Line Out (L/R) da 6.35mm"]
     T <-. "USB-MIDI in/out" .-> HOST["💻 / 🎹 host e gear"]
 
     style OLED stroke:#2ea44f,stroke-width:2px
 ```
+
+<p align="center">
+  <img src="assets/audio-io.svg" alt="Audio I/O: Line In mono + Line Out stereo (L/R) da 6.35mm sull'Audio Adaptor, con il jack cuffie da 3.5mm mantenuto per il monitoraggio" width="700">
+</p>
 
 Disegna le note → premi Play → loop. Regola campioni, effetti, BPM, volume e velocity dal vivo, senza fermarti.
 La guida completa per suonare è nel [manuale d'uso](MANUALE_USO.md); la mappa dei controlli è in
@@ -253,6 +261,8 @@ Con questo progetto sono incluse tre guide adatte ai principianti, ciascuna in *
 - 4× encoder rotativi **KY-040** (gira + premi) — E1…E4
 - 3× **tact switch** (PLAY / MENU / REC)
 - 1× OLED **SSD1306 0.96" 128×64 I²C**
+- 3× **jack TS mono da 6.35mm (1/4")** — 1× **Line In** (mono) + 2× **Line Out** (stereo: L + R), collegati
+  ai pad LINE IN / LINE OUT dell'Audio Adaptor
 - Cavi jumper, cuffie
 
 > ℹ️ Niente altoparlanti o Bluetooth a bordo — usa le **cuffie**. Per ragioni di licenza, porta i tuoi

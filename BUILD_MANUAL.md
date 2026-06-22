@@ -88,7 +88,9 @@ Everything is powered from the **USB (5V)** port.
 | **3** | Tact switch (momentary, tactile/push) | PLAY · MENU · REC (each: one leg to pin, other leg to GND) |
 | 1 | Micro SD Card, **Class 10** | for samples and patterns |
 | 1 | Micro-USB cable + 5V power supply (≥ 2A recommended) | power and programming |
-| 1 | Headphones with 3.5 mm jack | ichosynth has no speakers |
+| 1 | Headphones with 3.5 mm jack | ichosynth has no speakers; on-board jack for monitoring |
+| **3** | **6.35 mm (1/4") mono TS jack** | audio I/O: 1× Line In (mono) + 2× Line Out (L + R) → Audio Shield LINE IN / LINE OUT pads |
+| as needed | *(optional)* 10 µF electrolytic capacitor | series DC-blocking on the line jacks, only if connected gear hums |
 | 1 | **SSD1306 0.96" 128×64 I²C** OLED | status screen (replaces TŒRN's encoder RGB rings) |
 | as needed | Dupont jumper wires (~10 cm), pin header strips | for the connections |
 | 1 | *(optional)* 3D-printed enclosure | STL files in `_DOCS/_ENCLOSURE/` |
@@ -156,6 +158,37 @@ If instead you wire it by hand, connect:
 | RX (DOUT from codec) | **8** | | | |
 
 > ℹ️ The SD is used from the **Teensy 4.1's built-in slot**, not the one on the audio board.
+
+### 6.2.1 Audio I/O jacks (Line In + Line Out)
+Beyond the on-board 3.5 mm headphone jack, you add three **6.35 mm (1/4") mono TS jacks** for connecting
+to outside gear: **1× Line In** (mono) and **2× Line Out** (stereo: L + R). These wire to the **solder
+pads on the Teensy Audio Adaptor** (the LINE IN / LINE OUT pads on the codec board) — **not** to Teensy
+GPIO pins.
+
+<p align="center">
+  <img src="assets/audio-io.svg" alt="Audio I/O wiring: three 6.35 mm mono TS jacks (Line In, Line Out L, Line Out R) to the Audio Shield LINE IN / LINE OUT pads, plus the on-board 3.5 mm headphone jack" width="680">
+</p>
+
+Every 6.35 mm jack is **TS mono**: **tip = signal**, **sleeve = GND** (common ground with the rest of
+the build).
+
+| 6.35 mm jack | Tip (signal) → Audio Shield pad | Sleeve |
+|---|---|---|
+| **Line In** (mono) | **LINE IN L** | **GND** |
+| **Line Out L** | **LINE OUT L** | **GND** |
+| **Line Out R** | **LINE OUT R** | **GND** |
+| Headphone | *(none — existing on-board 3.5 mm jack)* | — |
+
+- **Line In is mono.** TŒRN records/monitors the **LEFT** line-in channel as a mono sample, and LINE IN
+  is already the firmware's default recording input — so **no firmware change is needed**.
+- **Line Out is stereo** (two jacks, L + R). The SGTL5000 DAC drives Line Out and the headphone output
+  together; since TŒRN has true stereo panning, the two jacks preserve the stereo image.
+- *(Optional)* If a connected device hums, add a **10 µF series DC-blocking electrolytic cap** in line
+  with each signal. Direct wiring is normally fine, so this is optional.
+
+> 🎚️ **What they're for:** **Line In** = sample external instruments / a field recorder / other gear
+> straight into the sampler. **Line Out (L+R)** = feed an amp / mixer / PA / audio interface. **Headphone**
+> (on-board 3.5 mm) = monitoring.
 
 ### 6.3 Encoders (CLK, DT, SW = push-button)
 You fit **4 encoders**. Each encoder has 3 signals (CLK, DT, SW) + power. Arrange them from left to

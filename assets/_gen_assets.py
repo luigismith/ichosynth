@@ -303,7 +303,7 @@ def gen_wiring():
     conn(250, 500, tx, ty + th - 16, "#FFB454", None)
 
     # Audio shield power note (right top)
-    node(650, 270, 200, 70, "Teensy Audio Shield", "SGTL5000 · jack 3.5mm", "#2AD4B8")
+    node(650, 270, 200, 70, "Teensy Audio Shield", "SGTL5000 · Line In/Out + cuffie", "#2AD4B8")
     conn(650, 305, tx + tw, 320, GREY, "I2S+I2C", 610, 290)
     o.append(text(750, 325, "7·8·18·19·20·21·23", size=10.5, fill=SUB, anchor="middle", family=MONO))
 
@@ -540,6 +540,60 @@ def gen_flash():
     write("flash-flow.svg", svg(W, H, o))
 
 
+# =========================================================================
+# 10) AUDIO I/O — Line In/Out 6.35mm + headphone
+# =========================================================================
+def gen_audio_io():
+    W, H = 780, 380
+    o = header(W, "Audio I/O: Line In/Out 6.35mm + cuffie",
+               "I jack si collegano ai pad LINE IN / LINE OUT dell'Audio Shield (non ai GPIO).")
+
+    # Audio Shield (left)
+    sx, sy, sw, sh = 48, 116, 210, 196
+    o.append(rrect(sx, sy, sw, sh, 12, "#10212e", "#2AD4B8", 2))
+    o.append(text(sx + sw / 2, sy + 26, "Teensy Audio Shield", size=13.5, fill=INK, anchor="middle", weight="700"))
+    o.append(text(sx + sw / 2, sy + 44, "SGTL5000", size=11, fill=SUB, anchor="middle"))
+
+    # pads (right edge of the shield) -> jacks (right side)
+    jx, jw = 520, 210
+    rows = [
+        ("LINE IN  L", "Line IN (mono)", GREEN, "tip → LINE IN L",  "in"),
+        ("LINE OUT L", "Line OUT  L",    "#E83AA6", "tip → LINE OUT L", "out"),
+        ("LINE OUT R", "Line OUT  R",    "#E83AA6", "tip → LINE OUT R", "out"),
+        ("HP (su scheda)", "Cuffie 3.5mm", "#E8D23A", "stereo · monitor", "hp"),
+    ]
+    y = sy + 70
+    dy = 40
+    for pad, jack, col, lab, kind in rows:
+        # pad chip on the shield edge
+        o.append(rrect(sx + sw - 92, y - 13, 84, 24, 5, "#0d1117", col, 1))
+        o.append(text(sx + sw - 50, y + 3, pad, size=9.5, fill=INK, anchor="middle", family=MONO))
+        # jack box
+        o.append(rrect(jx, y - 17, jw, 32, 7, PANEL, col, 1.5))
+        o.append(circle(jx + 18, y - 1, 7, "#0d1117", col, 1.5))
+        o.append(text(jx + 34, y + 3, jack, size=11.5, fill=INK, weight="700"))
+        tw = 8 + len(lab) * 6
+        # connector line + label
+        if kind == "hp":
+            o.append(text(jx + jw - 8, y + 3, "(integrato)", size=9.5, fill=SUB, anchor="end"))
+            o.append(line(sx + sw - 8, y, jx, y, col, 1.5, dash="4 3"))
+        else:
+            o.append(line(sx + sw - 8, y, jx, y, col, 2))
+            ar = "→" if kind == "out" else "←"
+            o.append(text((sx + sw - 8 + jx) / 2, y - 6, ar, size=13, fill=col, anchor="middle"))
+        y += dy
+
+    # notes
+    ny = sy + sh + 26
+    o.append(text(48, ny, "Tutti i 6.35mm sono TS mono: tip = segnale, sleeve = GND (massa in comune).",
+                  size=11.5, fill=SUB))
+    o.append(text(48, ny + 20, "Line Out è stereo su due jack (L + R). Line In è mono: TŒRN campiona il canale L.",
+                  size=11.5, fill=SUB))
+    o.append(text(48, ny + 40, "Ingresso di default = LINE IN (registrazione). Nessuna modifica al firmware.",
+                  size=11.5, fill=SUB))
+    write("audio-io.svg", svg(W, H, o))
+
+
 def gen_ichos():
     steps = [
         ("Ascolto", "i fondamenti", "#1f6feb"),
@@ -590,4 +644,5 @@ if __name__ == "__main__":
     gen_modes()
     gen_assembly()
     gen_flash()
+    gen_audio_io()
     print("done.")

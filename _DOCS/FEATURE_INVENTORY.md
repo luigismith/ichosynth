@@ -47,7 +47,7 @@
 | 20 | **Seek/length/reverse** del campione | trimming e riproduzione inversa | piccolo | rimovibile |
 | 21 | **Preview campione** | ascolto in anteprima nel browser | piccolo (`AudioPlaySdWav`) | rimovibile |
 | 22 | **Load/Save tracce su SD** | salvare/caricare progetti | medio | core per l'uso reale; difficile togliere |
-| 23 | **Registrazione su SD** (`AudioInputI2S`) + **MIC/LINE** | campionare dall'ingresso | medio | **rimovibile** se non registri dal vivo |
+| 23 | **Registrazione su SD** (`AudioInputI2S`) + **MIC/LINE** | campionare dall'ingresso (Line In mono, jack 6.35mm) | medio | **rimovibile** se non registri dal vivo |
 | 24 | **Count-in registrazione** | 4 battute prima di registrare | minimo | rimovibile |
 
 ## 5. MIDI

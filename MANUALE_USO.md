@@ -18,6 +18,17 @@ Disegni la musica su una griglia 16×16 con **4 manopole** e **3 pulsanti**. Nie
 > 🎧 **Non serve un computer per suonare**: il tuo **ichosynth** genera tutto da solo. Colleghi le
 > **cuffie**, accendi via USB e via.
 
+> 🔌 **Collegamenti — far uscire (ed entrare) il suono**: lo strumento ha tre jack audio.
+> - **Line Out** — 2× jack **6,35 mm (1/4") MONO**, **L + R = stereo**. Collegali a un amplificatore, un
+>   mixer, un impianto PA o una scheda audio. L'uscita è stereo (TŒRN panpotta le voci), quindi usa
+>   **sia L che R**; per un impianto mono basta il jack **L**.
+> - **Line In** — 1× jack **6,35 mm (1/4") MONO**. Collega uno strumento, un altro synth, un
+>   field recorder o una mandata del mixer per **registrarlo/campionarlo** (vedi [cap. 16](#16--registrazione-dal-vivo-rec)).
+> - **Cuffie** — il jack **3,5 mm stereo** a bordo, per il monitoraggio.
+>
+> Tutti e tre i jack condividono la massa del dispositivo, e **Line Out e cuffie suonano insieme** —
+> senza nessuna impostazione da menù.
+
 > ℹ️ **Questo è il vero TŒRN.** ichosynth fa girare il firmware completo **TŒRN** (di SP_/soundpauli,
 > [toern.live](https://toern.live)) su un Teensy 4.1, costruito con componenti economici saldati a mano:
 > **4 encoder KY-040**, **3 tact switch** e un **OLED SSD1306**. Dove il TŒRN originale ti diceva lo
@@ -294,8 +305,13 @@ Un "sample pack" è un set completo di voci salvato sulla SD: richiami al volo u
 
 ichosynth registra l'audio direttamente dal suo ingresso nel canale corrente.
 
+> 🔌 **Il jack Line In è la sorgente di registrazione predefinita.** Collega uno strumento, un altro
+> synth, un field recorder o una mandata del mixer al jack **Line In 6,35 mm (1/4") MONO** e lo campioni
+> direttamente — senza nessuna impostazione da menù (la presa è un campione mono). Vedi la nota
+> **Collegamenti** in cima al manuale per i jack.
+
 1. Scegli il **canale** in cui registrare.
-2. **Tieni B3 (REC)** per registrare dall'ingresso (**MIC** o **LINE**; la scelta appare sull'OLED).
+2. **Tieni B3 (REC)** per registrare dall'ingresso (**MIC** o **LINE**, quella predefinita; la scelta appare sull'OLED).
 3. **Tieni B3 > 300 ms** per avere prima un **count-in** (4 beat al BPM corrente), poi la registrazione parte sul tempo.
 4. Rilascia **B3** per fermare; la presa viene salvata sulla SD e caricata sul canale, così sopravvive al riavvio.
 

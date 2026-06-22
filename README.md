@@ -82,6 +82,9 @@ Everything else is pure TŒRN, and **all of it works on this hardware**:
 - Per-step **velocity / probability / condition**, mute, note-shift, copy-paste.
 - **Sample packs + SD browser**, seek / length / reverse, SD load/save.
 - **Live recording** (hold REC) with **MIC/LINE input + count-in**.
+- **Audio I/O on jacks**: a **6.35mm (1/4") mono Line In** to sample/record external gear, instruments
+  or a field-recorder straight into the sampler, plus **2× 6.35mm mono Line Out (L + R)** to amp / mixer
+  / PA / audio interface. The on-board **3.5mm stereo headphone jack stays for monitoring**.
 - **USB MIDI**, EEPROM/SD settings, tap-tempo.
 
 > 🔧 **One feature trimmed for this build:** the optional reactive 2nd LED strip (256 LEDs) is removed,
@@ -143,10 +146,15 @@ flowchart LR
     T --> OLED["📟 SSD1306<br/>status HUD"]
     T --> AUDIO["🔊 Audio Adaptor<br/>SGTL5000"]
     AUDIO --> JACK["🎧 3.5mm out"]
+    AUDIO --> LINE["🔌 6.35mm Line In + Line Out (L/R)"]
     T <-. "USB-MIDI in/out" .-> HOST["💻 / 🎹 host & gear"]
 
     style OLED stroke:#2ea44f,stroke-width:2px
 ```
+
+<p align="center">
+  <img src="assets/audio-io.svg" alt="Audio I/O: 6.35mm mono Line In + stereo Line Out (L/R) on the Audio Adaptor, with the 3.5mm headphone jack kept for monitoring" width="700">
+</p>
 
 Draw notes → press Play → loop. Tweak samples, effects, BPM, volume and velocity live, without stopping.
 The full playing guide is in the [usage manual](USAGE_MANUAL.md); the control map is in
@@ -252,6 +260,8 @@ switcher sits at the top of every page). PDF versions are included too.
 - 4× **KY-040** rotary encoders (turn + push) — E1…E4
 - 3× **tact switches** (PLAY / MENU / REC)
 - 1× **SSD1306 0.96" 128×64 I²C** OLED
+- 3× **6.35mm (1/4") mono TS jacks** — 1× **Line In** (mono) + 2× **Line Out** (stereo: L + R), wired to
+  the Audio Adaptor's LINE IN / LINE OUT pads
 - Jumper wires, headphones
 
 > ℹ️ No speakers or Bluetooth on board — use **headphones**. For licensing reasons, bring your own

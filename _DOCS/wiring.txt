@@ -66,6 +66,24 @@ GND    - GND
   (SD is used from the Teensy 4.1's built-in slot, not the audio board slot.)
 
 
+> Audio I/O jacks — 3x 6.35mm (1/4") MONO TS, wired to the Audio Shield's
+  LINE IN / LINE OUT pads (NOT to Teensy GPIO). The on-board 3.5mm headphone
+  jack is kept for monitoring. Every 6.35mm: tip = signal, sleeve = GND.
+
+  Line IN  (mono, 1 jack):  tip -> Audio Shield LINE IN  L   ; sleeve -> GND
+  Line OUT (stereo, 2 jacks):
+     jack L:                tip -> Audio Shield LINE OUT L   ; sleeve -> GND
+     jack R:                tip -> Audio Shield LINE OUT R   ; sleeve -> GND
+  Headphone:                on-board 3.5mm stereo jack (no wiring needed)
+
+  Notes:
+   - Line In is mono: TŒRN records/monitors the LEFT line-in as a mono sample.
+     LINE IN is already the firmware's default record input (no firmware change).
+   - Line Out is left stereo (two jacks L+R); the codec DAC drives Line Out and
+     the headphone jack together. Optional 10uF DC-blocking caps in series only
+     if connected gear hums; direct wiring is normally fine.
+
+
 > OLED (SSD1306 0.96" 128x64 I2C). Shares the audio I2C bus.
   Replaces TŒRN's encoder RGB-ring feedback (shows channel/mode/transport/BPM/
   volume/page). Default I2C address 0x3C.
