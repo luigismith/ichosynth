@@ -66,22 +66,18 @@ GND    - GND
   (SD is used from the Teensy 4.1's built-in slot, not the audio board slot.)
 
 
-> Audio I/O jacks — 3x 6.35mm (1/4") MONO TS, wired to the Audio Shield's
-  LINE IN / LINE OUT pads (NOT to Teensy GPIO). The on-board 3.5mm headphone
-  jack is kept for monitoring. Every 6.35mm: tip = signal, sleeve = GND.
+> Audio — output on the on-board 3.5mm stereo headphone jack (no wiring needed).
+  Input: 1x 6.35mm (1/4") MONO TS Line In jack, wired to the Audio Shield's
+  LINE IN L pad (NOT to Teensy GPIO).
 
   Line IN  (mono, 1 jack):  tip -> Audio Shield LINE IN  L   ; sleeve -> GND
-  Line OUT (stereo, 2 jacks):
-     jack L:                tip -> Audio Shield LINE OUT L   ; sleeve -> GND
-     jack R:                tip -> Audio Shield LINE OUT R   ; sleeve -> GND
-  Headphone:                on-board 3.5mm stereo jack (no wiring needed)
+  Headphone (output):       on-board 3.5mm stereo jack
 
   Notes:
    - Line In is mono: TŒRN records/monitors the LEFT line-in as a mono sample.
      LINE IN is already the firmware's default record input (no firmware change).
-   - Line Out is left stereo (two jacks L+R); the codec DAC drives Line Out and
-     the headphone jack together. Optional 10uF DC-blocking caps in series only
-     if connected gear hums; direct wiring is normally fine.
+   - Optional 10uF DC-blocking cap in series only if the source hums; direct
+     wiring is normally fine.
 
 
 > OLED (SSD1306 0.96" 128x64 I2C). Shares the audio I2C bus.
@@ -95,8 +91,8 @@ GND    - GND
 
 Overall used pins:
 ------------------------------------------------
-0   ->  MIDI IN
-1   ->  MIDI OUT
+0   ->  (free)
+1   ->  (free)
 2   ->  (reserved — TŒRN internal use, do NOT wire)
 3   ->  (reserved — TŒRN internal use, do NOT wire)
 4   ->  (reserved — TŒRN internal use, do NOT wire)
@@ -105,12 +101,12 @@ Overall used pins:
 7   ->  AudioDAC DIN (TX)
 8   ->  AudioDAC DOUT (RX)
 9   ->  E3 CLK
-10  ->  ChipSelect CS for SD
-11  ->  Data Storage (SPI) Teensy -> SD/MEM
-12  ->  Data Storage (SPI) SD/MEM -> Teensy
-13  ->  Data Storage (SPI) Clock
+10  ->  (audio board SD chip-select — not used: the SD is the Teensy 4.1 built-in slot)
+11  ->  Audio board SPI MOSI (SD/MEM on the audio board, unused)
+12  ->  Audio board SPI MISO (unused)
+13  ->  Audio board SPI SCK  (unused)
 14  ->  E3 DT
-15  ->  E1 (left)  SW
+15  ->  E1 (left)  SW   (= audio board A1/VOL pad: do NOT fit the volume pot)
 16  ->  E3 SW
 17  ->  LED-Matrix DIN
 18  ->  I2C SDA  (audio codec + OLED)
@@ -125,6 +121,8 @@ Overall used pins:
 28  ->  Button B3 REC
 32  ->  E2 CLK
 33  ->  E2 DT
+34  ->  MIDI IN  (Serial8 RX — optional DIN MIDI circuit with optocoupler)
+35  ->  MIDI OUT (Serial8 TX — optional DIN MIDI circuit)
 37  ->  E4 (right) CLK
 38  ->  E4 (right) DT
 39  ->  E4 (right) SW

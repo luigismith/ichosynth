@@ -48,8 +48,36 @@ python teensy/build_toern.py            # -> teensy/firmware/toern.hex
 python teensy/build_toern.py --flash    # build, then flash (teensy_loader_cli)
 ```
 
-Needs `arduino-cli` on PATH and the `teensy:avr` core (≥ 1.61.0). The TŒRN sources
-are expected under `emulator/toern-src/`; the script clones them if missing.
+Needs `arduino-cli` (on PATH or in `~/bin`) and the `teensy:avr` core (≥ 1.61.0). The
+TŒRN sources are expected under `emulator/toern-src/`; if missing, the script clones them
+**pinned to upstream commit `98f13da`** ("final bugfixes for 2.2") — the commit the shims
+and patches were checked against — and warns if the local `toern.ino` differs from it.
+
+The build is reproducible on any machine:
+- **FastLED is pinned to the copy bundled with the teensy:avr core** (passed with
+  `--library`). A newer FastLED in the Arduino sketchbook (3.10.x) no longer compiles TŒRN's
+  `FastLED.addLeds<WS2812SERIAL, …>` and would otherwise win over the core's copy.
+- Every source patch must apply, or the build stops with an error.
+
+### Hardware-behaviour patches
+
+Applied to a staged copy (the vendored sources stay pristine):
+
+| Patch | Why |
+|---|---|
+| `SWITCH_1/2/3` → pins 25/26/28 | the stock 2/3/4 collide with E4's original pins |
+| `pinMode(SWITCH_n, INPUT_PULLDOWN)` → `INPUT_PULLUP` | right for touch pads, wrong for buttons to GND: an open button would read "pressed" and TŒRN would hang in INIT MODE at boot |
+| `pinMode(2, INPUT_PULLUP)` | pin 2 is TŒRN's fast-record contact (active LOW); unwired it would float |
+| `INT_SD 10` → `BUILTIN_SDCARD` | the SD card is the Teensy 4.1's own slot (SDIO), not the audio board's |
+| default record input MIC → LINE IN | our build has a Line In jack and no mic |
+| 2nd LED strip removed | frees pin 24 |
+| OLED HUD glue | `ichosOledBegin()` + `ichosOledRender(…)` |
+
+The drivers also guard against the same problems on their own: `FastTouch` re-asserts the
+pull-up on every read, waits for it to settle before the first sample (TŒRN checks SWITCH_1
+for "CLR RAM", which erases the EEPROM) and debounces; `i2cEncoderLibV2` debounces the
+push switch, creates each `Encoder` only once (TŒRN re-calls `begin()` on E1) and returns
+Duppa-style status from `readStatus()` without side effects.
 
 ### Why `opt=o1std` (-O1) and not the default
 
@@ -59,11 +87,11 @@ with no source error. `-O1` (the FQBN suffix `opt=o1std`) compiles cleanly and t
 build still fits comfortably. If you build from the Arduino IDE instead, pick
 **Tools → Optimize → "Fast"** (= -O1).
 
-## Footprint (Teensy 4.1, -O1)
+## Footprint (Teensy 4.1, -O1, teensy:avr 1.62.0)
 
 ```
-FLASH:  code 341 KB, data 36 KB        free for files 7.7 MB
-RAM1:   variables 229 KB, code 276 KB  free for local vars ~0.7 KB  (TŒRN runs tight)
+FLASH:  code 316 KB, data 33 KB        free for files 7.7 MB
+RAM1:   variables 224 KB, code 252 KB  free for local vars ~37 KB
 RAM2:   variables 65 KB                free for malloc 459 KB
 EXTRAM: 16.5 MB
 ```
@@ -89,8 +117,9 @@ VOL:80  PAGE:1
 
 `build_toern.py` wires it in automatically (lightweight include + `ichosOledBegin()` at
 the end of `setup()` + a one-line `ichosOledRender(...)` glue in `loop()` reading TŒRN's
-globals). The render self-throttles (~12 fps) and only pushes pixels when a shown value
-changes, so it does not disturb the timing-sensitive audio loop.
+globals). The bus runs at 400 kHz (both chips support it) and each `ichosOledRender()`
+call rewrites at most **one** changed, space-padded text row (~3 ms) — no full-screen clears
+— so it never stalls the sequencer, button polling or MIDI input.
 
 ## Feature trims
 
@@ -103,7 +132,11 @@ the `REMOVE_*` flags at the top of `build_toern.py`.
 ## Remaining work
 
 - **On-hardware verification** — flash and confirm encoder direction, button polarity,
-  and combos behave as mapped in `_DOCS/MAPPA_CONTROLLI.md`.
+  and combos behave as mapped in `_DOCS/MAPPA_CONTROLLI.md`; check the SD on the built-in
+  slot and LINE IN recording. If one encoder click moves two steps, set
+  `ICHOS_ENC_COUNTS_PER_DETENT` to 2.
+- Upstream TŒRN opens `ERROR.txt` (crash report) with a mode the Teensy SD library
+  doesn't accept, so that log is never written — harmless, left as is.
 
 The desktop emulator (`emulator/`, target `toernemu`) already runs all 23k lines of
 TŒRN with host shims that mirror these same drivers — use it to rehearse the control

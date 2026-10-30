@@ -18,16 +18,11 @@ Disegni la musica su una griglia 16×16 con **4 manopole** e **3 pulsanti**. Nie
 > 🎧 **Non serve un computer per suonare**: il tuo **ichosynth** genera tutto da solo. Colleghi le
 > **cuffie**, accendi via USB e via.
 
-> 🔌 **Collegamenti — far uscire (ed entrare) il suono**: lo strumento ha tre jack audio.
-> - **Line Out** — 2× jack **6,35 mm (1/4") MONO**, **L + R = stereo**. Collegali a un amplificatore, un
->   mixer, un impianto PA o una scheda audio. L'uscita è stereo (TŒRN panpotta le voci), quindi usa
->   **sia L che R**; per un impianto mono basta il jack **L**.
+> 🔌 **Collegamenti — far uscire (ed entrare) il suono**: lo strumento ha due jack audio.
+> - **Cuffie** — il jack **3,5 mm stereo** della scheda audio: è l'uscita (TŒRN panpotta le voci in
+>   stereo). Ci puoi collegare anche un amplificatore o un mixer con un cavo 3,5 mm.
 > - **Line In** — 1× jack **6,35 mm (1/4") MONO**. Collega uno strumento, un altro synth, un
 >   field recorder o una mandata del mixer per **registrarlo/campionarlo** (vedi [cap. 16](#16--registrazione-dal-vivo-rec)).
-> - **Cuffie** — il jack **3,5 mm stereo** a bordo, per il monitoraggio.
->
-> Tutti e tre i jack condividono la massa del dispositivo, e **Line Out e cuffie suonano insieme** —
-> senza nessuna impostazione da menù.
 
 > ℹ️ **Questo è il vero TŒRN.** ichosynth fa girare il firmware completo **TŒRN** (di SP_/soundpauli,
 > [toern.live](https://toern.live)) su un Teensy 4.1, costruito con componenti economici saldati a mano:
@@ -332,8 +327,9 @@ La modalità SONG concatena i tuoi pattern in un arrangiamento completo.
 
 ## 18 · MIDI e tap-tempo
 
-- **USB MIDI**: ichosynth è un dispositivo **USB MIDI**. Collegato via USB suona/riceve MIDI con un
-  computer o altra strumentazione.
+- **MIDI**: TŒRN parla **MIDI DIN** (clock e note) sulla seriale del Teensy (**pin 34 = IN, 35 = OUT**).
+  Serve un piccolo circuito MIDI (optoisolatore + prese DIN), **non incluso nella build base**; via USB
+  il firmware non gestisce il MIDI.
 - **Tap-tempo**: tocca **B3 (REC)** a tempo per impostare il BPM a sensazione — senza menù.
 
 ---

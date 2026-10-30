@@ -89,10 +89,12 @@ Everything is powered from the **USB (5V)** port.
 | 1 | Micro SD Card, **Class 10** | for samples and patterns |
 | 1 | Micro-USB cable + 5V power supply (≥ 2A recommended) | power and programming |
 | 1 | Headphones with 3.5 mm jack | ichosynth has no speakers; on-board jack for monitoring |
-| **3** | **6.35 mm (1/4") mono TS jack** | audio I/O: 1× Line In (mono) + 2× Line Out (L + R) → Audio Shield LINE IN / LINE OUT pads |
+| 1 | **6.35 mm (1/4") mono TS jack** | Line In (mono, for recording) → Audio Shield LINE IN L pad |
 | as needed | *(optional)* 10 µF electrolytic capacitor | series DC-blocking on the line jacks, only if connected gear hums |
 | 1 | **SSD1306 0.96" 128×64 I²C** OLED | status screen (replaces TŒRN's encoder RGB rings) |
-| as needed | Dupont jumper wires (~10 cm), pin header strips | for the connections |
+| as needed | AWG 26 wire in 6+ colours (~10-15 cm per wire) | for the (soldered) connections |
+| 2 | **Long male pin header** strips (≥ 15 mm, 14 pins) | to stack the audio board on the Teensy |
+| 2 | *(recommended)* 5-pole lever connectors (e.g. WAGO 221-415) | 3.3 V and GND bus bars, no soldering |
 | 1 | *(optional)* **3D-printed case** (3 parts, 2 plates 250×250) | `_CASE/` — graphic guide `_CASE/MONTAGGIO.pdf`; also needs 8 M3×8 countersunk screws and 4 feet |
 
 > ℹ️ **Samples**: the factory set in `_SDCARD/` is **public domain** (the *drum_sklad* collection), freely redistributable. You can add your own (see [ch. 9](#9--preparing-the-micro-sd-samples)).
@@ -124,6 +126,11 @@ Everything is powered from the **USB (5V)** port.
 
 ## 6 · Complete pin map (the firmware's "truth")
 
+> 🎨 **Illustrated wiring guide: [`_DOCS/CABLAGGIO.pdf`](_DOCS/CABLAGGIO.pdf)** (Italian) — 7 plates with
+> the real parts drawn (true Teensy 4.1 pinout, KY-040, OLED, buttons, matrix, jack), one wire at a time,
+> wire colours and a final check. The pin numbers are read straight from the firmware drivers. This chapter
+> stays as the tabular reference.
+
 These pins are what the firmware expects. They live in the build sources — the encoder/button tables
 `ICHOS_ENC_PINS` and `ICHOS_BTN_PINS` under `teensy/libraries/`, plus `teensy/build_toern.py` — **not**
 in a `config.h`. **Wire exactly these numbers** (all of them are Teensy pins).
@@ -144,8 +151,10 @@ in a `config.h`. **Wire exactly these numbers** (all of them are Teensy pins).
 | GND | **GND** |
 
 ### 6.2 Audio board (Teensy Audio Adaptor, Rev D)
-> 💡 The simplest and most reliable way is to **stack** the audio board on top of the Teensy using pin headers:
-> that way these connections make themselves.
+> 💡 The simplest and most reliable way is to **stack** the audio board on top of the Teensy using **long male
+> pin headers** (headphone jack on the same side as the USB): these connections make themselves, and the wires
+> for the pins covered by the audio board are soldered onto the pin tips sticking out above it (see
+> `_DOCS/CABLAGGIO.pdf`, plate 3).
 
 If instead you wire it by hand, connect:
 
@@ -159,36 +168,27 @@ If instead you wire it by hand, connect:
 
 > ℹ️ The SD is used from the **Teensy 4.1's built-in slot**, not the one on the audio board.
 
-### 6.2.1 Audio I/O jacks (Line In + Line Out)
-Beyond the on-board 3.5 mm headphone jack, you add three **6.35 mm (1/4") mono TS jacks** for connecting
-to outside gear: **1× Line In** (mono) and **2× Line Out** (stereo: L + R). These wire to the **solder
-pads on the Teensy Audio Adaptor** (the LINE IN / LINE OUT pads on the codec board) — **not** to Teensy
-GPIO pins.
+### 6.2.1 Audio: Line In + headphones
+The output is the audio board's **on-board 3.5 mm headphone jack** (stereo). To record from outside
+gear you add **one 6.35 mm (1/4") mono TS jack for Line In**, wired to the **LINE IN L solder pad on the
+Teensy Audio Adaptor** — **not** to a Teensy GPIO pin.
 
 <p align="center">
-  <img src="assets/audio-io.svg" alt="Audio I/O wiring: three 6.35 mm mono TS jacks (Line In, Line Out L, Line Out R) to the Audio Shield LINE IN / LINE OUT pads, plus the on-board 3.5 mm headphone jack" width="680">
+  <img src="assets/audio-io.svg" alt="Audio wiring: one 6.35 mm mono TS jack (Line In) to the Audio Shield LINE IN L pad, plus the on-board 3.5 mm headphone jack as the output" width="680">
 </p>
 
-Every 6.35 mm jack is **TS mono**: **tip = signal**, **sleeve = GND** (common ground with the rest of
-the build).
-
-| 6.35 mm jack | Tip (signal) → Audio Shield pad | Sleeve |
+| Jack | Tip (signal) → Audio Shield pad | Sleeve |
 |---|---|---|
-| **Line In** (mono) | **LINE IN L** | **GND** |
-| **Line Out L** | **LINE OUT L** | **GND** |
-| **Line Out R** | **LINE OUT R** | **GND** |
-| Headphone | *(none — existing on-board 3.5 mm jack)* | — |
+| **Line In** 6.35 mm mono TS | **LINE IN L** | **GND** (common ground) |
+| **Headphones** 3.5 mm | *(on-board jack)* | — |
 
 - **Line In is mono.** TŒRN records/monitors the **LEFT** line-in channel as a mono sample, and LINE IN
   is already the firmware's default recording input — so **no firmware change is needed**.
-- **Line Out is stereo** (two jacks, L + R). The SGTL5000 DAC drives Line Out and the headphone output
-  together; since TŒRN has true stereo panning, the two jacks preserve the stereo image.
-- *(Optional)* If a connected device hums, add a **10 µF series DC-blocking electrolytic cap** in line
-  with each signal. Direct wiring is normally fine, so this is optional.
+- *(Optional)* If the connected source hums, add a **10 µF series DC-blocking electrolytic cap** in line
+  with the signal. Direct wiring is normally fine.
 
 > 🎚️ **What they're for:** **Line In** = sample external instruments / a field recorder / other gear
-> straight into the sampler. **Line Out (L+R)** = feed an amp / mixer / PA / audio interface. **Headphone**
-> (on-board 3.5 mm) = monitoring.
+> straight into the sampler. **Headphones** (3.5 mm) = listening and output.
 
 ### 6.3 Encoders (CLK, DT, SW = push-button)
 You fit **4 encoders**. Each encoder has 3 signals (CLK, DT, SW) + power. Arrange them from left to
@@ -281,7 +281,7 @@ parameters are in [`_CASE/README.md`](_CASE/README.md). With the case the encode
 (E2 E3 top, E1 E4 bottom: the Y/X cursor knobs nearest the hand), wires are soldered straight onto
 the KY-040 pins, the tact switches must be the **4.3 mm tall** ones and headphones exit at the back.
 No Dupont connectors inside the case: wires are soldered (on the Teensy from the top side), and the
-6.35 mm jacks must fit in **22 mm of depth and 16 mm of height** behind the wall.
+6.35 mm Line In jack must fit in **22 mm of depth and 16 mm of height** behind the wall.
 
 ---
 
@@ -343,7 +343,7 @@ boot and when you pick one from the menu.
 ```
 
 **2 · Browser library** — free WAV files under `samples/<category>/<name>.wav`, browsed
-voice-by-voice in **SET_WAV** (up to 999 files, any names).
+voice-by-voice in **SET_WAV** (up to 256 files per folder, names up to 60 characters).
 
 ```
 /samples/kick/...   /samples/snare/...   /samples/hat/...   /samples/perc/...

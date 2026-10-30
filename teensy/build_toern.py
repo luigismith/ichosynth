@@ -30,6 +30,7 @@ Requires: arduino-cli on PATH, the teensy:avr core (>=1.61.0) installed, and the
 TŒRN sources under emulator/toern-src/ (cloned automatically if missing).
 """
 import argparse
+import hashlib
 import os
 import re
 import shutil
@@ -40,6 +41,8 @@ import tempfile
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 TOERN_SRC = os.path.join(REPO, "emulator", "toern-src")
 TOERN_REPO_URL = "https://github.com/soundpauli/toern.git"
+TOERN_COMMIT = "98f13dacf7ffa4f086d85244ce9abb12ea8c480e"   # "final bugfixes for 2.2", 2026-05-21
+TOERN_INO_SHA1 = "159e135b369473a24a615c3aa6f50e84247f58f7"  # toern.ino at that commit, LF-normalised
 LIBRARIES = os.path.join(REPO, "teensy", "libraries")
 OLED_LIB = os.path.join(LIBRARIES, "IchosOled", "IchosOled.h")
 OUT_DIR = os.path.join(REPO, "teensy", "firmware")
@@ -59,14 +62,87 @@ def run(cmd, **kw):
     return subprocess.run(cmd, **kw)
 
 
+def find_arduino_cli():
+    """arduino-cli on PATH, else the usual per-user install location (~/bin)."""
+    exe = shutil.which("arduino-cli")
+    if exe:
+        return exe
+    for cand in ("~/bin/arduino-cli.exe", "~/bin/arduino-cli"):
+        cand = os.path.expanduser(cand)
+        if os.path.isfile(cand):
+            return cand
+    return None
+
+
+def core_library(cli, name):
+    """Path of a library bundled with the newest installed teensy:avr core.
+
+    The sketchbook may hold a newer, incompatible copy (FastLED 3.10 no longer compiles
+    TŒRN's FastLED.addLeds<WS2812SERIAL, ...>), and arduino-cli prefers sketchbook
+    libraries over platform ones. Passing the core's copy with --library pins it, so
+    the build does not depend on what else is installed on the machine.
+    """
+    r = subprocess.run([cli, "config", "get", "directories.data"], capture_output=True, text=True)
+    root = os.path.join(r.stdout.strip(), "packages", "teensy", "hardware", "avr")
+    if not os.path.isdir(root):
+        return None
+    def ver(v):
+        return tuple(int(x) for x in re.findall(r"\d+", v))
+    for v in sorted(os.listdir(root), key=ver, reverse=True):
+        path = os.path.join(root, v, "libraries", name)
+        if os.path.isdir(path):
+            return path
+    return None
+
+
 def ensure_sources():
-    if os.path.isfile(os.path.join(TOERN_SRC, "toern.ino")):
-        return
-    print(f"TŒRN sources not found at {TOERN_SRC} -> cloning {TOERN_REPO_URL}")
-    os.makedirs(os.path.dirname(TOERN_SRC), exist_ok=True)
-    r = run(["git", "clone", "--depth", "1", TOERN_REPO_URL, TOERN_SRC])
-    if r.returncode != 0:
-        sys.exit("Could not clone TŒRN sources. Clone it manually into emulator/toern-src/.")
+    """TŒRN sources at the pinned upstream commit (cloned if missing).
+
+    Upstream keeps moving; our shims and patches were checked against TOERN_COMMIT, so
+    a fresh checkout is pinned there instead of following HEAD.
+    """
+    if not os.path.isfile(os.path.join(TOERN_SRC, "toern.ino")):
+        print(f"TŒRN sources not found at {TOERN_SRC} -> cloning {TOERN_REPO_URL} @ {TOERN_COMMIT[:10]}")
+        os.makedirs(os.path.dirname(TOERN_SRC), exist_ok=True)
+        r = run(["git", "clone", TOERN_REPO_URL, TOERN_SRC])
+        if r.returncode == 0:
+            r = run(["git", "-C", TOERN_SRC, "checkout", "-q", TOERN_COMMIT])
+        if r.returncode != 0:
+            sys.exit(f"Could not get TŒRN {TOERN_COMMIT}. Clone {TOERN_REPO_URL} into emulator/toern-src/ "
+                     f"and check out that commit.")
+    with open(os.path.join(TOERN_SRC, "toern.ino"), "rb") as f:
+        digest = hashlib.sha1(f.read().replace(b"\r\n", b"\n")).hexdigest()
+    if digest != TOERN_INO_SHA1:
+        print(f"  WARNING: emulator/toern-src/toern.ino is not the pinned TŒRN {TOERN_COMMIT[:10]} "
+              f"(sha1 {digest[:10]}): the patches below will still refuse to apply if anything moved.")
+
+
+def patch_behaviour(sketch):
+    """Hardware-behaviour patches for our build (each one must apply, or the build stops).
+
+    - SWITCH_1/2/3 are tact switches to GND, not touch pads: INPUT_PULLUP, not PULLDOWN
+      (with PULLDOWN an open button reads "pressed" and TŒRN hangs in INIT MODE at boot).
+    - Pin 2 (fast-record contact, active LOW) gets a pull-up so it can't float.
+    - The SD card is the Teensy 4.1's built-in slot (SDIO), not the Audio Adaptor's SPI
+      slot on pin 10.
+    - The default recording input is LINE IN (our build has a Line In jack, no mic).
+    """
+    ino = os.path.join(sketch, "toern.ino")
+    with open(ino, "r", encoding="utf-8", errors="surrogateescape") as f:
+        text = f.read()
+    text, a = re.subn(r"pinMode\((SWITCH_[123]),\s*INPUT_PULLDOWN\)", r"pinMode(\1, INPUT_PULLUP)", text)
+    text, b = re.subn(r"(pinMode\(SWITCH_3,\s*INPUT_PULLUP\);[^\n]*\n)",
+                      r"\1  pinMode(2, INPUT_PULLUP);  // ichosynth: fast-record contact, active LOW\n",
+                      text, count=1)
+    text, c = re.subn(r"#define\s+INT_SD\s+10\b", "#define INT_SD BUILTIN_SDCARD  // ichosynth: Teensy 4.1 slot",
+                      text, count=1)
+    text, d = re.subn(r"recMode = 1;(\s*)// default: MIC", r"recMode = -1;\1// ichosynth default: LINE IN",
+                      text, count=1)
+    if (a, b, c, d) != (3, 1, 1, 1):
+        sys.exit(f"Could not apply behaviour patches (pullups={a}, pin2={b}, sd={c}, recIn={d}).")
+    with open(ino, "w", encoding="utf-8", errors="surrogateescape") as f:
+        f.write(text)
+    print("  buttons INPUT_PULLUP + pin 2 pull-up, SD = built-in slot, record input = LINE IN")
 
 
 def stage(build_root):
@@ -159,8 +235,12 @@ def main():
     ap.add_argument("--keep", action="store_true", help="keep the temporary build folder")
     args = ap.parse_args()
 
-    if not shutil.which("arduino-cli"):
-        sys.exit("arduino-cli not on PATH. Install it and the teensy:avr core first.")
+    cli = find_arduino_cli()
+    if not cli:
+        sys.exit("arduino-cli not found (PATH or ~/bin). Install it and the teensy:avr core first.")
+    fastled = core_library(cli, "FastLED")
+    if not fastled:
+        sys.exit("FastLED bundled with the teensy:avr core not found. Install the teensy:avr core (>=1.61.0).")
     ensure_sources()
 
     build_root = tempfile.mkdtemp(prefix="toernbuild_")
@@ -168,26 +248,28 @@ def main():
         print("Staging TŒRN sources ...")
         sketch = stage(build_root)
         patch_pins(sketch)
+        patch_behaviour(sketch)
         remove_features(sketch)
         add_oled_hud(sketch)
 
         os.makedirs(OUT_DIR, exist_ok=True)
         print(f"Compiling for {FQBN} ...")
-        r = run(["arduino-cli", "compile", "-b", FQBN, sketch,
-                 "--libraries", LIBRARIES, "--output-dir", OUT_DIR])
+        print(f"  FastLED pinned to the core's copy: {fastled}")
+        r = run([cli, "compile", "-b", FQBN, sketch, "--libraries", LIBRARIES,
+                 "--library", fastled, "--output-dir", OUT_DIR])
         if r.returncode != 0:
             sys.exit("Compile failed. See output above.")
 
         # arduino-cli writes "<sketch>.ino.hex"; copy it to a stable name.
         built = os.path.join(OUT_DIR, "toern.ino.hex")
         final = os.path.join(OUT_DIR, "toern.hex")
-        if os.path.isfile(built):
-            try:
-                shutil.copyfile(built, final)
-                out = final
-            except OSError:
-                out = built  # dest locked (e.g. open elsewhere); the .ino.hex is valid
-            print(f"\nFirmware ready: {out}")
+        if not os.path.isfile(built):
+            sys.exit(f"Compile reported success but {built} is missing.")
+        try:
+            shutil.copyfile(built, final)
+        except OSError:
+            final = built  # dest locked (e.g. open elsewhere); the .ino.hex is valid
+        print(f"\nFirmware ready: {final}")
 
         if args.flash:
             loader = shutil.which("teensy_loader_cli")

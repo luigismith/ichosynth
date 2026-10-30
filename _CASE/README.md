@@ -54,7 +54,7 @@ combinazione a due dita (FILTER / SAMPLE BROWSER).
 **I/O** — retro: **USB** e **PHONES**. Il jack cuffie della scheda audio Rev D sta sullo
 stesso lato della USB del Teensy (così la monta anche PJRC/CCRMA): esce direttamente
 dall'apertura larga quanto la scheda, niente prolunghe — **controllalo sulla tua scheda
-prima di stampare**. Fianco destro: **OUT L · OUT R · IN**, jack mono 6,35 mm da pannello
+prima di stampare**. Fianco destro: **LINE IN**, jack mono 6,35 mm da pannello
 (foro 9,8 mm, ingombro dietro la parete **max 22 mm di profondità e 16 mm di altezza**).
 La **micro-SD** del Teensy si raggiunge togliendo il pannello (4 viti).
 
@@ -70,7 +70,7 @@ La **micro-SD** del Teensy si raggiunge togliendo il pannello (4 viti).
 |---|---|
 | 8 | vite M3 × 8 testa svasata (si autofilettano nei fori pilota da 2,5 mm) |
 | 3 | tact switch 6×6 **alti 4,3 mm** |
-| 3 | jack mono TS 6,35 mm da pannello (filetto 3/8") |
+| 1 | jack mono TS 6,35 mm da pannello (filetto 3/8") per il LINE IN |
 | 4 | piedini adesivi Ø10 |
 | — | colla a caldo (Teensy, OLED, switch) |
 

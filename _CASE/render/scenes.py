@@ -194,7 +194,7 @@ def build_scenes():
         s.arrow(s.point(f"f{i}a", (x, y, -15), rot=flip, loc=lift), s.point(f"f{i}b", (x, y, -4), rot=flip, loc=lift))
     S.append(s)
 
-    # 2 · jack 6,35 sul fianco: corpo da dentro, dado da fuori
+    # 2 · jack LINE IN 6,35 sul fianco: corpo da dentro, dado da fuori
     s = Scene("s02_jacks", 30, -32)
     s.add(tray)
     for n, (v, _) in b.JACKS.items():
@@ -275,7 +275,7 @@ def build_scenes():
 
     # miniature "cosa serve"
     items = {"item_matrix": mat_off, "item_teensy": tee, "item_encoder": reg(parts.encoder("E1")),
-             "item_oled": oled, "item_switch": reg(parts.switch("PLAY")), "item_jack": reg(parts.jack("OUT L")),
+             "item_oled": oled, "item_switch": reg(parts.switch("PLAY")), "item_jack": reg(parts.jack("LINE IN")),
              "item_screw": reg([parts.screw(0, 0, 0, "item")]),
              "item_feet": reg([("foot_item", cyl(0, 0, 0, 2.2, 5.0), "rubber")])}
     for name, it in items.items():

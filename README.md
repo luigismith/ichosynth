@@ -82,10 +82,9 @@ Everything else is pure TŒRN, and **all of it works on this hardware**:
 - Per-step **velocity / probability / condition**, mute, note-shift, copy-paste.
 - **Sample packs + SD browser**, seek / length / reverse, SD load/save.
 - **Live recording** (hold REC) with **MIC/LINE input + count-in**.
-- **Audio I/O on jacks**: a **6.35mm (1/4") mono Line In** to sample/record external gear, instruments
-  or a field-recorder straight into the sampler, plus **2× 6.35mm mono Line Out (L + R)** to amp / mixer
-  / PA / audio interface. The on-board **3.5mm stereo headphone jack stays for monitoring**.
-- **USB MIDI**, EEPROM/SD settings, tap-tempo.
+- **Audio**: a **6.35mm (1/4") mono Line In** to sample/record external gear, instruments or a
+  field-recorder straight into the sampler; the output is the on-board **3.5mm stereo headphone jack**.
+- **DIN MIDI** clock/notes on pins 34/35 (needs an optional MIDI circuit), EEPROM/SD settings, tap-tempo.
 
 > 🔧 **One feature trimmed for this build:** the optional reactive 2nd LED strip (256 LEDs) is removed,
 > which frees pin 24. Everything else in TŒRN is present.
@@ -146,14 +145,14 @@ flowchart LR
     T --> OLED["📟 SSD1306<br/>status HUD"]
     T --> AUDIO["🔊 Audio Adaptor<br/>SGTL5000"]
     AUDIO --> JACK["🎧 3.5mm out"]
-    AUDIO --> LINE["🔌 6.35mm Line In + Line Out (L/R)"]
-    T <-. "USB-MIDI in/out" .-> HOST["💻 / 🎹 host & gear"]
+    AUDIO --> LINE["🔌 6.35mm Line In"]
+    T <-. "DIN MIDI in/out (optional)" .-> HOST["🎹 MIDI gear"]
 
     style OLED stroke:#2ea44f,stroke-width:2px
 ```
 
 <p align="center">
-  <img src="assets/audio-io.svg" alt="Audio I/O: 6.35mm mono Line In + stereo Line Out (L/R) on the Audio Adaptor, with the 3.5mm headphone jack kept for monitoring" width="700">
+  <img src="assets/audio-io.svg" alt="Audio: 6.35mm mono Line In to the Audio Adaptor LINE IN L pad; output on the 3.5mm headphone jack" width="700">
 </p>
 
 Draw notes → press Play → loop. Tweak samples, effects, BPM, volume and velocity live, without stopping.
@@ -260,9 +259,9 @@ switcher sits at the top of every page). PDF versions are included too.
 - 4× **KY-040** rotary encoders (turn + push) — E1…E4
 - 3× **tact switches** (PLAY / MENU / REC)
 - 1× **SSD1306 0.96" 128×64 I²C** OLED
-- 3× **6.35mm (1/4") mono TS jacks** — 1× **Line In** (mono) + 2× **Line Out** (stereo: L + R), wired to
-  the Audio Adaptor's LINE IN / LINE OUT pads
-- Jumper wires, headphones
+- 1× **6.35mm (1/4") mono TS jack** — **Line In** (mono), wired to the Audio Adaptor's LINE IN L pad
+- AWG 26 coloured wire, long male pin headers, 2 lever connectors (WAGO 221), headphones —
+  **illustrated wiring guide: [`_DOCS/CABLAGGIO.pdf`](_DOCS/CABLAGGIO.pdf)** (Italian)
 - *(optional)* **3D-printed case** — 3 parts on 2 plates 250×250, no supports:
   [`_CASE/`](_CASE/) · graphic guide [`_CASE/MONTAGGIO.pdf`](_CASE/MONTAGGIO.pdf)
 

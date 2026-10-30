@@ -12,14 +12,19 @@ The firmware has TWO sample systems, so the app has two modes:
   • Samplepack  — a numbered folder <pack>/ with 8 voices 1.wav .. 8.wav,
                   loaded as a set at boot / via the pack selector.
   • Libreria    — free WAV files under samples/<categoria>/<nome>.wav, browsed
-                  voice-by-voice in SET_WAV (names are kept, just tidied).
+                  voice-by-voice in SET_WAV (names are kept, just tidied; the
+                  firmware shows names <= 64 chars and <= 256 WAVs per folder).
 
 Features:
 - pick individual files or a whole folder; see each file's current format and
   its destination before converting
 - prepare an SD card: scan it (detect packs + browser library), and on Windows
-  format it FAT32 / create the samples/ folder
-- progress bar + log; conversion runs off the UI thread
+  format it FAT32 / create the samples/ folder. Formatting is offered ONLY for
+  removable SD media (never fixed / system disks), re-checks the card right
+  before formatting and shows disk number, model, size and partitions.
+- progress bar + log; conversion runs off the UI thread; every source is
+  converted before any destination is overwritten (safe voice reordering)
+- band-limited resampling (windowed-sinc); 16-bit mono 44.1k files pass bit-exact
 
 Pure standard library — the WAV converter is hand-rolled (no ffmpeg, no audioop),
 so it works on any Python 3.8+ including 3.13/3.14 where audioop was removed.
@@ -27,7 +32,9 @@ SD scan/format on Windows shell out to PowerShell.
 
 Run:  python wavmaker_gui.py      (or launch the bundled wavmaker.exe)
 """
-import io
+import array
+import math
+import operator
 import os
 import re
 import sys
@@ -75,15 +82,6 @@ _FS_OK = ("FAT", "FAT16", "FAT32", "EXFAT")
 # =========================================================================
 # audio core — pure-python WAV decode/encode (mono / 16-bit / 44100 Hz)
 # =========================================================================
-def _iter_chunks(b):
-    pos, n = 12, len(b)
-    while pos + 8 <= n:
-        cid = b[pos:pos + 4]
-        size = struct.unpack("<I", b[pos + 4:pos + 8])[0]
-        yield cid, b[pos + 8:pos + 8 + size]
-        pos += 8 + size + (size & 1)
-
-
 def _parse_fmt(b):
     """Return (tag, channels, rate, bits, data_bytes) or None."""
     if b[:4] != b"RIFF" or b[8:12] != b"WAVE":
@@ -143,108 +141,265 @@ def fmt_label(fmt):
     return f"{chl} · {width*8}-bit {kind} · {rate} Hz · {secs:0.1f}s"
 
 
-def decode_wav(b):
-    info = _parse_fmt(b)
-    if not info:
-        raise ValueError("not a RIFF/WAVE file")
-    tag, ch, rate, bits, _db = info
-    data = None
-    for cid, body in _iter_chunks(b):
-        if cid == b"data":
-            data = body
-    if data is None:
-        raise ValueError("missing data chunk")
-    nbytes = bits // 8
-    frame = nbytes * ch
-    if frame == 0:
-        raise ValueError("bad fmt")
-    nframes = len(data) // frame
+# --------------------------------------------------------------------------
+# pure-python WAV codec  (mono / 16-bit / 44100 Hz output)
+# NB: the same block lives in wavmaker.py, wavmaker_gui.py and build_samples.py
+#     (each script stays standalone) — keep the three copies identical.
+# --------------------------------------------------------------------------
+def _iter_chunks(b):
+    pos, n = 12, len(b)
+    while pos + 8 <= n:
+        cid = b[pos:pos + 4]
+        size = struct.unpack("<I", b[pos + 4:pos + 8])[0]
+        yield cid, b[pos + 8:pos + 8 + size]
+        pos += 8 + size + (size & 1)          # chunks are word-aligned
 
-    if tag == 3:
-        if bits == 32:
-            rd = lambda o: struct.unpack_from("<f", data, o)[0]
-        elif bits == 64:
-            rd = lambda o: struct.unpack_from("<d", data, o)[0]
-        else:
-            raise ValueError("float bits %d" % bits)
-    elif tag == 1:
-        if bits == 8:
-            rd = lambda o: (data[o] - 128) / 128.0
-        elif bits == 16:
-            rd = lambda o: struct.unpack_from("<h", data, o)[0] / 32768.0
-        elif bits == 24:
-            def rd(o):
-                v = data[o] | (data[o + 1] << 8) | (data[o + 2] << 16)
-                return (v - 0x1000000 if v & 0x800000 else v) / 8388608.0
-        elif bits == 32:
-            rd = lambda o: struct.unpack_from("<i", data, o)[0] / 2147483648.0
-        else:
-            raise ValueError("pcm bits %d" % bits)
+
+def wav_info(b):
+    """RIFF/WAVE bytes -> (tag, channels, rate, bits, data_bytes). Raises ValueError."""
+    if b[:4] != b"RIFF" or b[8:12] != b"WAVE":
+        raise ValueError("not a RIFF/WAVE file")
+    fmt = data = None
+    for cid, body in _iter_chunks(b):
+        if cid == b"fmt ":
+            if len(body) < 16:
+                raise ValueError("fmt chunk troppo corto")
+            tag, ch, rate, _br, _ba, bits = struct.unpack("<HHIIHH", body[:16])
+            if tag == 0xFFFE and len(body) >= 26:    # WAVE_FORMAT_EXTENSIBLE
+                tag = struct.unpack("<H", body[24:26])[0]   # real format from GUID
+            fmt = (tag, ch, rate, bits)
+        elif cid == b"data":
+            data = body
+    if not fmt or data is None:
+        raise ValueError("missing fmt/data chunk")
+    tag, ch, rate, bits = fmt
+    if ch == 0 or rate == 0 or bits == 0 or bits % 8:
+        raise ValueError("bad fmt (ch=%d rate=%d bits=%d)" % (ch, rate, bits))
+    return tag, ch, rate, bits, data
+
+
+def _samples(data, tag, bits):
+    """Interleaved sample bytes -> list of floats in -1..1 (all channels)."""
+    if tag == 1 and bits == 8:                 # unsigned 8-bit
+        return [(v - 128) / 128.0 for v in data]
+    if tag == 1 and bits == 24:
+        n = len(data) // 3
+        out = [0.0] * n
+        for i in range(n):
+            o = i * 3
+            v = data[o] | (data[o + 1] << 8) | (data[o + 2] << 16)
+            out[i] = (v - 0x1000000 if v & 0x800000 else v) / 8388608.0
+        return out
+    if tag == 1 and bits in (16, 32):
+        code = "h" if bits == 16 else ("i" if array.array("i").itemsize == 4 else "l")
+        scale = 1.0 / (32768.0 if bits == 16 else 2147483648.0)
+    elif tag == 3 and bits in (32, 64):        # IEEE float
+        code = "f" if bits == 32 else "d"
+        scale = 1.0
+    elif tag in (1, 3):
+        raise ValueError("%s bits %d" % ("pcm" if tag == 1 else "float", bits))
     else:
         raise ValueError("format tag %d" % tag)
+    a = array.array(code)
+    a.frombytes(data[:len(data) - len(data) % a.itemsize])
+    if sys.byteorder != "little":
+        a.byteswap()
+    if scale == 1.0:
+        return [v if v == v else 0.0 for v in a]      # NaN -> 0
+    return [v * scale for v in a]
 
-    mono = [0.0] * nframes
+
+def decode_wav(b):
+    """Arbitrary PCM/float WAV bytes -> (rate, [mono floats in -1..1])."""
+    tag, ch, rate, bits, data = wav_info(b)
+    s = _samples(data, tag, bits)
+    if ch == 1:
+        return rate, s
+    nframes = len(s) // ch
     inv = 1.0 / ch
-    for i in range(nframes):
-        base = i * frame
-        acc = 0.0
-        for c in range(ch):
-            acc += rd(base + c * nbytes)
-        mono[i] = acc * inv
-    return rate, mono
+    cols = [s[c:nframes * ch:ch] for c in range(ch)]
+    return rate, [sum(fr) * inv for fr in zip(*cols)]
+
+
+# band-limited resampler: polyphase windowed-sinc (Kaiser), low-pass at
+# 0.45 * min(fs_in, fs_out) so nothing above the new Nyquist folds back.
+_RS_CUT = 0.45          # cutoff, fraction of the lower sample rate
+_RS_ZEROS = 24          # sinc zero-crossings per side
+_RS_BETA = 8.6          # Kaiser beta (~-85 dB stopband)
+_RS_MAX_PHASES = 1024   # odd rate ratios: phase quantised to 1/1024 sample
+
+
+def _bessel_i0(x):
+    s = term = 1.0
+    y = x * x / 4.0
+    k = 1
+    while term > 1e-12 * s:
+        term *= y / (k * k)
+        s += term
+        k += 1
+    return s
 
 
 def resample(mono, src_rate, dst_rate):
     if src_rate == dst_rate or not mono:
         return mono
+    g = math.gcd(int(src_rate), int(dst_rate))
+    up, down = int(dst_rate) // g, int(src_rate) // g
     out_n = max(1, int(round(len(mono) * dst_rate / src_rate)))
+    fc = _RS_CUT * min(src_rate, dst_rate) / src_rate      # cycles / input sample
+    half = _RS_ZEROS / (2.0 * fc)                           # kernel half-width
+    taps = int(math.ceil(half))
+    width = 2 * taps
+    i0b = _bessel_i0(_RS_BETA)
+    nph = up if up <= _RS_MAX_PHASES else _RS_MAX_PHASES
+    cache = {}
+
+    def kernel(q):
+        frac = q / nph
+        c = []
+        for j in range(-taps + 1, taps + 1):
+            d = frac - j                     # distance input sample -> output point
+            u = d / half
+            if abs(u) >= 1.0:
+                c.append(0.0)
+                continue
+            x = 2.0 * fc * d
+            sinc = 1.0 if x == 0.0 else math.sin(math.pi * x) / (math.pi * x)
+            c.append(2.0 * fc * sinc * _bessel_i0(_RS_BETA * math.sqrt(1.0 - u * u)) / i0b)
+        tot = sum(c)
+        return [v / tot for v in c]           # unity gain at DC for every phase
+
+    xp = [0.0] * taps + list(mono) + [0.0] * (taps + 2)
     out = [0.0] * out_n
-    step = src_rate / dst_rate
-    pos = 0.0
-    last = len(mono) - 1
-    for i in range(out_n):
-        idx = int(pos)
-        if idx >= last:
-            out[i] = mono[last]
+    mul = operator.mul
+    for n in range(out_n):
+        k, r = divmod(n * down, up)
+        if nph == up:
+            q = r
         else:
-            frac = pos - idx
-            out[i] = mono[idx] * (1.0 - frac) + mono[idx + 1] * frac
-        pos += step
+            q = int(round(r * nph / up))
+            if q == nph:
+                k, q = k + 1, 0
+        c = cache.get(q)
+        if c is None:
+            c = cache[q] = kernel(q)
+        out[n] = sum(map(mul, c, xp[k + 1:k + 1 + width]))
     return out
 
 
+def _wav_header(nbytes):
+    return (b"RIFF" + struct.pack("<I", 36 + nbytes) + b"WAVE"
+            + b"fmt " + struct.pack("<IHHIIHH", 16, 1, 1, TARGET_RATE, TARGET_RATE * 2, 2, 16)
+            + b"data" + struct.pack("<I", nbytes))
+
+
 def encode_wav_mono16(mono):
-    pcm = bytearray(len(mono) * 2)
+    # symmetric scaling (decode /32768, encode *32768 clipped to int16): a 16-bit
+    # source survives decode -> encode bit-exact, so re-converting is lossless
+    pcm = array.array("h", [0]) * len(mono)
     for i, v in enumerate(mono):
-        v = 1.0 if v > 1.0 else (-1.0 if v < -1.0 else v)
-        struct.pack_into("<h", pcm, i * 2, int(round(v * 32767.0)))
-    db = len(pcm)
-    o = io.BytesIO()
-    o.write(b"RIFF"); o.write(struct.pack("<I", 36 + db)); o.write(b"WAVE")
-    o.write(b"fmt "); o.write(struct.pack("<IHHIIHH", 16, 1, 1, TARGET_RATE, TARGET_RATE * 2, 2, 16))
-    o.write(b"data"); o.write(struct.pack("<I", db)); o.write(pcm)
-    return o.getvalue()
+        x = v * 32768.0
+        if x >= 32767.0:
+            pcm[i] = 32767
+        elif x <= -32768.0:
+            pcm[i] = -32768
+        elif x == x:                           # NaN -> 0
+            pcm[i] = int(round(x))
+    if sys.byteorder != "little":
+        pcm.byteswap()
+    raw = pcm.tobytes()
+    return _wav_header(len(raw)) + raw
+
+
+def convert_bytes(raw):
+    """Any WAV -> mono/16-bit/44100 WAV bytes (44-byte header)."""
+    tag, ch, rate, bits, data = wav_info(raw)
+    if tag == 1 and ch == 1 and bits == 16 and rate == TARGET_RATE:
+        pcm = bytes(data[:len(data) & ~1])     # already the target: samples untouched
+        return _wav_header(len(pcm)) + pcm
+    rate, mono = decode_wav(raw)
+    return encode_wav_mono16(resample(mono, rate, TARGET_RATE))
 
 
 def convert_file(src, dst):
     """Convert src WAV to mono/16-bit/44100, write to dst (atomic)."""
-    with open(src, "rb") as f:
-        rate, mono = decode_wav(f.read())
-    out = encode_wav_mono16(resample(mono, rate, TARGET_RATE))
-    os.makedirs(os.path.dirname(os.path.abspath(dst)), exist_ok=True)
-    tmp = dst + ".tmp"
-    with open(tmp, "wb") as f:
-        f.write(out)
+    tmp = stage_convert(src, dst)
     os.replace(tmp, dst)
 
 
-def sanitize_name(basename):
-    """Turn a source filename into a tidy browser name (keeps it readable)."""
+def _tmp_path(dst):
+    return dst + ".ichotmp"
+
+
+def stage_convert(src, dst):
+    """Convert src into a temp file next to dst and return its path.
+
+    Batches convert EVERY source first and only then move the temp files over
+    the destinations, so a destination that is also a later source (e.g. voices
+    swapped inside a pack already on the SD) is never read after being overwritten.
+    """
+    with open(src, "rb") as f:
+        out = convert_bytes(f.read())
+    os.makedirs(os.path.dirname(os.path.abspath(dst)), exist_ok=True)
+    tmp = _tmp_path(dst)
+    try:
+        with open(tmp, "wb") as f:
+            f.write(out)
+    except BaseException:
+        if os.path.exists(tmp):
+            os.remove(tmp)
+        raise
+    return tmp
+
+
+def same_path(a, b):
+    """True if a and b name the same file (case-insensitive on Windows)."""
+    try:
+        if os.path.exists(a) and os.path.exists(b):
+            return os.path.samefile(a, b)
+    except OSError:
+        pass
+    return os.path.normcase(os.path.abspath(a)) == os.path.normcase(os.path.abspath(b))
+
+
+# firmware limits of the sample browser (SET_WAV), from the TŒRN listing:
+# names are copied into SAMPLE_BROWSER_NAME_MAX (65) buffers and at most
+# BROWSE_MAX_TMP (256) WAVs per folder are listed.
+BROWSER_NAME_MAX = 60      # full name incl. ".wav" (margin below the 64 kept)
+BROWSER_MAX_FILES = 256
+CATEGORY_MAX = 32
+
+
+def sanitize_name(basename, suffix=""):
+    """Turn a source filename into a tidy browser name (keeps it readable, <= 60 chars)."""
     name = os.path.splitext(os.path.basename(basename))[0]
     name = name.strip().lower()
     name = re.sub(r"[^a-z0-9._-]+", "-", name)
     name = re.sub(r"-{2,}", "-", name).strip("-._")
-    return (name or "sample") + ".wav"
+    room = BROWSER_NAME_MAX - len(".wav") - len(suffix)
+    name = (name or "sample")[:room].rstrip("-._") or "sample"
+    return name + suffix + ".wav"
+
+
+def sanitize_category(cat):
+    """Category -> ONE safe folder name under samples/ (no '/', '\\', '..', leading dots)."""
+    c = (cat or "").strip().lower()
+    c = re.sub(r"[^a-z0-9_-]+", "-", c)
+    c = re.sub(r"-{2,}", "-", c).strip("-_")[:CATEGORY_MAX].strip("-_")
+    return c or "perc"
+
+
+def browser_names(paths):
+    """Destination names for a batch: sanitised, de-duplicated (case-insensitive)."""
+    seen, out = set(), []
+    for p in paths:
+        nm, n = sanitize_name(p), 1
+        while nm.lower() in seen:
+            n += 1
+            nm = sanitize_name(p, f"-{n}")
+        seen.add(nm.lower())
+        out.append(nm)
+    return out
 
 
 # =========================================================================
@@ -285,10 +440,30 @@ def drive_letter_of(path):
     return None
 
 
+def _ps_json(script, timeout=60):
+    r = _ps(script, timeout=timeout)
+    if not r or r.returncode != 0 or not (r.stdout or "").strip():
+        return None
+    try:
+        return json.loads(r.stdout)
+    except Exception:
+        return None
+
+
+# FAT32: Windows' Format-Volume refuses volumes above 32 GB
+FAT32_MAX = 32 * 1024 ** 3
+# bus types of a real SD/MMC slot; a USB card reader shows "USB" and is accepted
+# only when Windows reports the volume as Removable (USB HDD/SSD are "Fixed")
+_SD_BUS = ("SD", "MMC")
+
+
 def volume_info(path):
+    """Volume + physical-disk facts for the drive holding `path` (Windows: PowerShell)."""
     info = {"letter": drive_letter_of(path), "fs": None, "drive_type": None,
-            "size": None, "free": None, "label": None,
-            "removable": None, "system": False, "readable": False}
+            "size": None, "free": None, "label": None, "serial": None,
+            "removable": None, "system": False, "readable": False,
+            "disk_number": None, "disk_model": None, "disk_size": None,
+            "bus_type": None, "disk_system": None, "partitions": None, "part_list": []}
     sysdrive = os.environ.get("SystemDrive", "C:")[0].upper()
     if info["letter"] and info["letter"] == sysdrive:
         info["system"] = True
@@ -300,24 +475,85 @@ def volume_info(path):
     except Exception:
         info["readable"] = False
     if IS_WIN and info["letter"]:
-        r = _ps(f"Get-Volume -DriveLetter {info['letter']} -ErrorAction SilentlyContinue | "
-                f"Select-Object FileSystemType,DriveType,Size,SizeRemaining,FileSystemLabel | "
-                f"ConvertTo-Json -Compress")
-        if r and r.returncode == 0 and r.stdout.strip():
-            try:
-                d = json.loads(r.stdout)
-                info["fs"] = d.get("FileSystemType")
-                info["drive_type"] = d.get("DriveType")
-                dt = str(d.get("DriveType") or "").lower()
-                info["removable"] = (dt == "removable") if dt else None
-                if d.get("Size"):
-                    info["size"] = int(d["Size"])
-                if d.get("SizeRemaining") is not None:
-                    info["free"] = int(d["SizeRemaining"])
-                info["label"] = d.get("FileSystemLabel")
-            except Exception:
-                pass
+        L = info["letter"]
+        d = _ps_json(
+            "$ErrorActionPreference='SilentlyContinue'; "
+            f"$v = Get-Volume -DriveLetter {L}; "
+            f"$p = Get-Partition -DriveLetter {L}; "
+            "$d = $null; if ($p) { $d = $p | Get-Disk }; "
+            f"$ld = Get-CimInstance Win32_LogicalDisk | Where-Object {{ $_.DeviceID -eq '{L}:' }}; "
+            "$parts = @(); if ($d) { $parts = @(Get-Partition -DiskNumber $d.Number | ForEach-Object { "
+            "[pscustomobject]@{ Letter = $(if ([string]$_.DriveLetter -match '^[A-Za-z]$') { [string]$_.DriveLetter } else { '' }); "
+            "Size = $_.Size; Type = [string]$_.Type } }) }; "
+            "[pscustomobject]@{ "
+            "FileSystemType = [string]$v.FileSystemType; DriveType = [string]$v.DriveType; "
+            "Size = $v.Size; SizeRemaining = $v.SizeRemaining; FileSystemLabel = [string]$v.FileSystemLabel; "
+            "Serial = [string]$ld.VolumeSerialNumber; "
+            "DiskNumber = $d.Number; DiskModel = [string]$d.FriendlyName; DiskSize = $d.Size; "
+            "BusType = [string]$d.BusType; IsSystem = [bool]($d.IsSystem -or $d.IsBoot); "
+            "Partitions = $d.NumberOfPartitions; PartList = $parts "
+            "} | ConvertTo-Json -Compress -Depth 4")
+        if isinstance(d, dict):
+            info["fs"] = d.get("FileSystemType") or None
+            info["drive_type"] = d.get("DriveType") or None
+            dt = str(info["drive_type"] or "").lower()
+            info["removable"] = (dt == "removable") if dt else None
+            if d.get("Size"):
+                info["size"] = int(d["Size"])
+            if d.get("SizeRemaining") is not None:
+                info["free"] = int(d["SizeRemaining"])
+            info["label"] = d.get("FileSystemLabel") or None
+            info["serial"] = d.get("Serial") or None
+            if d.get("DiskNumber") is not None:
+                info["disk_number"] = int(d["DiskNumber"])
+                info["disk_model"] = d.get("DiskModel") or None
+                info["disk_size"] = int(d["DiskSize"]) if d.get("DiskSize") else None
+                info["bus_type"] = d.get("BusType") or None
+                info["disk_system"] = bool(d.get("IsSystem"))
+                info["partitions"] = d.get("Partitions")
+                pl = d.get("PartList") or []
+                info["part_list"] = pl if isinstance(pl, list) else [pl]
     return info
+
+
+def is_sd_media(info):
+    """True only for removable SD media: Removable volume, or a disk on an SD/MMC bus."""
+    if not info or not info.get("letter"):
+        return False
+    bus = str(info.get("bus_type") or "").upper()
+    return info.get("removable") is True or bus in _SD_BUS
+
+
+def format_block_reason(info, deep=False):
+    """None if formatting `info` is allowed, else the (Italian) reason it is refused."""
+    if not IS_WIN:
+        return "La formattazione automatica è disponibile solo su Windows."
+    if not info or not info.get("letter"):
+        return "Indica una scheda SD con lettera di unità (es. E:\\)."
+    letter = info["letter"]
+    sysdrive = os.environ.get("SystemDrive", "C:")[0].upper()
+    if letter == sysdrive or info.get("system") or info.get("disk_system"):
+        return f"L'unità {letter}: è sul disco di SISTEMA/avvio. Non verrà mai formattata."
+    if info.get("disk_number") is None:
+        return f"Non riesco a identificare il disco fisico di {letter}: (Get-Disk): formattazione bloccata."
+    if not is_sd_media(info):
+        return (f"L'unità {letter}: non è una scheda SD rimovibile "
+                f"(tipo: {info.get('drive_type') or '?'}, bus: {info.get('bus_type') or '?'}). "
+                "Per sicurezza qui si formattano solo schede SD.")
+    size = info.get("disk_size") if deep else (info.get("size") or info.get("disk_size"))
+    if size and size > FAT32_MAX:
+        return (f"La scheda è da {human_size(size)}: Windows non crea FAT32 oltre 32 GB. "
+                "Usa una scheda ≤ 32 GB (o formatta exFAT manualmente da Esplora risorse).")
+    if deep and (info.get("partitions") or 0) > 1:
+        return (f"Il disco {info['disk_number']} ha {info['partitions']} partizioni: la ripulitura "
+                "completa le cancellerebbe tutte. Bloccata per sicurezza.")
+    return None
+
+
+def same_volume(a, b):
+    """Has the card changed between two volume_info() snapshots?"""
+    keys = ("letter", "size", "label", "serial", "disk_number", "disk_model", "disk_size")
+    return all(a.get(k) == b.get(k) for k in keys)
 
 
 def fs_is_compatible(fs):
@@ -369,53 +605,70 @@ def ensure_browser_dir(root):
     return created
 
 
-def format_fat32(letter, label=FORMAT_LABEL, deep=False):
-    if not IS_WIN:
-        return False, "La formattazione automatica è disponibile solo su Windows."
-    letter = letter.upper()
-    sysdrive = os.environ.get("SystemDrive", "C:")[0].upper()
-    if letter == sysdrive:
-        return False, "Rifiuto: è l'unità di sistema."
+def format_fat32(info, label=FORMAT_LABEL, deep=False):
+    """Format the SD described by a FRESH volume_info() snapshot.
+
+    The PowerShell side re-checks the same rules (removable / SD bus, not system,
+    same disk number and size, one partition for `deep`) before touching anything.
+    Returns (True, new_letter) or (False, message).
+    """
+    why = format_block_reason(info, deep=deep)
+    if why:
+        return False, why
+    letter = info["letter"]
+    dnum = int(info["disk_number"])
+    dsize = int(info.get("disk_size") or 0)
+    check = (
+        "$ErrorActionPreference='Stop'; "
+        f"$v = Get-Volume -DriveLetter {letter}; "
+        f"$p = Get-Partition -DriveLetter {letter}; "
+        "$d = $p | Get-Disk; "
+        f"if ($d.Number -ne {dnum} -or $d.Size -ne {dsize}) {{ throw 'ICHO:CHANGED' }}; "
+        "if ($d.IsSystem -or $d.IsBoot) { throw 'ICHO:SYSTEM' }; "
+        "if (-not ([string]$v.DriveType -eq 'Removable' -or "
+        "[string]$d.BusType -eq 'SD' -or [string]$d.BusType -eq 'MMC')) { throw 'ICHO:NOTSD' }; ")
     if not deep:
-        r = _ps(f"Format-Volume -DriveLetter {letter} -FileSystem FAT32 "
-                f"-NewFileSystemLabel '{label}' -Force -Confirm:$false -ErrorAction Stop", timeout=300)
-        new_letter = letter
+        action = (f"Format-Volume -DriveLetter {letter} -FileSystem FAT32 "
+                  f"-NewFileSystemLabel '{label}' -Force -Confirm:$false | Out-Null; "
+                  f"Write-Output 'NEWLETTER={letter}'; ")
     else:
-        script = (
-            f"$ErrorActionPreference='Stop'; "
-            f"$p = Get-Partition -DriveLetter {letter}; "
-            f"$d = $p | Get-Disk; "
-            f"if (-not ($d.BusType -eq 'USB' -or $d.BusType -eq 'SD' -or $d.IsRemovable)) "
-            f"{{ throw 'Disco non rimovibile: operazione annullata per sicurezza.' }} "
-            f"Clear-Disk -Number $d.Number -RemoveData -RemoveOEM -Confirm:$false; "
-            f"Initialize-Disk -Number $d.Number -PartitionStyle MBR -ErrorAction SilentlyContinue | Out-Null; "
-            f"$np = New-Partition -DiskNumber $d.Number -UseMaximumSize -AssignDriveLetter; "
-            f"Start-Sleep -Milliseconds 800; "
-            f"Format-Volume -DriveLetter $np.DriveLetter -FileSystem FAT32 "
+        action = (
+            "if ($d.NumberOfPartitions -gt 1) { throw 'ICHO:MULTIPART' }; "
+            "Clear-Disk -Number $d.Number -RemoveData -RemoveOEM -Confirm:$false; "
+            "Initialize-Disk -Number $d.Number -PartitionStyle MBR -ErrorAction SilentlyContinue | Out-Null; "
+            "$np = New-Partition -DiskNumber $d.Number -UseMaximumSize -AssignDriveLetter; "
+            "Start-Sleep -Milliseconds 800; "
+            "$np = Get-Partition -DiskNumber $d.Number -PartitionNumber $np.PartitionNumber; "
+            "Format-Volume -Partition $np -FileSystem FAT32 "
             f"-NewFileSystemLabel '{label}' -Force -Confirm:$false | Out-Null; "
-            f"Write-Output ('NEWLETTER=' + $np.DriveLetter)")
-        r = _ps(script, timeout=480)
-        new_letter = letter
+            "$np = Get-Partition -DiskNumber $d.Number -PartitionNumber $np.PartitionNumber; "
+            "Write-Output ('NEWLETTER=' + $np.DriveLetter); ")
+    # errors are reported as one 'ERR=<message>' line: classify on the exception
+    # message only, never on PowerShell's echo of the command line
+    script = ("try { " + check + action + "} catch { "
+              "Write-Output ('ERR=' + $_.Exception.Message); exit 1 }")
+    r = _ps(script, timeout=480 if deep else 300)
     if r is None:
         return False, "Impossibile avviare PowerShell."
-    out = (r.stdout or "") + "\n" + (r.stderr or "")
-    low = out.lower()
-    err = (r.stderr or "").lower()
-    ok = (r.returncode == 0 and "exception" not in err and "error" not in err
-          and "throw" not in err and "denied" not in low)
-    if ok:
-        m = re.search(r"NEWLETTER=([A-Za-z])", out)
-        if m:
-            new_letter = m.group(1).upper()
-        return True, new_letter
-    if "denied" in low or "administrator" in low or "negato" in low or "amministrat" in low:
+    out = r.stdout or ""
+    m_err = re.search(r"^ERR=(.*)$", out, re.M)
+    m_new = re.search(r"NEWLETTER=([A-Za-z])", out)
+    if r.returncode == 0 and not m_err:
+        return True, (m_new.group(1).upper() if m_new else letter)
+    msg = (m_err.group(1).strip() if m_err else (r.stderr or out or "").strip())
+    low = msg.lower()
+    if "icho:changed" in low:
+        return False, "La scheda è cambiata dopo la scansione: rifai «Scansiona»."
+    if "icho:system" in low or "icho:notsd" in low or "icho:multipart" in low:
+        return False, "Controllo di sicurezza fallito: il disco non risulta una SD rimovibile a partizione singola."
+    if "denied" in low or "negato" in low or "administrator" in low or "amministrat" in low:
         return False, ("Accesso negato: serve eseguire l'app come Amministratore "
                        "(clic destro sull'app → «Esegui come amministratore»).")
-    if "fat32" in low and ("too big" in low or "size" in low or "grande" in low or "32" in low):
-        return False, ("Windows non crea FAT32 oltre 32 GB. Usa una scheda ≤ 32 GB "
-                       "(o formatta exFAT manualmente da Esplora risorse).")
-    msg = (r.stderr or r.stdout or "Formattazione non riuscita.").strip()
-    return False, msg[:400] if msg else "Formattazione non riuscita."
+    if "write protect" in low or "protetto da scrittura" in low or "read-only" in low or "sola lettura" in low:
+        return False, "La scheda è protetta da scrittura (levetta LOCK dell'adattatore SD?)."
+    if "in use" in low or "in uso" in low:
+        return False, "L'unità è in uso: chiudi le finestre/app che la usano e riprova."
+    return False, (msg[:400] if msg else "Formattazione non riuscita.")
 
 
 # =========================================================================
@@ -435,6 +688,7 @@ class WavMakerApp(ttk.Frame):
         self.deduced_pack = 1
         self._sd_inflight = 0
         self._last_out = ""
+        self._njobs = 0
 
         self._build_style()
         self._build_ui()
@@ -694,15 +948,16 @@ class WavMakerApp(ttk.Frame):
                 note = "  (pack 0 = kit di fabbrica)" if pk == 0 else ""
                 self.target_lbl.configure(text=f"🎯  Scrivo {where}  →  {pk}/1.wav … {pk}/8.wav{note}")
             else:
-                cat = (self.cat_var.get().strip() or "perc")
-                self.target_lbl.configure(text=f"🎯  Scrivo {where}  →  {SD_BROWSER_DIR}/{cat}/<nome>.wav")
+                cat = sanitize_category(self.cat_var.get())
+                self.target_lbl.configure(text=f"🎯  Scrivo {where}  →  {SD_BROWSER_DIR}/{cat}/<nome>.wav"
+                                               f"  (nomi ≤ {BROWSER_NAME_MAX} caratteri)")
         # per-row destination + slot
         try:
             pk = int(self.pack_var.get())
         except (tk.TclError, ValueError):
             pk = 0
-        cat = (self.cat_var.get().strip() or "perc")
-        seen = {}
+        cat = sanitize_category(self.cat_var.get())
+        names = browser_names([it["path"] for it in self.items])
         for i, iid in enumerate(self.tree.get_children()):
             tags = list(self.tree.item(iid, "tags"))
             tags = [t for t in tags if t != "over"]
@@ -716,15 +971,7 @@ class WavMakerApp(ttk.Frame):
                     tags.append("over")
             else:
                 self.tree.set(iid, "slot", str(i + 1))
-                nm = sanitize_name(self.items[i]["path"])
-                # de-dup within this batch
-                key = (cat, nm.lower())
-                if key in seen:
-                    seen[key] += 1
-                    nm = f"{nm[:-4]}-{seen[key]}.wav"
-                else:
-                    seen[key] = 1
-                self.tree.set(iid, "dst", f"{SD_BROWSER_DIR}/{cat}/{nm}")
+                self.tree.set(iid, "dst", f"{SD_BROWSER_DIR}/{cat}/{names[i]}")
             self.tree.item(iid, tags=tuple(tags))
         self.count_lbl.configure(text=f"{len(self.items)} file")
 
@@ -881,7 +1128,8 @@ class WavMakerApp(ttk.Frame):
         kind, payload = result
         if kind == "err":
             self.sd_status.configure(text=f"Errore durante la scansione: {payload}", fg=RED)
-            self._show_sd_actions(False, IS_WIN)
+            self.sd_info = None          # never format on the basis of a failed scan
+            self._show_sd_actions(False, False)
             return
         root, info, scan = payload
         self.sd_info = info
@@ -894,17 +1142,27 @@ class WavMakerApp(ttk.Frame):
         head = (f"Unità {letter}:  ·  {info.get('label') or '(senza etichetta)'}  ·  "
                 f"{human_size(info.get('size'))} ({human_size(info.get('free'))} liberi)  ·  "
                 f"{info.get('drive_type') or '?'}")
+        if info.get("disk_number") is not None:
+            head += (f"\nDisco {info['disk_number']}: {info.get('disk_model') or '?'}  ·  "
+                     f"bus {info.get('bus_type') or '?'}  ·  {human_size(info.get('disk_size'))}  ·  "
+                     f"{info.get('partitions') or '?'} partizioni")
         fs_s = fs or "non rilevato"
         readable = info.get("readable")
         compatible = fs_is_compatible(fs) if IS_WIN else readable
+        # the format button is offered ONLY for removable SD media (never fixed/system disks)
+        fmt_block = format_block_reason(info) if IS_WIN else "non Windows"
 
         if IS_WIN and (not readable or fs is None or not compatible):
             reason = ("filesystem non rilevato (probabilmente non formattata)"
                       if not fs else f"filesystem «{fs_s}» non compatibile col Teensy")
+            if fmt_block is None:
+                hint = "Serve formattarla FAT32. Usa «Formatta e prepara»."
+            else:
+                hint = (f"Formattazione da qui disabilitata: {fmt_block}\n"
+                        "Se è davvero la SD del synth, formattala FAT32 da Esplora risorse.")
             self.sd_status.configure(
-                text=(f"{head}\nFilesystem: {fs_s}\n⚠  {reason}.\n"
-                      f"Serve formattarla FAT32. Usa «Formatta e prepara»."), fg=WARN)
-            self._show_sd_actions(struct=False, fmt=True)
+                text=f"{head}\nFilesystem: {fs_s}\n⚠  {reason}.\n{hint}", fg=WARN)
+            self._show_sd_actions(struct=False, fmt=fmt_block is None)
             self._clear_sd_mode()
             self._log(f"  ⚠ SD non pronta: {reason}", WARN)
             return
@@ -925,7 +1183,7 @@ class WavMakerApp(ttk.Frame):
             text=(f"{head}\nFilesystem: {fs_s}  ✓\n{packline}\n{brline}\n"
                   f"▶  Prossimo pack libero: {nxt}"), fg=ACCENT)
         self._set_sd_mode(root, nxt)
-        self._show_sd_actions(struct=True, fmt=IS_WIN)
+        self._show_sd_actions(struct=True, fmt=fmt_block is None)
         self._log(f"  ✓ SD pronta. Prossimo pack libero: {nxt}", ACCENT)
 
     def _set_sd_mode(self, root, next_pack):
@@ -973,30 +1231,55 @@ class WavMakerApp(ttk.Frame):
                                 "La formattazione automatica è disponibile solo su Windows.\n"
                                 "Su macOS/Linux formatta la SD in FAT32 a mano.")
             return
-        info = self.sd_info or volume_info(self.sd_path_var.get())
-        letter = info.get("letter")
+        scanned = self.sd_info
+        path = self.sd_path_var.get().strip()
+        letter = drive_letter_of(path)
         if not letter:
             messagebox.showerror("Percorso non valido",
                                  "Indica una cartella su una scheda SD con lettera di unità (es. E:\\).")
             return
-        sysdrive = os.environ.get("SystemDrive", "C:")[0].upper()
-        if letter == sysdrive or info.get("system"):
-            messagebox.showerror("Operazione bloccata",
-                                 f"L'unità {letter}: è il disco di SISTEMA. Non verrà mai formattata.")
+        if not scanned or scanned.get("letter") != letter:
+            messagebox.showinfo("Scansiona prima",
+                                f"Premi prima «Scansiona» sull'unità {letter}: — formatto solo la scheda "
+                                "appena scansionata.")
             return
-        if info.get("removable") is False:
-            if not messagebox.askyesno(
-                    "Unità non rimovibile",
-                    f"L'unità {letter}: NON risulta rimovibile (tipo: {info.get('drive_type')}).\n\n"
-                    "Formattare un disco fisso interno cancellerebbe dati importanti.\n"
-                    "Sei DAVVERO sicuro che sia la SD del synth?", icon="warning"):
-                return
-        proceed, deep = self._confirm_format(letter, info)
+        why = format_block_reason(scanned)
+        if why:
+            messagebox.showerror("Operazione bloccata", why)
+            return
+        # re-query the volume right now: the card may have been swapped since the scan
+        self._sd_busy("Verifico la scheda…")
+        self._run_sd_async(lambda: volume_info(path), lambda res: self._format_checked(scanned, res))
+
+    def _format_checked(self, scanned, result):
+        self._sd_idle()
+        kind, fresh = result
+        if kind == "err":
+            messagebox.showerror("Operazione bloccata", f"Non riesco a rileggere l'unità:\n{fresh}")
+            return
+        letter = fresh.get("letter")
+        if not same_volume(scanned, fresh):
+            self.sd_info = None
+            self._show_sd_actions(False, False)
+            messagebox.showerror("Scheda cambiata",
+                                 f"L'unità {letter}: non è più quella scansionata "
+                                 "(dimensione/etichetta/seriale/disco diversi).\nRifai «Scansiona».")
+            return
+        why = format_block_reason(fresh)
+        if why:
+            messagebox.showerror("Operazione bloccata", why)
+            return
+        proceed, deep = self._confirm_format(letter, fresh)
         if not proceed:
             return
+        why = format_block_reason(fresh, deep=deep)
+        if why:
+            messagebox.showerror("Operazione bloccata", why)
+            return
         self._sd_busy("Formattazione FAT32 in corso… (non rimuovere la scheda)")
-        self._log(f"--- formattazione {letter}: in FAT32{' (ripulitura completa)' if deep else ''} ---", WARN)
-        self._run_sd_async(lambda: format_fat32(letter, deep=deep), self._after_format)
+        self._log(f"--- formattazione {letter}: (disco {fresh.get('disk_number')}) in FAT32"
+                  f"{' (ripulitura completa)' if deep else ''} ---", WARN)
+        self._run_sd_async(lambda: format_fat32(fresh, deep=deep), self._after_format)
 
     def _confirm_format(self, letter, info):
         win = tk.Toplevel(self.master)
@@ -1008,15 +1291,31 @@ class WavMakerApp(ttk.Frame):
         frm = ttk.Frame(win, padding=20)
         frm.pack(fill="both", expand=True)
         ttk.Label(frm, text="⚠  Formattazione scheda SD", style="Title.TLabel").pack(anchor="w")
-        ttk.Label(frm, text=(f"Unità {letter}:  ·  {info.get('label') or '(senza etichetta)'}\n"
-                             f"{human_size(info.get('size'))}  ·  tipo: {info.get('drive_type') or '?'}"),
+        parts = []
+        for p in info.get("part_list") or []:
+            if isinstance(p, dict):
+                lt = (p.get("Letter") or "").strip()
+                parts.append(f"   · {lt + ':' if lt else '(senza lettera)'}  {human_size(p.get('Size'))}"
+                             f"  {p.get('Type') or ''}")
+        ttk.Label(frm, text=(f"Unità {letter}:  ·  {info.get('label') or '(senza etichetta)'}  ·  "
+                             f"{info.get('fs') or 'filesystem ?'}  ·  {human_size(info.get('size'))}  ·  "
+                             f"tipo: {info.get('drive_type') or '?'}\n"
+                             f"Disco {info.get('disk_number')}: {info.get('disk_model') or '?'}  ·  "
+                             f"bus {info.get('bus_type') or '?'}  ·  {human_size(info.get('disk_size'))}\n"
+                             f"Partizioni sul disco: {info.get('partitions') or '?'}\n" + "\n".join(parts)),
                   style="Sub.TLabel", justify="left").pack(anchor="w", pady=(6, 12))
         tk.Label(frm, text=(f"Verranno CANCELLATI TUTTI i dati sull'unità {letter}:\n"
                             "e la scheda sarà formattata FAT32.\nL'operazione è IRREVERSIBILE."),
                  bg=BG, fg=RED, justify="left", font=("Segoe UI", 9, "bold")).pack(anchor="w", pady=(0, 12))
         deep_var = tk.BooleanVar(value=False)
+        deep_block = format_block_reason(info, deep=True)
         ttk.Checkbutton(frm, variable=deep_var,
-                        text="Ripulisci anche partizioni strane (ripartiziona tutto il disco) — avanzato").pack(anchor="w")
+                        state="disabled" if deep_block else "normal",
+                        text=(f"Ripulisci tutto il disco {info.get('disk_number')} (ripartiziona) — avanzato")
+                        ).pack(anchor="w")
+        if deep_block:
+            ttk.Label(frm, text=f"   (non disponibile: {deep_block})", style="Sub.TLabel",
+                      wraplength=520, justify="left").pack(anchor="w")
         ack_var = tk.BooleanVar(value=False)
         ttk.Checkbutton(frm, variable=ack_var, text=f"Ho capito: cancella tutto su {letter}:").pack(anchor="w", pady=(8, 14))
         btns = ttk.Frame(frm)
@@ -1123,20 +1422,25 @@ class WavMakerApp(ttk.Frame):
                 jobs.append((it["path"], os.path.join(dst_dir, f"{i}.wav")))
             base_desc = f"{pk}/ (voci 1-{len(jobs)})"
         else:
-            cat = (self.cat_var.get().strip() or "perc")
-            cat = re.sub(r"[^a-z0-9._/-]+", "-", cat.lower()).strip("-/") or "perc"
+            cat = sanitize_category(self.cat_var.get())
             dst_dir = os.path.join(root, SD_BROWSER_DIR, cat)
-            seen = {}
-            for it in self.items:
-                nm = sanitize_name(it["path"])
-                key = nm.lower()
-                if key in seen:
-                    seen[key] += 1
-                    nm = f"{nm[:-4]}-{seen[key]}.wav"
-                else:
-                    seen[key] = 1
+            names = browser_names([it["path"] for it in self.items])
+            for it, nm in zip(self.items, names):
                 jobs.append((it["path"], os.path.join(dst_dir, nm)))
             base_desc = f"{SD_BROWSER_DIR}/{cat}/"
+            # the firmware lists at most 256 WAVs per folder
+            try:
+                have = {f.lower() for f in os.listdir(dst_dir) if f.lower().endswith(".wav")}
+            except OSError:
+                have = set()
+            total = len(have | {nm.lower() for nm in names})
+            if total > BROWSER_MAX_FILES:
+                if not messagebox.askyesno(
+                        "Troppi file nella cartella",
+                        f"{SD_BROWSER_DIR}/{cat}/ avrebbe {total} WAV, ma il firmware ne mostra al "
+                        f"massimo {BROWSER_MAX_FILES} per cartella: gli altri non saranno visibili.\n\n"
+                        "Meglio dividerli in più categorie. Procedo comunque?", icon="warning"):
+                    return None, "__cancel__"
         return jobs, base_desc
 
     def start_convert(self):
@@ -1159,50 +1463,74 @@ class WavMakerApp(ttk.Frame):
                 return
         delete = self.delete_var.get()
         self._last_out = os.path.dirname(jobs[0][1])
+        self._njobs = len(jobs)
         self.convert_btn.configure(state="disabled")
-        self.pbar.configure(maximum=len(jobs), value=0)
+        self.pbar.configure(maximum=len(jobs) + 1, value=0)
         self._log(f"--- conversione di {len(jobs)} file → {info} ---", ACCENT2)
         self.worker = threading.Thread(target=self._worker, args=(jobs, delete), daemon=True)
         self.worker.start()
         self.after(80, self._poll)
 
     def _worker(self, jobs, delete):
-        done = 0
-        for src, dst in jobs:
-            name = os.path.basename(src)
-            try:
-                convert_file(src, dst)
-                if delete and os.path.abspath(src) != os.path.abspath(dst):
+        # phase 1: convert EVERY source into a temp file next to its destination,
+        # before any destination is touched (a destination may be a later source,
+        # e.g. voices swapped inside a pack that is already on the SD)
+        staged, written = [], []
+        try:
+            for src, dst in jobs:
+                name = os.path.basename(src)
+                try:
+                    staged.append((src, dst, stage_convert(src, dst)))
+                except Exception as e:
+                    self.q.put(("err", f"  ✗ {name}: {e}"))
+                self.q.put(("tick", None))
+            # phase 2: move the converted files into place
+            for src, dst, tmp in staged:
+                try:
+                    os.replace(tmp, dst)
+                    written.append((src, dst))
+                    self.q.put(("ok", f"  ✓ {os.path.basename(src)}  →  {os.path.basename(dst)}"))
+                except Exception as e:
+                    self.q.put(("err", f"  ✗ {os.path.basename(src)}: {e}"))
+        finally:
+            for _s, _d, tmp in staged:
+                if os.path.exists(tmp):
                     try:
-                        os.remove(src)
+                        os.remove(tmp)
                     except OSError:
                         pass
-                self.q.put(("ok", f"  ✓ {name}  →  {os.path.basename(dst)}"))
-                done += 1
-            except Exception as e:
-                self.q.put(("err", f"  ✗ {name}: {e}"))
-            self.q.put(("tick", None))
-        self.q.put(("finish", done))
+        # phase 3: delete originals — never a file that is (now) one of the outputs
+        if delete:
+            outputs = [d for _s, d in written]
+            for src, _dst in written:
+                if any(same_path(src, d) for d in outputs):
+                    continue
+                try:
+                    os.remove(src)
+                except OSError as e:
+                    self.q.put(("err", f"  ✗ non ho eliminato {os.path.basename(src)}: {e}"))
+        self.q.put(("tick", None))
+        self.q.put(("finish", len(written)))
 
     def _poll(self):
         try:
             while True:
                 kind, payload = self.q.get_nowait()
                 if kind == "tick":
-                    self.pbar.step(1)
+                    self.pbar.configure(value=min(float(self.pbar["value"]) + 1, float(self.pbar["maximum"])))
                 elif kind == "ok":
                     self._log(payload, ACCENT)
                 elif kind == "err":
                     self._log(payload, RED)
                 elif kind == "finish":
-                    self.status.configure(text=f"Fatto: {payload}/{len(self.items)}")
+                    self.status.configure(text=f"Fatto: {payload}/{self._njobs}")
                     self._log(f"--- completato: {payload} file convertiti ---", ACCENT2)
                     self.convert_btn.configure(state="normal")
                     messagebox.showinfo("Completato", f"{payload} file convertiti in:\n{self._last_out}")
                     return
         except queue.Empty:
             pass
-        self.status.configure(text=f"Converto… {int(self.pbar['value'])}/{len(self.items)}")
+        self.status.configure(text=f"Converto… {min(int(float(self.pbar['value'])), self._njobs)}/{self._njobs}")
         self.after(80, self._poll)
 
 

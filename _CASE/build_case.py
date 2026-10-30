@@ -9,7 +9,7 @@ Pezzi:
   piatto 1, opaco:
     tray.stl   — VASCA a gradino: fondo, pareti, nervature sotto la matrice, culla del
                  Teensy, colonne viti, piedistalli dei 3 tact switch, fori USB / PHONES
-                 (retro) e OUT L / OUT R / IN (fianco destro).
+                 (retro) e LINE IN (fianco destro).
     panel.stl  — PANNELLO COMANDI: fori encoder, finestra OLED, 3 tasti flessibili
                  ricavati nel pannello, scritte incise.
   piatto 2, traslucido:
@@ -112,7 +112,7 @@ OLED_C = (29, 122)
 LOGO_V = 155
 TEENSY_X = CX0 + 18                     # Teensy lungo Y, a sinistra, USB contro la parete posteriore
 # fianco destro: nome -> (v, diametro foro). Jack mono TS 6,35 mm (filetto 3/8").
-JACKS = {"OUT L": (113.5, 9.8), "OUT R": (131, 9.8), "IN": (148.5, 9.8)}
+JACKS = {"LINE IN": (122, 9.8)}       # l'uscita è solo quella cuffie della scheda audio (retro)
 JACK_DEPTH = 22.0                       # ingombro massimo del jack dietro la parete (corpo + linguette)
 
 R_COL_M = 3.5                           # colonne zona matrice (strette: c'è poco margine)

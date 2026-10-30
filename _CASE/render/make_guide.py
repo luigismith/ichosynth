@@ -19,7 +19,9 @@ REPO = CASE.parent
 OUT = HERE / "out"
 IMG = CASE / "img"
 sys.path.insert(0, str(CASE))
+sys.path.insert(0, str(REPO / "_DOCS" / "cablaggio"))
 import build_case as b                                   # noqa: E402
+import make_cablaggio as cab                             # noqa: E402  tavole di cablaggio
 
 ORANGE, INK, SUB, BG = "#FF8A1A", "#1f2328", "#57606a", "#0d1117"
 VOICE = ["#E83A3A", "#3A6BE8", "#E8D23A", "#36C24A", "#E83AA6", "#A6E03A", "#FF7A1A", "#2AD4B8"]
@@ -88,11 +90,6 @@ def figure(name, cls=""):
     return f'<div class="fig {cls}"><img src="{src}">{"".join(svg)}</div>'
 
 
-def inline_svg(rel):
-    s = (REPO / rel).read_text(encoding="utf-8")
-    return s.replace("<svg ", '<svg style="width:100%;height:100%" ', 1)
-
-
 # --- pagine ---------------------------------------------------------------------------
 def page(title, body, n):
     stripe = "".join(f'<i style="background:{c}"></i>' for c in VOICE)
@@ -129,7 +126,7 @@ def build_html():
 
     items = [("item_matrix", "×1", "matrice WS2812B 16×16"), ("item_teensy", "×1", "Teensy 4.1 + Audio Rev D"),
              ("item_encoder", "×4", "encoder KY-040"), ("item_oled", "×1", "OLED SSD1306 0,96\""),
-             ("item_switch", "×3", "tact switch 6×6×4,3"), ("item_jack", "×3", "jack mono 6,35"),
+             ("item_switch", "×3", "tact switch 6×6×4,3"), ("item_jack", "×1", "jack mono 6,35 (LINE IN)"),
              ("item_screw", "×8", "vite M3×8 svasata"), ("item_feet", "×4", "piedini Ø10")]
     grid = "".join(f'<div class="item">{figure(s)}<div class="q">{q}</div><div class="nm">{html.escape(t)}</div></div>'
                    for s, q, t in items)
@@ -140,11 +137,10 @@ def build_html():
 
     steps = [
         ("1", "s01_feet", chip("×4") + chip("piedini adesivi")),
-        ("2", "s02_jacks", chip("OUT L · OUT R · IN") + chip("dado fuori") + chip("≤ 22 × 16 mm")),
+        ("2", "s02_jacks", chip("LINE IN") + chip("dado fuori") + chip("≤ 22 × 16 mm")),
         ("3", "s03_teensy", chip("USB + PHONES dal retro") + icon("glue", 40)),
-        ("4", '<div class="fig svg2">' + f'<div>{inline_svg("assets/wiring-map.svg")}</div>'
-              f'<div>{inline_svg("assets/audio-io.svg")}</div></div>',
-         icon("solder", 40) + chip("solo fili saldati") + chip("Teensy: lato superiore") + chip("MANUALE_COSTRUZIONE §6")),
+        ("4", f'<div class="fig ovw">{cab.overview_svg()}</div>',
+         icon("solder", 40) + chip("cablaggio: le 7 tavole seguenti", strong=True) + chip("anche in _DOCS/CABLAGGIO.pdf")),
         ("5", "s05_matrix", chip("LED in alto") + chip("fili nelle tacche")),
         ("6", "s06_window", chip("M3×8 ×4", "screwdriver")),
         ("7", "s07_switches", chip("2 gambe in diagonale") + chip("fili saldati prima") + icon("glue", 40)),
@@ -162,7 +158,8 @@ def build_html():
             n, queue = n + 1, []
         if wide:
             pages.append(page("Cablaggio", f'<div class="two steps">{step(*s)}</div>', n))
-            n += 1
+            wiring, n = cab.build_pages(n + 1)          # le tavole di _DOCS/CABLAGGIO.pdf
+            pages.extend(wiring)
         elif s is not None:
             queue.append(s)
 
@@ -216,7 +213,7 @@ def build_html():
     .cfoot {{ display: flex; gap: 4mm; justify-content: center; padding: 0 0 10mm; }}
     """
     doc = (f'<!doctype html><html lang="it"><head><meta charset="utf-8"><title>ichosynth · case · montaggio</title>'
-           f'<style>{css}</style></head><body>{"".join(pages)}</body></html>')
+           f'<style>{css}{cab.CSS}.fig.ovw .ill {{ max-height: 150mm; }}</style></head><body>{"".join(pages)}</body></html>')
     out = CASE / "MONTAGGIO.html"
     out.write_text(doc, encoding="utf-8")
     return out

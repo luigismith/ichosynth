@@ -32,7 +32,8 @@ Le **feature sono quelle complete di TŒRN**: 8 voci campione + 3 voci synth,
 polifonia, effetti per voce (reverb/bitcrusher/Moog ladder/detune/ottava), griglia
 16×16→32×16, pagine, sotto-pattern, song mode, velocity/probabilità/condizioni,
 mute, note-shift/copia-incolla, sample pack + browser SD, seek/length/reverse,
-load/save su SD, registrazione dal vivo (MIC/LINE + count-in), USB-MIDI, tap-tempo.
+load/save su SD, registrazione dal vivo (MIC/LINE + count-in), MIDI DIN su Serial8 (pin 34/35,
+circuito opzionale; il firmware non gestisce MIDI via USB), tap-tempo.
 
 L'**NI404** originale di SP_ (da cui il repo era partito come fork) resta solo come
 fallback/riferimento.
@@ -40,7 +41,9 @@ fallback/riferimento.
 Strumenti companion (Windows, Python+tkinter, exe PyInstaller, sviluppati da Luigi):
 - **`_SDCARD/wavmaker.exe`** — converte WAV in mono/16-bit/44.1k e **prepara la
   SD**: scansiona, capisce la struttura, deduce il prossimo numero libero, crea
-  la struttura, e (se serve) formatta FAT32. Override sotto "Avanzate".
+  la struttura, e (se serve) formatta FAT32 — solo schede SD rimovibili, mai
+  dischi fissi/di sistema. Numero pack, categoria e "cartella locale invece della
+  SD" si scelgono nel pannello destinazione (non c'è una sezione "Avanzate").
 - **`_FLASHER/flasher.exe`** — flasha il firmware sul Teensy **in un clic**, con
   un **loader HID puro-Python integrato** (`teensy_native.py`): niente Teensyduino,
   niente binari esterni. Spedisce il firmware ichosynth precompilato.
@@ -66,6 +69,7 @@ collisioni**; 2ª striscia LED rimossa.
 | `_DOCS/FEATURE_INVENTORY.md` | catalogo funzioni |
 | `_SDCARD/wavmaker_gui.py` + `wavmaker.exe` | preparazione SD + conversione WAV |
 | `_FLASHER/flasher_gui.py` + `teensy_native.py` + `flasher.exe` | flasher autonomo |
+| `_DOCS/CABLAGGIO.pdf` | **guida illustrata al cablaggio** (generata da `_DOCS/cablaggio/make_cablaggio.py`, pin letti dai driver) |
 | `_CASE/` | **case stampato 3D** (3 pezzi, 2 piatti Kobra S1): generatore `build_case.py`, verifiche `check_fit.py`, render Blender + guida grafica `MONTAGGIO.pdf` |
 
 ---

@@ -35,7 +35,7 @@ VOICE_COLORS = [
 # (filename without ext, card title, group)
 DIAGRAMS = [
     ("wiring-map", "Mappa di cablaggio", "Diagrammi"),
-    ("audio-io", "Audio I/O (jack 6.35mm)", "Diagrammi"),
+    ("audio-io", "Audio (Line In 6.35mm + cuffie)", "Diagrammi"),
     ("encoders", "Comandi: 4 encoder + 3 pulsanti", "Diagrammi"),
     ("modes-map", "Mappa delle modalità", "Diagrammi"),
     ("grid-concept", "La griglia 16×16", "Diagrammi"),

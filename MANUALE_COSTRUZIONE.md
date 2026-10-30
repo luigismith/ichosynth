@@ -90,10 +90,12 @@ Tutto viene alimentato dalla porta **USB (5V)**.
 | 1 | Micro SD Card, **Class 10** | per campioni e pattern |
 | 1 | Cavo micro-USB + alimentatore 5V (≥ 2A consigliato) | alimentazione e programmazione |
 | 1 | Cuffie con jack 3,5 mm | ichosynth non ha altoparlanti; jack integrato per il monitoraggio |
-| **3** | **Jack mono TS da 6,35 mm (1/4")** | audio I/O: 1× Line In (mono) + 2× Line Out (L + R) → pad LINE IN / LINE OUT della scheda audio |
+| 1 | **Jack mono TS da 6,35 mm (1/4")** | Line In (mono, per registrare) → pad LINE IN L della scheda audio |
 | q.b. | *(opzionale)* Condensatore elettrolitico da 10 µF | blocco DC in serie sui jack di linea, solo se l'apparecchiatura collegata ronza |
 | 1 | OLED **SSD1306 0,96" 128×64 I²C** | schermo di stato (sostituisce gli anelli RGB degli encoder di TŒRN) |
-| q.b. | Cavetti jumper Dupont (~10 cm), strip di pin header | per i collegamenti |
+| q.b. | Filo AWG 26 in 6+ colori (~10-15 cm a filo) | per i collegamenti (saldati) |
+| 2 | Strisce di **header maschi lunghi** (≥ 15 mm, 14 pin) | per impilare la scheda audio sul Teensy |
+| 2 | *(consigliati)* Morsetti a leva 5 poli (es. WAGO 221-415) | barre 3,3 V e GND senza saldare |
 | 1 | *(opzionale)* **Case stampato 3D** (3 pezzi, 2 piatti 250×250) | `_CASE/` — guida grafica `_CASE/MONTAGGIO.pdf`; servono anche 8 viti M3×8 svasate e 4 piedini |
 
 > ℹ️ **Campioni**: il set di fabbrica in `_SDCARD/` è **public domain** (raccolta *drum_sklad*), ridistribuibile liberamente. Puoi aggiungere i tuoi (vedi [cap. 9](#9--preparare-la-micro-sd-campioni)).
@@ -125,6 +127,11 @@ Tutto viene alimentato dalla porta **USB (5V)**.
 
 ## 6 · Mappa pin completa (la "verità" del firmware)
 
+> 🎨 **Guida illustrata al cablaggio: [`_DOCS/CABLAGGIO.pdf`](_DOCS/CABLAGGIO.pdf)** — 7 tavole con i
+> componenti veri disegnati (piedinatura reale del Teensy 4.1, KY-040, OLED, pulsanti, matrice, jack),
+> un filo alla volta, colori dei fili e controllo finale. I numeri sono letti direttamente dai driver
+> del firmware. Questo capitolo resta come riferimento in tabella.
+
 Questi pin sono ciò che il firmware si aspetta. Vivono nei sorgenti di build — le tabelle di encoder/pulsanti
 `ICHOS_ENC_PINS` e `ICHOS_BTN_PINS` sotto `teensy/libraries/`, più `teensy/build_toern.py` — **non**
 in un `config.h`. **Wira esattamente questi numeri** (tutti pin del Teensy).
@@ -145,8 +152,9 @@ in un `config.h`. **Wira esattamente questi numeri** (tutti pin del Teensy).
 | GND | **GND** |
 
 ### 6.2 Scheda audio (Teensy Audio Adaptor, Rev D)
-> 💡 Il modo più semplice e affidabile è **impilare** la scheda audio sopra il Teensy con i pin header:
-> così questi collegamenti si fanno da soli.
+> 💡 Il modo più semplice e affidabile è **impilare** la scheda audio sopra il Teensy con **header maschi
+> lunghi** (jack cuffie dallo stesso lato della USB): così questi collegamenti si fanno da soli, e i fili dei
+> pin coperti dalla scheda audio si saldano sulle punte che sporgono sopra (vedi `_DOCS/CABLAGGIO.pdf`, tavola 3).
 
 Se invece la cabli a mano, collega:
 
@@ -160,37 +168,28 @@ Se invece la cabli a mano, collega:
 
 > ℹ️ La SD si usa dallo **slot integrato del Teensy 4.1**, non da quello della scheda audio.
 
-### 6.2.1 Jack audio I/O (Line In + Line Out)
-Oltre al jack cuffie 3,5 mm integrato, aggiungi tre **jack mono TS da 6,35 mm (1/4")** per collegarti
-ad apparecchiature esterne: **1× Line In** (mono) e **2× Line Out** (stereo: L + R). Si cablano alle
-**piazzole di saldatura della Teensy Audio Adaptor** (i pad LINE IN / LINE OUT sulla scheda codec) —
-**non** ai pin GPIO del Teensy.
+### 6.2.1 Audio: Line In + cuffie
+L'uscita è il **jack cuffie 3,5 mm integrato** nella scheda audio (stereo). Per registrare da
+apparecchiature esterne aggiungi **un jack mono TS da 6,35 mm (1/4") per il Line In**, cablato alla
+**piazzola LINE IN L della Teensy Audio Adaptor** — **non** a un pin GPIO del Teensy.
 
 <p align="center">
-  <img src="assets/audio-io.svg" alt="Cablaggio audio I/O: tre jack mono TS da 6,35 mm (Line In, Line Out L, Line Out R) ai pad LINE IN / LINE OUT della scheda audio, più il jack cuffie 3,5 mm integrato" width="680">
+  <img src="assets/audio-io.svg" alt="Cablaggio audio: un jack mono TS da 6,35 mm (Line In) al pad LINE IN L della scheda audio, più il jack cuffie 3,5 mm integrato come uscita" width="680">
 </p>
 
-Ogni jack da 6,35 mm è **TS mono**: **punta (tip) = segnale**, **manica (sleeve) = GND** (massa comune
-con il resto della build).
-
-| Jack 6,35 mm | Punta (segnale) → pad scheda audio | Manica |
+| Jack | Punta (segnale) → pad scheda audio | Manica |
 |---|---|---|
-| **Line In** (mono) | **LINE IN L** | **GND** |
-| **Line Out L** | **LINE OUT L** | **GND** |
-| **Line Out R** | **LINE OUT R** | **GND** |
-| Cuffie | *(nessuno — jack 3,5 mm integrato esistente)* | — |
+| **Line In** 6,35 mm mono TS | **LINE IN L** | **GND** (massa comune) |
+| **Cuffie** 3,5 mm | *(jack integrato nella scheda audio)* | — |
 
 - **Il Line In è mono.** TŒRN registra/monitora il canale **SINISTRO** del line-in come campione mono, e
   LINE IN è già l'ingresso di registrazione predefinito del firmware — quindi **nessuna modifica al
   firmware è necessaria**.
-- **Il Line Out è stereo** (due jack, L + R). Il DAC SGTL5000 pilota insieme Line Out e l'uscita cuffie;
-  poiché TŒRN ha vero panning stereo, i due jack preservano l'immagine stereo.
-- *(Opzionale)* Se un dispositivo collegato ronza, aggiungi un **condensatore elettrolitico da 10 µF in
-  serie** (blocco DC) su ogni segnale. Il cablaggio diretto di solito va bene, quindi è opzionale.
+- *(Opzionale)* Se la sorgente collegata ronza, aggiungi un **condensatore elettrolitico da 10 µF in
+  serie** (blocco DC) sul segnale. Il cablaggio diretto di solito va bene.
 
 > 🎚️ **A cosa servono:** **Line In** = campiona strumenti esterni / un registratore da campo / altre
-> apparecchiature direttamente nel campionatore. **Line Out (L+R)** = verso ampli / mixer / PA / scheda
-> audio. **Cuffie** (jack 3,5 mm integrato) = monitoraggio.
+> apparecchiature direttamente nel campionatore. **Cuffie** (jack 3,5 mm) = ascolto e uscita.
 
 ### 6.3 Encoder (CLK, DT, SW = pulsante)
 Monti **4 encoder**. Ogni encoder ha 3 segnali (CLK, DT, SW) + alimentazione. Disponili da sinistra a
@@ -283,7 +282,7 @@ parametri sono in [`_CASE/README.md`](_CASE/README.md). Con il case gli encoder 
 (E2 E3 in alto, E1 E4 in basso: i cursori Y/X vicino alla mano), i fili si saldano direttamente
 sui pin dei KY-040, i tact switch devono essere quelli **alti 4,3 mm** e le cuffie escono dal retro.
 Dentro il case niente connettori Dupont: i fili si saldano (sul Teensy dal lato superiore), e i
-jack 6,35 mm devono stare in **22 mm di profondità e 16 mm di altezza** dietro la parete.
+jack Line In da 6,35 mm deve stare in **22 mm di profondità e 16 mm di altezza** dietro la parete.
 
 ---
 
@@ -346,7 +345,7 @@ all'avvio e quando ne scegli uno dal menu.
 ```
 
 **2 · Libreria browser** — file WAV liberi in `samples/<categoria>/<nome>.wav`, da sfogliare
-voce per voce in **SET_WAV** (fino a 999 file, nomi qualsiasi).
+voce per voce in **SET_WAV** (fino a 256 file per cartella, nomi fino a 60 caratteri).
 
 ```
 /samples/kick/...   /samples/snare/...   /samples/hat/...   /samples/perc/...

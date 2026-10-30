@@ -22,6 +22,12 @@
 // 27 INT, 30/36 LED power, 40 batt) and the Audio Shield (6/7/8/10-13/18-21/23).
 #define ICHOS_ENC_PINS { {5, 22, 15}, {32, 33, 41}, {9, 14, 16}, {37, 38, 39} }
 #endif
+#ifndef ICHOS_ENC_DEBOUNCE_MS
+#define ICHOS_ENC_DEBOUNCE_MS 8
+#endif
+#ifndef ICHOS_ENC_COUNTS_PER_DETENT
+#define ICHOS_ENC_COUNTS_PER_DETENT 4     // most KY-040; set 2 if one click moves 2 steps
+#endif
 
 class i2cEncoderLibV2 {
 public:
@@ -42,14 +48,18 @@ public:
 
   explicit i2cEncoderLibV2(uint8_t address) : addr(address), slot(nextSlot()) {}
 
+  // TŒRN calls begin() again on E1 every time it enters/leaves SET_WAV or FILTER (only
+  // to flip the direction), so the Encoder object is created once and then kept.
   void begin(uint32_t conf = 0) {
     static const uint8_t P[4][3] = ICHOS_ENC_PINS;
-    if (slot >= 0 && slot < 4) {
+    if (!enc && slot >= 0 && slot < 4) {
       clkPin = P[slot][0]; dtPin = P[slot][1]; swPin = P[slot][2];
       enc = new Encoder(clkPin, dtPin);
       pinMode(swPin, INPUT_PULLUP);
+      delayMicroseconds(100);            // let the pull-up settle before the first sample
       lastRaw = enc->read();
-      lastBtn = (digitalRead(swPin) == LOW);
+      rawBtn = lastBtn = false;          // start released: no fake release on the first loop
+      btnSince = millis();
     }
     reverse = (conf & DIRE_LEFT) != 0;   // honor the firmware's per-encoder direction
   }
@@ -78,9 +88,9 @@ public:
     bool any = false;
     if (!enc) return false;
     long raw = enc->read();
-    long det = (raw - lastRaw) / 4;                 // 4 quadrature counts per detent
+    long det = (raw - lastRaw) / ICHOS_ENC_COUNTS_PER_DETENT;   // quadrature counts per click
     if (det != 0) {
-      lastRaw += det * 4;
+      lastRaw += det * ICHOS_ENC_COUNTS_PER_DETENT;
       if (reverse) det = -det;
       int32_t before = counter;
       counter += det * step;
@@ -95,14 +105,25 @@ public:
         if (counter == vmin && onMin) onMin(this);
       }
     }
-    bool b = (digitalRead(swPin) == LOW);           // INPUT_PULLUP: pressed = LOW
-    if (b && !lastBtn) { if (onButtonPush) onButtonPush(this); any = true; }
-    if (!b && lastBtn) { if (onButtonRelease) onButtonRelease(this); any = true; }
-    lastBtn = b;
+    // Push switch (INPUT_PULLUP: pressed = LOW), debounced: a level change is accepted
+    // only after ICHOS_ENC_DEBOUNCE_MS of stability, so contact bounce can't turn one
+    // click into two.
+    const bool r = (digitalRead(swPin) == LOW);
+    const uint32_t t = millis();
+    if (r != rawBtn) { rawBtn = r; btnSince = t; }
+    else if (r != lastBtn && t - btnSince >= ICHOS_ENC_DEBOUNCE_MS) {
+      lastBtn = r;
+      if (r && onButtonPush) onButtonPush(this);
+      if (!r && onButtonRelease) onButtonRelease(this);
+      any = true;
+    }
     return any;
   }
-  bool readStatus() { return updateStatus(); }
-  bool readStatus(uint8_t) { return false; }
+  // Duppa's readStatus() just returns the last status byte, with no I/O and no
+  // callbacks. TŒRN only calls it from its stuck-button watchdog (toern.ino, "likely
+  // stuck"), which reads bit 0x08 as "button really held": report exactly that.
+  uint8_t readStatus() { return lastBtn ? 0x08 : 0x00; }
+  bool readStatus(uint8_t flag) { return (readStatus() & flag) != 0; }
   void readEncoder8(uint8_t) {}
 
 private:
@@ -110,7 +131,8 @@ private:
   Encoder *enc = nullptr;
   uint8_t clkPin = 0, dtPin = 0, swPin = 0;
   long lastRaw = 0;
-  bool lastBtn = false, reverse = false;
+  bool lastBtn = false, rawBtn = false, reverse = false;
+  uint32_t btnSince = 0;
   int32_t counter = 0, vmax = (1 << 30), vmin = -(1 << 30), step = 1;
   uint32_t rgb = 0;
   static int nextSlot() { static int n = 0; int s = n; if (n < 3) n++; return s; }

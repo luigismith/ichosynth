@@ -18,16 +18,11 @@ You draw music on a 16×16 grid with **4 knobs** and **3 buttons**. No computer,
 > 🎧 **You don't need a computer to play**: your **ichosynth** generates everything on its own. Plug in
 > your **headphones**, power it via USB, and off you go.
 
-> 🔌 **Connections — getting sound out (and in)**: the instrument has three audio jacks.
-> - **Line Out** — 2× **6.35 mm (1/4") MONO** jacks, **L + R = stereo**. Plug them into an amplifier,
->   mixer, PA or audio interface. The output is stereo (TŒRN pans the voices), so use **both L and R**;
->   for a mono rig just use the **L** jack.
+> 🔌 **Connections — getting sound out (and in)**: the instrument has two audio jacks.
+> - **Headphones** — the audio board's **3.5 mm stereo** jack: this is the output (TŒRN pans the voices
+>   in stereo). You can also feed an amplifier or mixer from it with a 3.5 mm cable.
 > - **Line In** — 1× **6.35 mm (1/4") MONO** jack. Feed in an instrument, another synth, a field
 >   recorder or a mixer send to **record/sample it** (see [ch. 16](#16--live-recording-rec)).
-> - **Headphone** — the on-board **3.5 mm stereo** jack, for monitoring.
->
-> All three jacks share the device's ground, and **Line Out and headphone play at the same time** — no
-> menu setup needed.
 
 > ℹ️ **This is the real TŒRN.** ichosynth runs the full **TŒRN firmware** (by SP_/soundpauli,
 > [toern.live](https://toern.live)) on a Teensy 4.1, built with cheap hand-soldered parts: **4 KY-040
@@ -331,8 +326,9 @@ SONG mode chains your patterns into a full arrangement.
 
 ## 18 · MIDI and tap-tempo
 
-- **USB MIDI**: ichosynth is a **USB MIDI** device. Connected over USB it plays/receives MIDI with a
-  computer or other gear.
+- **MIDI**: TŒRN speaks **DIN MIDI** (clock and notes) on a Teensy serial port (**pin 34 = IN, 35 =
+  OUT**). It needs a small MIDI circuit (optocoupler + DIN sockets), **not part of the base build**; the
+  firmware does not handle MIDI over USB.
 - **Tap-tempo**: tap **B3 (REC)** in time to set the BPM by feel — no menu needed.
 
 ---

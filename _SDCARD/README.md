@@ -29,7 +29,8 @@ aperto / CLAP / TOM / PERC / PERC):
 | `5/` | Soviet | Rokton UDS + Lel-DR8 |
 
 ### 2. Sample browser — `samples/<categoria>/<nome>.wav`
-File WAV liberi (fino a 999) che sfogli da **SET_WAV** per assegnarli a una
+File WAV liberi (fino a 256 per cartella, nomi fino a 60 caratteri — il firmware
+non mostra i file oltre il 256° né apre nomi più lunghi di 64) che sfogli da **SET_WAV** per assegnarli a una
 voce. Stesso formato (mono/16-bit/44100). Qui sono ordinati per categoria:
 
 ```

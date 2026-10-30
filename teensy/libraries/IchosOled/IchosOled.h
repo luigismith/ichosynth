@@ -6,8 +6,8 @@
 // Why a separate library and not a .ino glued into the sketch: Arduino concatenates
 // every .ino into ONE translation unit, and TŒRN's is already so large that adding a
 // graphics library to it crashes the Teensy gcc (exit 0xffffffff). Keeping the OLED
-// code in its own .cpp compiles it separately, and using U8x8 (text-only, no 1KB
-// framebuffer) keeps it light — TŒRN leaves only ~700 bytes of RAM1 free.
+// code in its own .cpp compiles it separately, and a minimal text-only SSD1306 driver
+// (no framebuffer, code in FLASHMEM) keeps RAM1 use near zero.
 //
 // This header pulls in NO graphics headers, so including it from the giant sketch TU
 // costs nothing. The sketch passes plain scalars in; all rendering happens in the .cpp.
@@ -17,8 +17,9 @@
 // Bring up the panel. Call once at the end of setup() (Wire is up by then).
 void ichosOledBegin();
 
-// Refresh the HUD from the current state. Safe to call every loop(): it self-throttles
-// and only pushes pixels when a shown value actually changed.
+// Refresh the HUD from the current state. Safe to call every loop(): it rewrites at
+// most ONE changed text row per call (~3 ms on the 400 kHz bus), so it never stalls
+// the sequencer, the buttons or MIDI input for long.
 //   ch    current channel (was the E1/E4 ring colour)
 //   vol   master volume
 //   bpm   tempo

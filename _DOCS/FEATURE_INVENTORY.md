@@ -54,7 +54,7 @@
 
 | # | Feature | A cosa serve | Peso | Alleggeribile? |
 |---|---|---|---|---|
-| 25 | **USB MIDI (16 porte)** | suonare/essere suonato da PC | piccolo | si può ridurre a 1 porta |
+| 25 | **MIDI DIN** (Serial8, pin 34 IN / 35 OUT; il firmware non usa `usbMIDI`) | clock/note con altri strumenti | piccolo | serve un circuito MIDI opzionale |
 | 26 | **MIDI clock master/slave** | sync di tempo con altri strumenti | medio | **rimovibile** se suoni da solo |
 | 27 | **Transport send/receive** + **sync offset** | start/stop e ritardo di sync | piccolo | rimovibile con #26 |
 | 28 | **MIDI note in/out**, voice select (MIDI/KEYS), canale per voce | tastiera/sequencer esterni | piccolo | rimovibile |

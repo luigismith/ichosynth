@@ -8,13 +8,13 @@
 //
 // 128x64 SSD1306 over I2C on the Wire bus it shares with the Audio Shield's SGTL5000
 // codec (SDA=18, SCL=19, different I2C addresses). Page-addressing mode, no framebuffer
-// (glyphs are streamed straight to the panel), 5x7 font => 21 chars x 8 rows.
+// (glyphs are streamed straight to the panel), 5x7 font => 21 chars x 8 rows. The HUD
+// uses 4 rows; each is redrawn whole (space-padded) and only when its text changed.
 #include "IchosOled.h"
 
 #include <Arduino.h>
 #include <Wire.h>
 #include <string.h>
-#include <stdio.h>
 
 #ifndef ICHOS_OLED_ADDR
 #define ICHOS_OLED_ADDR 0x3C
@@ -48,10 +48,12 @@ static const uint8_t FONT5x7[] PROGMEM = {
   0x40,0x40,0x40,0x40,0x40,                                                     // _
 };
 
-static bool oledOk = false;
+static const uint8_t COLS = 21;           // 21 glyphs x 6 px = 126 px per text row
+static const uint8_t ROW_PAGE[4] = {0, 2, 4, 6};
+static bool oledOk = false, fastBus = false;
 static unsigned long lastDraw = 0;
-static int  lCh = -1, lVol = -1, lBpm = -1, lPage = -1, lPlay = -1, lRec = -1;
-static char lMode[16] = "";
+static char shown[4][COLS + 1];           // what each HUD row currently shows on the panel
+static uint8_t nextRow = 0;
 
 FLASHMEM static void cmd(uint8_t c) {
   Wire.beginTransmission(ICHOS_OLED_ADDR);
@@ -113,41 +115,73 @@ FLASHMEM void ichosOledBegin() {
   drawStr(2, 0, "KY-040 + OLED PORT");
 }
 
+// Tiny formatting helpers (no snprintf: its formatter costs a few hundred bytes of the
+// small RAM1 stack). Each appends to a row buffer of COLS chars and returns the new end.
+FLASHMEM static uint8_t putStr(char *row, uint8_t at, const char *s) {
+  while (*s && at < COLS) row[at++] = *s++;
+  return at;
+}
+
+FLASHMEM static uint8_t putInt(char *row, uint8_t at, int v) {
+  char tmp[12];
+  uint8_t n = 0;
+  unsigned int u = v < 0 ? (unsigned int)(-(long)v) : (unsigned int)v;
+  do { tmp[n++] = (char)('0' + u % 10); u /= 10; } while (u && n < sizeof(tmp));
+  if (v < 0 && at < COLS) row[at++] = '-';
+  while (n && at < COLS) row[at++] = tmp[--n];
+  return at;
+}
+
+// Stream one full, space-padded row: overwrites the old text, so no clear is needed.
+// Glyphs go out in 30-byte data packets (the Teensy Wire buffer is 32 bytes).
+FLASHMEM static void drawRow(uint8_t page, const char *row) {
+  setPos(page, 0);
+  uint8_t pkt = 0;
+  for (uint8_t i = 0; i < COLS; i++) {
+    char ch = row[i];
+    if (ch >= 'a' && ch <= 'z') ch -= 32;
+    if (ch < 0x20 || ch > 0x5F) ch = '?';
+    const uint8_t *g = &FONT5x7[(ch - 0x20) * 5];
+    if (pkt == 0) { Wire.beginTransmission(ICHOS_OLED_ADDR); Wire.write((uint8_t)0x40); }
+    for (uint8_t k = 0; k < 5; k++) Wire.write(pgm_read_byte(g + k));
+    Wire.write((uint8_t)0x00);                 // 1 px gap between glyphs
+    pkt += 6;
+    if (pkt >= 30 || i == COLS - 1) { Wire.endTransmission(); pkt = 0; }
+  }
+}
+
 FLASHMEM void ichosOledRender(int ch, int vol, int bpm, int page,
                               const char *mode, bool play, bool rec) {
   if (!oledOk) return;
+  if (!fastBus) {          // after setup(): the codec is up, both chips handle 400 kHz
+    Wire.setClock(400000);
+    fastBus = true;
+  }
   const unsigned long now = millis();
-  if (now - lastDraw < (unsigned long)(1000 / FPS)) return;
-
+  if (now - lastDraw < (unsigned long)(1000 / FPS / 4)) return;   // up to 4 rows per frame time
   if (!mode) mode = "";
-  const int pl = play ? 1 : 0, rc = rec ? 1 : 0;
-  const bool dirty = ch != lCh || vol != lVol || bpm != lBpm || page != lPage ||
-                     pl != lPlay || rc != lRec || strncmp(mode, lMode, sizeof(lMode)) != 0;
-  if (!dirty) return;
 
-  lastDraw = now;
-  lCh = ch; lVol = vol; lBpm = bpm; lPage = page; lPlay = pl; lRec = rc;
-  strncpy(lMode, mode, sizeof(lMode) - 1);
-  lMode[sizeof(lMode) - 1] = '\0';
-
-  char buf[24];
-  clearAll();
-
-  // Current channel — the headline (was the E1/E4 ring colour).
-  snprintf(buf, sizeof(buf), "CH:%d", ch);
-  drawStr(0, 0, buf);
-
-  // Transport state, right-aligned on the top row.
+  char rows[4][COLS + 1];
+  for (uint8_t r = 0; r < 4; r++) { memset(rows[r], ' ', COLS); rows[r][COLS] = '\0'; }
+  // Row 0: current channel (was the E1/E4 ring colour) + transport, right-aligned.
+  uint8_t at = putInt(rows[0], putStr(rows[0], 0, "CH:"), ch);
   const char *t = rec ? "*REC*" : (play ? ">PLAY" : "STOP");
-  int col = (21 - (int)strlen(t)) * 6;
-  if (col < 0) col = 0;
-  drawStr(0, (uint8_t)col, t);
+  const uint8_t tl = (uint8_t)strlen(t);
+  if (at + 1 + tl <= COLS) putStr(rows[0], COLS - tl, t);
+  putStr(rows[1], putStr(rows[1], 0, "MODE: "), mode);
+  putInt(rows[2], putStr(rows[2], 0, "BPM:  "), bpm);
+  const uint8_t a3 = putInt(rows[3], putStr(rows[3], 0, "VOL:"), vol);
+  putInt(rows[3], putStr(rows[3], (uint8_t)(a3 + 2), "PAGE:"), page);
 
-  // Mode, BPM, volume/page.
-  snprintf(buf, sizeof(buf), "MODE: %s", mode);
-  drawStr(2, 0, buf);
-  snprintf(buf, sizeof(buf), "BPM:  %d", bpm);
-  drawStr(4, 0, buf);
-  snprintf(buf, sizeof(buf), "VOL:%d  PAGE:%d", vol, page);
-  drawStr(6, 0, buf);
+  // Redraw at most one changed row per call, round-robin.
+  for (uint8_t k = 0; k < 4; k++) {
+    const uint8_t r = (uint8_t)((nextRow + k) % 4);
+    if (memcmp(rows[r], shown[r], COLS) != 0) {
+      drawRow(ROW_PAGE[r], rows[r]);
+      memcpy(shown[r], rows[r], COLS + 1);
+      nextRow = (uint8_t)((r + 1) % 4);
+      lastDraw = now;
+      return;
+    }
+  }
 }

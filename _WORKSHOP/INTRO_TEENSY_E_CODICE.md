@@ -23,7 +23,7 @@ Cosa lo rende speciale:
   stessa semplicità di un Arduino, ma con i muscoli.
 - Ha uno **slot micro SD** integrato (per i campioni) e accetta la **PSRAM**:
   16 MB di memoria extra che saldiamo sotto la scheda.
-- Parla **USB-MIDI**: può sincronizzarsi con altri strumenti.
+- Parla **MIDI** (DIN, con un piccolo circuito opzionale): può sincronizzarsi con altri strumenti.
 
 Da solo il Teensy non fa suono: lo affianchiamo a una **scheda audio (codec
 SGTL5000)** che trasforma i numeri calcolati dal Teensy in un segnale analogico
@@ -140,7 +140,7 @@ La matrice di LED è insieme **display** e **spartito**:
 
 Una grande tabella in memoria ricorda *cosa* suona e *dove*. Un **timer hardware**
 fa avanzare il "cursore di riproduzione" al ritmo del **BPM** e, ad ogni passo, fa
-partire i campioni delle note accese. Via **USB-MIDI** lo strumento può sincronizzarsi
+partire i campioni delle note accese. Via **MIDI** (DIN) lo strumento può sincronizzarsi
 con altri dispositivi, per suonarci insieme.
 
 ---
@@ -162,7 +162,7 @@ le sue funzioni: 8 voci campione + 3 voci sintetizzate, polifonia, effetti per v
 (reverb, bitcrusher, Moog ladder, detune, ottava), griglia 16×16, pagine,
 sotto-pattern, song mode, velocity/probabilità/condizioni, mute, note-shift e
 copia-incolla, sample pack e browser SD, salvataggio/caricamento, registrazione
-dal vivo (MIC/LINE con count-in), USB-MIDI, tap-tempo.
+dal vivo (MIC/LINE con count-in), MIDI DIN, tap-tempo.
 
 Il lavoro "nostro" non è cambiare il suono, ma **rimpiazzare l'hardware costoso**
 di TŒRN con parti da pochi euro, scrivendo i driver che le fanno parlare con il

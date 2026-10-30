@@ -7,12 +7,16 @@ One-click flasher for the ichosynth firmware on a Teensy 4.1.
 
 - ships a pre-compiled `ichosynth.hex` (no Arduino/arduino-cli needed to flash)
 - detects the Teensy live (running / bootloader / absent)
-- reboots the board into the bootloader automatically; if it can't, it asks you
-  to press the Teensy PROGRAM button
-- streams the flashing progress and tells you when it's done
+- on Windows it does NOT reboot the board by software (unreliable there): it
+  asks you to press the Teensy PROGRAM button and writes as soon as the
+  bootloader appears. The .hex is verified (checksums + EOF) before writing.
+- streams the flashing progress, can be cancelled («Annulla»), tells you when
+  it's done
 
 Flashing backend (auto-detected, in order of preference):
-  1. teensy_loader_cli.exe   (standalone, placed next to this app or on PATH)
+  0. built-in pure-Python HID loader (teensy_native.py) — always used on Windows
+  1. teensy_loader_cli.exe   (standalone, placed next to this app or on PATH;
+                              other OSes) — uses teensy_reboot if on PATH
   2. Teensyduino tools       (teensy_post_compile.exe + the Teensy Loader GUI,
                               installed with the Arduino "teensy" core)
 
@@ -182,6 +186,8 @@ class FlasherApp(ttk.Frame):
         self.master = master
         self.q = queue.Queue()
         self.flashing = False
+        self.cancel_ev = threading.Event()
+        self._state_busy = False        # one Get-PnpDevice at a time
         self.backend = find_backend()
         self._last_state = None
 
@@ -195,6 +201,7 @@ class FlasherApp(ttk.Frame):
         self._render_backend()
         self._refresh_fw()
         self._log("Pronto. Collega il Teensy 4.1 e premi «Flash ichosynth».")
+        self._drain_q()      # queue pump (reschedules itself)
         self._poll_teensy()  # start live detection
 
     # ---- styling ----
@@ -270,8 +277,10 @@ class FlasherApp(ttk.Frame):
         # action
         act = ttk.Frame(self, padding=(18, 6, 18, 2))
         act.pack(fill="x")
+        self.cancel_btn = ttk.Button(act, text="Annulla", command=self.cancel_flash, state="disabled")
+        self.cancel_btn.pack(side="right", padx=(8, 0), fill="y")
         self.flash_btn = ttk.Button(act, text="⚡  Flash ichosynth", style="Accent.TButton", command=self.start_flash)
-        self.flash_btn.pack(fill="x")
+        self.flash_btn.pack(side="left", fill="x", expand=True)
         prog = ttk.Frame(self, padding=(18, 4, 18, 4))
         prog.pack(fill="x")
         self.pbar = ttk.Progressbar(prog, style="green.Horizontal.TProgressbar", mode="determinate", maximum=100)
@@ -339,17 +348,27 @@ class FlasherApp(ttk.Frame):
             self._refresh_fw()
 
     # ---- live Teensy detection (polled in a thread) ----
+    def _start_state_probe(self):
+        """Run one teensy_state() in the background, unless one is still running."""
+        if not IS_WIN or self._state_busy:
+            return
+        self._state_busy = True
+
+        def probe():
+            try:
+                st = teensy_state()
+            except Exception:
+                st = "unknown"
+            self.q.put(("state", st))
+        threading.Thread(target=probe, daemon=True).start()
+
     def _poll_teensy(self):
-        if IS_WIN:
-            threading.Thread(target=lambda: self.q.put(("state", teensy_state())), daemon=True).start()
-        self.after(120, self._drain_q)
+        self._start_state_probe()
         self.after(3000, self._poll_teensy)
 
     def _detect_now(self):
         self._log("· rilevamento Teensy…", SUB)
-        if IS_WIN:
-            threading.Thread(target=lambda: self.q.put(("state", teensy_state())), daemon=True).start()
-            self.after(120, self._drain_q)
+        self._start_state_probe()
 
     def _set_state(self, state):
         if state == self._last_state:
@@ -380,8 +399,10 @@ class FlasherApp(ttk.Frame):
                                  "Installa il «Teensy Loader» / Teensyduino da:\n" + TEENSY_DL)
             return
         self.flashing = True
+        self.cancel_ev.clear()
         self._update_flash_enabled()
         self.flash_btn.configure(state="disabled")
+        self.cancel_btn.configure(state="normal" if self.backend["kind"] == "native" else "disabled")
         self.pbar.configure(mode="indeterminate")
         self.pbar.start(12)
         self.status.configure(text="Flashing…")
@@ -401,12 +422,19 @@ class FlasherApp(ttk.Frame):
             ok, msg = False, f"errore inatteso: {e}"
         self.q.put(("flash_done", (ok, msg)))
 
-    # backend 0: built-in pure-Python HID loader (no external tools)
+    def cancel_flash(self):
+        if self.flashing and not self.cancel_ev.is_set():
+            self.cancel_ev.set()
+            self.cancel_btn.configure(state="disabled")
+            self._log("· annullamento richiesto…", WARN)
+
+    # backend 0: built-in pure-Python HID loader (no external tools). No software
+    # reboot (unreliable on Windows): the user presses PROGRAM.
     def _flash_native(self, fw):
         self._emit("Premi il pulsante PROGRAM sul Teensy per avviare la scrittura…", WARN)
         return teensy_native.native_flash(
             fw, emit=lambda m: self._emit("  " + m),
-            reboot_tool=None, cancel=lambda: not self.flashing, wait=120)
+            reboot_tool=None, cancel=self.cancel_ev.is_set, wait=120)
 
     def _emit(self, msg, color=None):
         self.q.put(("log", (msg, color)))
@@ -474,6 +502,7 @@ class FlasherApp(ttk.Frame):
             while True:
                 kind, payload = self.q.get_nowait()
                 if kind == "state":
+                    self._state_busy = False
                     self._set_state(payload)
                 elif kind == "log":
                     self._log(payload[0], payload[1])
@@ -481,9 +510,11 @@ class FlasherApp(ttk.Frame):
                     self._finish_flash(*payload)
         except queue.Empty:
             pass
+        self.after(100, self._drain_q)
 
     def _finish_flash(self, ok, msg):
         self.flashing = False
+        self.cancel_btn.configure(state="disabled")
         self.pbar.stop()
         self.pbar.configure(mode="determinate", value=100 if ok else 0)
         if ok:
@@ -510,7 +541,8 @@ class FlasherApp(ttk.Frame):
         ttk.Label(frm, text="Sviluppato da", style="Sub.TLabel").pack(anchor="w")
         ttk.Label(frm, text=APP_AUTHOR, style="H2.TLabel").pack(anchor="w", pady=(0, 12))
         ttk.Label(frm, text="Carica il firmware ichosynth sul Teensy 4.1 in un clic:\n"
-                            "rileva la board, entra nel bootloader e scrive il .hex.",
+                            "rileva la board, aspetta il bootloader (pulsante PROGRAM),\n"
+                            "verifica il .hex e lo scrive.",
                   style="Sub.TLabel", justify="left").pack(anchor="w", pady=(0, 12))
         link = tk.Label(frm, text=REPO_URL.replace("https://", ""), bg=BG, fg=ACCENT2,
                         cursor="hand2", font=("Segoe UI", 9, "underline"))
