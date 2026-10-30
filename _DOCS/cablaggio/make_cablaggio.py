@@ -608,7 +608,33 @@ def to_pdf(html_path):
     return pdf
 
 
+def export_assets():
+    """Le stesse illustrazioni come SVG autonomi in assets/ (sfondo bianco), per i manuali .md."""
+    items = {
+        "ill-teensy-pinout": teensy_svg(marks_all(), sw=640),
+        "ill-overview": overview_svg(),
+        "ill-stack": stack_svg(),
+        "ill-ky040": ky040_svg("E1", ENC_COL["E1"]),
+        "ill-oled": oled_svg(),
+        "ill-switch": switch_svg(),
+        "ill-matrix": matrix_svg(),
+        "ill-linein": jack_svg(),
+        "ill-power": svg(540, 128, wago_svg("3V3", C3V).split(">", 1)[1].rsplit("</svg>", 1)[0] +
+                         '<g transform="translate(270,0)">' +
+                         wago_svg("GND", CGND).split(">", 1)[1].rsplit("</svg>", 1)[0] + "</g>", "ill"),
+        "ill-panel-map": panel_map_svg(),
+    }
+    for name, s in items.items():
+        vb = re.search(r'viewBox="0 0 ([\d.]+) ([\d.]+)"', s)
+        w, h = vb.group(1), vb.group(2)
+        s = s.replace("<svg ", f'<svg width="{w}" height="{h}" ', 1)
+        s = s.replace(">", f'><rect width="{w}" height="{h}" fill="#ffffff"/>', 1)
+        (REPO / "assets" / f"{name}.svg").write_text(s + "\n", encoding="utf-8")
+    print("illustrazioni ->", ", ".join(f"assets/{n}.svg" for n in items))
+
+
 def main():
+    export_assets()
     pages, _ = build_pages(1)
     out = OUT / "CABLAGGIO.html"
     out.write_text(html_doc(pages), encoding="utf-8")

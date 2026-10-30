@@ -11,11 +11,14 @@ FONT = "'Segoe UI',Helvetica,Arial,sans-serif"
 MONO = "'JetBrains Mono','Consolas','Courier New',monospace"
 
 # ---- design tokens -------------------------------------------------------
-BG      = "#0d1117"
-PANEL   = "#161b22"
-INK     = "#e6edf3"
-SUB     = "#9aa4b2"
-LINE    = "#30363d"
+# tema chiaro (stesso stile delle guide _CASE/MONTAGGIO.pdf e _DOCS/CABLAGGIO.pdf)
+BG      = "#ffffff"
+PANEL   = "#f6f8fa"
+INK     = "#1f2328"
+SUB     = "#57606a"
+LINE    = "#d0d7de"
+CELL    = "#eef1f4"     # celle vuote, tasti
+TINT    = "#f1f7ff"     # riquadri evidenziati (bordo colorato)
 GREEN   = "#2ea44f"
 ORANGE  = "#FF8A1A"
 RED      = "#E03030"
@@ -132,7 +135,7 @@ def gen_grid():
                 o.append(rrect(x - 1, y - 1, cell + 2, cell + 2, 5, col, opacity=0.25))  # glow
                 o.append(rrect(x, y, cell, cell, 4, col))
             else:
-                o.append(rrect(x, y, cell, cell, 4, "#1b2230", LINE, 1))
+                o.append(rrect(x, y, cell, cell, 4, CELL, LINE, 1))
 
     # cursor (pulsing dot) on an empty cell row3 col1
     cx = gx + 1 * step + cell / 2
@@ -155,7 +158,7 @@ def gen_grid():
     ly = gy + N * step + 24
     o.append(rrect(gx, ly, 14, 14, 4, "#E83A3A"))
     o.append(text(gx + 22, ly + 12, "nota (voce)", size=12.5, fill=SUB))
-    o.append(rrect(gx + 142, ly, 14, 14, 4, "#1b2230", LINE, 1))
+    o.append(rrect(gx + 142, ly, 14, 14, 4, CELL, LINE, 1))
     o.append(text(gx + 164, ly + 12, "step vuoto", size=12.5, fill=SUB))
     o.append(circle(gx + 276, ly + 7, 5, "#ffffff"))
     o.append(text(gx + 288, ly + 12, "cursore", size=12.5, fill=SUB))
@@ -191,8 +194,8 @@ def gen_encoders():
         o.append(text(cx, cy - 66, "gira + premi", size=11, fill=SUB, anchor="middle"))
         # knob body
         o.append(circle(cx, cy, r + 6, PANEL, LINE, 1.5))
-        o.append(circle(cx, cy, r, "#222a35", col, 2.5))
-        o.append(circle(cx, cy, r - 12, "#2c3543"))
+        o.append(circle(cx, cy, r, CELL, col, 2.5))
+        o.append(circle(cx, cy, r - 12, "#dfe4ea"))
         # indicator notch
         o.append(line(cx, cy - r + 6, cx, cy - r + 18, col, 3))
         # push center
@@ -217,7 +220,7 @@ def gen_encoders():
 
     # OLED note
     oy = by + 56
-    o.append(rrect(28, oy, W - 56, 34, 8, "#10212e", GREEN, 1.5))
+    o.append(rrect(28, oy, W - 56, 34, 8, TINT, GREEN, 1.5))
     o.append(text(W / 2, oy + 21,
                   "OLED: canale · modo · trasporto (PLAY/REC/STOP) · BPM · volume · pagina",
                   size=11.5, fill=INK, anchor="middle"))
@@ -256,10 +259,10 @@ def gen_wiring():
 
     # Teensy center
     tx, ty, tw, th = 350, 270, 200, 210
-    o.append(rrect(tx, ty, tw, th, 14, "#10212e", "#1f6feb", 2))
+    o.append(rrect(tx, ty, tw, th, 14, TINT, "#1f6feb", 2))
     o.append(text(tx + tw / 2, ty + 28, "Teensy 4.1", size=17, fill=INK, anchor="middle", weight="700"))
     o.append(text(tx + tw / 2, ty + 48, "+ 16 MB PSRAM", size=11.5, fill=SUB, anchor="middle"))
-    o.append(rrect(tx + 30, ty + 64, tw - 60, 26, 6, "#0d1117", "#1f6feb", 1))
+    o.append(rrect(tx + 30, ty + 64, tw - 60, 26, 6, BG, "#1f6feb", 1))
     o.append(text(tx + tw / 2, ty + 81, "Audio Shield (impilata)", size=11, fill=INK, anchor="middle"))
     o.append(text(tx + tw / 2, ty + 150, "ichosynth · firmware TŒRN", size=10.5, fill=SUB, anchor="middle"))
 
@@ -339,7 +342,7 @@ def gen_sd():
         o.append(text(x + 16, y + 25, label, size=12, fill=INK, weight="600", family=MONO))
 
     def file(x, y, w, label, col=INK):
-        o.append(rrect(x, y, w, 24, 5, "#1b2230", LINE, 1))
+        o.append(rrect(x, y, w, 24, 5, CELL, LINE, 1))
         o.append(text(x + 10, y + 16, label, size=11, fill=col, family=MONO))
 
     def elbow(x, y1, y2, x2):
@@ -347,7 +350,7 @@ def gen_sd():
         o.append(line(x, y2, x2, y2, LINE, 1.5))
 
     # SD root
-    o.append(rrect(28, 110, 150, 56, 8, "#10212e", "#1f6feb", 1.5))
+    o.append(rrect(28, 110, 150, 56, 8, TINT, "#1f6feb", 1.5))
     o.append(text(103, 134, "microSD", size=13.5, fill=INK, anchor="middle", weight="700"))
     o.append(text(103, 152, "FAT32", size=11, fill=SUB, anchor="middle"))
 
@@ -441,7 +444,7 @@ def gen_modes():
     # Per-mode table: what each of the 4 encoders does. From _DOCS/MAPPA_CONTROLLI.md §5.
     cols = ["", "E1 ruota", "E2 ruota", "E3 ruota", "E4 ruota"]
     rows = [
-        ("DRAW",     "Y / nota",  "pagina",      "filtro rapido", "X / colonna", "#e6edf3"),
+        ("DRAW",     "Y / nota",  "pagina",      "filtro rapido", "X / colonna", INK),
         ("SINGLE",   "canale",    "nota (pitch)", "—",            "X / colonna", "#3A6BE8"),
         ("FILTER",   "slider 1",  "slider 2",    "slider 3",      "slider 4",    "#00FFFF"),
         ("MENU",     "—",         "valore",      "valore",        "naviga pagine", "#36C24A"),
@@ -459,7 +462,7 @@ def gen_modes():
     # header row
     cx = x0
     for j, c in enumerate(cols):
-        o.append(rrect(cx, y0, cw[j], rh, 7, "#10212e", "#1f6feb", 1))
+        o.append(rrect(cx, y0, cw[j], rh, 7, TINT, "#1f6feb", 1))
         o.append(text(cx + cw[j] / 2, y0 + rh / 2 + 4, c, size=12.5, fill=INK,
                       anchor="middle", weight="700"))
         cx += cw[j]
@@ -470,7 +473,7 @@ def gen_modes():
         cx = x0
         cells = [name, e1, e2, e3, e4]
         for j, val in enumerate(cells):
-            fill = PANEL if j else "#1b2230"
+            fill = PANEL if j else CELL
             o.append(rrect(cx, ry, cw[j], rh, 7, fill, LINE, 1))
             if j == 0:
                 o.append(rrect(cx + 8, ry + 9, 6, rh - 18, 3, col))
@@ -558,7 +561,7 @@ def gen_audio_io():
 
     # Audio Shield (left)
     sx, sy, sw, sh = 48, 116, 210, 196
-    o.append(rrect(sx, sy, sw, sh, 12, "#10212e", "#2AD4B8", 2))
+    o.append(rrect(sx, sy, sw, sh, 12, TINT, "#2AD4B8", 2))
     o.append(text(sx + sw / 2, sy + 26, "Teensy Audio Shield", size=13.5, fill=INK, anchor="middle", weight="700"))
     o.append(text(sx + sw / 2, sy + 44, "SGTL5000", size=11, fill=SUB, anchor="middle"))
 
@@ -572,11 +575,11 @@ def gen_audio_io():
     dy = 60
     for pad, jack, col, lab, kind in rows:
         # pad chip on the shield edge
-        o.append(rrect(sx + sw - 92, y - 13, 84, 24, 5, "#0d1117", col, 1))
+        o.append(rrect(sx + sw - 92, y - 13, 84, 24, 5, BG, col, 1))
         o.append(text(sx + sw - 50, y + 3, pad, size=9.5, fill=INK, anchor="middle", family=MONO))
         # jack box
         o.append(rrect(jx, y - 17, jw, 32, 7, PANEL, col, 1.5))
-        o.append(circle(jx + 18, y - 1, 7, "#0d1117", col, 1.5))
+        o.append(circle(jx + 18, y - 1, 7, BG, col, 1.5))
         o.append(text(jx + 34, y + 3, jack, size=11.5, fill=INK, weight="700"))
         tw = 8 + len(lab) * 6
         # connector line + label

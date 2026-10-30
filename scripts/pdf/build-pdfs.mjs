@@ -41,9 +41,16 @@ md.renderer.rules.fence = (tokens, idx, opts, env, self) => {
 const CSS = `
   body{font-family:'Segoe UI',Helvetica,Arial,sans-serif;color:#1f2328;line-height:1.55;
        max-width:820px;margin:0 auto;padding:8px 24px;font-size:13.5px;}
-  h1{font-size:25px;border-bottom:1px solid #d0d7de;padding-bottom:.3em;margin-top:1.2em;}
-  h2{font-size:20px;border-bottom:1px solid #d0d7de;padding-bottom:.3em;margin-top:1.4em;}
-  h3{font-size:16px;} h4{font-size:14px;}
+  body::before{content:"";display:block;height:6px;margin:0 -24px 14px;
+       background:linear-gradient(90deg,#E83A3A 0 12.5%,#3A6BE8 0 25%,#E8D23A 0 37.5%,#36C24A 0 50%,
+       #E83AA6 0 62.5%,#A6E03A 0 75%,#FF7A1A 0 87.5%,#2AD4B8 0);}
+  h1{font-size:28px;font-weight:800;margin-top:.6em;}
+  h2{font-size:20px;font-weight:800;border-left:6px solid #FF8A1A;padding:.1em 0 .1em .5em;margin-top:1.6em;
+     break-after:avoid;}
+  h3{font-size:16px;font-weight:800;break-after:avoid;} h4{font-size:14px;}
+  .svgwrap{display:inline-block;text-align:center;} p[align=center] .svgwrap{display:block;}
+  td img, td .svgwrap svg{max-width:100%;} table{break-inside:avoid;}
+  blockquote{background:#f6f8fa;border-left:4px solid #FF8A1A !important;border-radius:4px;}
   code{background:#eff1f3;padding:.15em .4em;border-radius:5px;font-size:85%;
        font-family:'JetBrains Mono','Consolas',monospace;}
   pre{background:#f6f8fa;padding:12px;border-radius:8px;overflow:auto;}
@@ -61,11 +68,20 @@ const CSS = `
 // Inline local SVGs: Chrome blocks file:// subresources from a setContent page, so
 // embed the <svg> markup directly (robust, no file-access policy, scales to page width).
 function inlineSvgs(body) {
-  return body.replace(/<img[^>]*\ssrc="(assets\/[^"]+\.svg)"[^>]*>/g, (m, rel) => {
+  return body.replace(/<img([^>]*)\ssrc="([^"]+\.(svg|jpe?g|png))"([^>]*)>/g, (m, pre, rel, ext, post) => {
+    if (/^[a-z]+:/i.test(rel)) return m;                      // http(s)/data: lasciali stare
     const fp = path.join(REPO, rel);
     if (!fs.existsSync(fp)) return m;
-    const svg = fs.readFileSync(fp, "utf8").replace(/<svg /, '<svg style="max-width:100%;height:auto" ');
-    return `<div style="text-align:center;margin:1em 0">${svg}</div>`;
+    const width = (pre + post).match(/\swidth="(\d+)"/);
+    const maxw = width ? `max-width:min(100%,${width[1]}px)` : "max-width:100%";
+    if (ext === "svg") {
+      const svg = fs.readFileSync(fp, "utf8").replace(/<svg /, `<svg style="${maxw};height:auto" `);
+      return `<span class="svgwrap">${svg}</span>`;
+    }
+    // JPG/PNG: Chrome blocca i file:// da una pagina setContent -> data URI
+    const mime = ext === "png" ? "image/png" : "image/jpeg";
+    const b64 = fs.readFileSync(fp).toString("base64");
+    return `<img${pre} src="data:${mime};base64,${b64}"${post} style="${maxw};height:auto">`;
   });
 }
 

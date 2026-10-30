@@ -2,6 +2,8 @@
 
 <div align="center">
 
+<img src="_CASE/img/hero_top.jpg" alt="ichosynth from above: lit 16×16 grid, OLED, encoders E2 E3 on top and E1 E4 below, PLAY MENU REC buttons" width="700">
+
 # 🎮 ichosynth — Usage Manual
 
 ### How to play the sampler-sequencer you *draw*
@@ -75,13 +77,22 @@ touches plays the notes you've put there.
 
 ## 2 · The hardware: 4 knobs + 3 buttons
 
-On top there are **4 encoders** — **E1 E2 E3 E4**, left to right. Below them sit **3 tact switches** —
-**B1 B2 B3**. Every encoder both **turns** and **pushes** (click).
+Next to the grid there are **4 encoders** — **E1 E2 E3 E4** — and below them **3 buttons**: **B1 PLAY**,
+**B2 MENU**, **B3 REC**. Every encoder both **turns** and **pushes** (click). The **OLED** sits on top.
 
-```
-   [ E1 ]   [ E2 ]   [ E3 ]   [ E4 ]     ← 4 knobs (turn + push)
-   [  B1  ] [  B2  ] [  B3  ]            ← 3 buttons
-```
+<table><tr>
+<td><img src="assets/ill-panel-map.svg" alt="Case control panel: OLED on top, E2 E3, then E1 E4, then PLAY MENU REC" width="220"></td>
+<td>
+
+With the 3D-printed case the controls sit like this:
+
+- **E2 E3** on top — page and quick filter;
+- **E1 E4** at the bottom, nearest the hand — the **cursor** (E1 = up/down, E4 = left/right);
+- **PLAY · MENU · REC** in a row: PLAY and MENU side by side for the two-finger combo.
+
+Without the case lay them out as you like: what counts is the encoder's **number**, not its position.
+
+</td></tr></table>
 
 <p align="center">
   <img src="assets/encoders.svg" alt="The encoders and buttons of ichosynth with their gestures" width="720">
@@ -95,7 +106,7 @@ The gestures the firmware understands:
 | **Short click** (push an encoder) | confirm / act (the meaning depends on the mode) |
 | **Long press** (hold an encoder) | a second action (e.g. E1 hold = mute/subpattern) |
 | **Tap a button** (B1/B2/B3) | the button's main function |
-| **Hold a button** | the button's held function (e.g. B3 held = recording count-in) |
+| **Hold a button** | the button's held function (e.g. B3 held = record) |
 | **Combo B1+B2** | a shortcut — **the order you press them matters** (see ch. 11 & 12) |
 
 > 💡 There is **no double-click**: the KY-040 encoders don't need one. Every action is a turn, a click, a
@@ -143,7 +154,7 @@ The three tact switches are the heart of the transport and navigation:
 |---|---|---|
 | **B1 · PLAY** | start playback; toggle **SINGLE**; exit other modes back to **DRAW** | **held at power-on** = clear the RAM (fresh start) |
 | **B2 · MENU** | enter / exit the **Menu** and the sub-modes | exits a sub-mode back to DRAW/SINGLE |
-| **B3 · REC** | **record** (tap or hold) | **PAUSE** during playback · **tap-tempo BPM** · hold **>300 ms** = recording **count-in** |
+| **B3 · REC** | **record** (tap or hold) | **PAUSE** during playback · **tap-tempo BPM** · in REC mode **ON1**, hold **>300 ms** = **count-in** |
 
 > 💡 **PLAY is B1** (a single tap), not an encoder gesture. **PAUSE is B3** while a song is running.
 
@@ -249,9 +260,9 @@ To assign a different WAV to one of the 8 sample voices:
 3. **Confirm** with **E4 click** to load the selected sample onto the voice.
 4. **Exit** with **B2 (MENU)**.
 
-> 📁 Samples live on the microSD as `/samples/<folder>/_<number>.wav`
-> (see the [build manual](BUILD_MANUAL.md)). WAVs should be mono, 16-bit, 44.1 kHz — `wavmaker.py`
-> prepares them for you.
+> 📁 Browser samples live on the microSD as `samples/<category>/<name>.wav` (up to 256 per folder;
+> see the [build manual](BUILD_MANUAL.md#7--prepare-the-micro-sd)). WAVs must be mono, 16-bit, 44.1 kHz
+> — `wavmaker` prepares them for you.
 
 > ⏱️ **Order matters in the combo**: **B2 first** → FILTER MODE; **B1 first (or simultaneous)** → SAMPLE
 > BROWSER. There is a short 350 ms cooldown between combos.
@@ -280,8 +291,8 @@ A "sample pack" is a complete set of voices saved on the SD: recall a whole kit 
   to **load** a numbered pack onto the 8 sample voices.
 - Packs let you swap an entire kit between songs without rebuilding it voice by voice.
 
-> 📁 On the SD a pack is a numbered folder with its `.wav` files inside; ichosynth manages them, you don't
-> need to create them by hand.
+> 📁 On the SD a pack is a numbered folder `0` … `99` holding 8 voices `1.wav` … `8.wav` (pack 0 is the
+> factory kit). The ready-made SD in `_SDCARD/` has 6; use `wavmaker` to make more.
 
 ---
 
@@ -305,8 +316,10 @@ ichosynth records audio straight from its input into the current channel.
 > manual for the jacks.
 
 1. Choose the **channel** to record into.
-2. **Hold B3 (REC)** to record from the input (**MIC** or **LINE**, the default; the choice shows on the OLED).
-3. **Hold B3 > 300 ms** to get a **count-in** first (4 beats at the current BPM), then recording starts on the beat.
+2. **Hold B3 (REC)** to record from the input: in this build it is **LINE IN** (you can switch to MIC
+   from the menu; the choice is remembered).
+3. If the recording mode is **ON1**, hold **B3 > 300 ms**: first a 4-beat **count-in** at the current BPM,
+   then recording starts and stops on the beat.
 4. Release **B3** to stop; the take is saved to the SD and loaded onto the channel, so it survives a reboot.
 
 > 💡 **B3 is multi-purpose**: a quick tap is **tap-tempo** / **PAUSE during play**; a hold is **record**.
@@ -363,7 +376,7 @@ press · "hold" = long press · "combo" = two buttons together (order matters).
 | **FILTER mode** (per-voice DSP) | **B2 + B1, B2 first** → sliders on **E1–E4** |
 | **Sample Browser** (set WAV) | **B1 + B2, B1 first / together** → confirm **E4 click** |
 | **Menu** confirm / enter sub-menu | **E4 click** · back = **E1 click** |
-| Recording **count-in** | **hold B3 > 300 ms** |
+| Recording **count-in** (REC mode ON1) | **hold B3 > 300 ms** |
 
 > ⚠️ **The two combos differ only by order**: **B2 first** → FILTER mode; **B1 first (or both at once)** →
 > Sample Browser. Wait ~350 ms between combos.
@@ -377,7 +390,8 @@ press · "hold" = long press · "combo" = two buttons together (order matters).
 | 🔇 **I don't hear anything** | check the volume/channel volume (OLED), that the voice isn't muted (**hold E1**), and that the sample exists on the SD in the right format |
 | ▶️ **It won't start** | Play is **B1** (or **E3 click**); Pause during play is **B3** |
 | ↩️ **A knob goes the wrong way** | it's a CLK/DT swap from the wiring stage (see the build manual) |
-| 🚫 **The samples won't play** | wrong SD path/structure, or WAV not mono/16-bit/44.1 kHz → use `wavmaker.py` |
+| 💾 **noSD icon** | the SD goes in the **Teensy's** slot, FAT32 |
+| 🚫 **The samples won't play** | wrong SD path/structure, or WAV not mono/16-bit/44.1 kHz → use `wavmaker` |
 | 🤔 **A combo opened the wrong mode** | mind the order: **B2 first** = FILTER, **B1 first** = Sample Browser; wait ~350 ms and retry |
 | 💾 **I want a fresh start** | **hold B1 at power-on** to clear the RAM; save songs to the SD from the Menu (B2) |
 | ⏱️ **Sample length** | long samples with continuous looping are supported |

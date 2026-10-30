@@ -105,6 +105,8 @@ def step(num, scene_or_html, chips="", note=""):
 
 def build_html():
     IMG.mkdir(exist_ok=True)
+    for extra in ("exploded",):          # render usati dai manuali .md, non da questa guida
+        jpg(extra)
     pages = []
     n = 1
     dims = f"{b.W:.0f} × {b.D:.0f} mm · h {b.Z_TOP_M:.0f} / {b.Z_TOP_C:.0f} mm"
