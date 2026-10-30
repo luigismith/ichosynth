@@ -66,6 +66,7 @@ collisioni**; 2ª striscia LED rimossa.
 | `_DOCS/FEATURE_INVENTORY.md` | catalogo funzioni |
 | `_SDCARD/wavmaker_gui.py` + `wavmaker.exe` | preparazione SD + conversione WAV |
 | `_FLASHER/flasher_gui.py` + `teensy_native.py` + `flasher.exe` | flasher autonomo |
+| `_CASE/` | **case stampato 3D** (3 pezzi, 2 piatti Kobra S1): generatore `build_case.py`, verifiche `check_fit.py`, render Blender + guida grafica `MONTAGGIO.pdf` |
 
 ---
 
@@ -133,15 +134,19 @@ La vecchia convenzione NI404 `samples/<bank>/_<n>.wav` non è più usata.
 
 ## 7. Come riprendere su un altro PC
 
-1. **Codice:** `git clone https://github.com/luigismith/ichosynth.git` (idealmente
-   nello stesso percorso `D:\NI404-main` per coerenza con gli strumenti).
+1. **Codice:** `git clone https://github.com/luigismith/ichosynth.git D:\ichosynth`
+   (sul PC di lavoro la copia unica è `D:\ichosynth`; la vecchia `D:\NI404-main` non
+   si usa più). Se il clone c'è già: `git pull`.
 2. **Sorgenti TŒRN:** se manca `emulator/toern-src/`, lo clona `build_toern.py`,
    oppure `git clone --depth 1 https://github.com/soundpauli/toern.git emulator/toern-src`.
 3. **Toolchain:** `arduino-cli` + core `teensy:avr` (per il firmware); per
    l'emulatore vedi `emulator/MANUALE.md` (MSYS2/MinGW + SDL2, o Homebrew su Mac).
 4. **Memoria di Claude (contesto tra sessioni):** copia la cartella
-   `~/.claude/projects/D--NI404-main/memory/` sul nuovo PC nello stesso percorso.
-5. **Chat (facoltativo):** copia anche il transcript `.jsonl` dalla stessa cartella.
+   `~/.claude/projects/D--ichosynth/memory/` sul nuovo PC nello stesso percorso
+   (le note più vecchie stanno in `~/.claude/projects/D--ni404-main/memory/`).
+5. **Strumenti del case:** Python con `manifold3d trimesh numpy matplotlib pillow`
+   (`pip install manifold3d trimesh numpy matplotlib pillow`); per i render Blender ≥ 4.2;
+   per il PDF della guida Chrome o Edge. Vedi `_CASE/README.md`.
 6. Apri Claude Code nella cartella del repo: con questo `_HANDOFF.md` + la memoria,
    il contesto è recuperato.
 
@@ -153,3 +158,6 @@ La vecchia convenzione NI404 `samples/<bank>/_<n>.wav` non è più usata.
   e combo come da `_DOCS/MAPPA_CONTROLLI.md`.
 - [ ] Allineare il firmware spedito dal flasher all'ultimo `toern.hex`.
 - [ ] Rifinire l'HUD OLED (MIC/LINE in registrazione, nome filtro in FILTER mode).
+- [ ] **Case:** prima stampa di prova. Misurare sui componenti veri matrice (160 mm),
+  stack Teensy+audio (`STACK_GAP`), OLED, switch 4,3 mm; provare la sensazione dei tasti
+  flessibili (`TAB_T`, `NUB_GAP` in `_CASE/build_case.py`) e rigenerare se serve.

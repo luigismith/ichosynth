@@ -264,10 +264,12 @@ Con questo progetto sono incluse tre guide adatte ai principianti, ciascuna in *
 - 3× **jack TS mono da 6.35mm (1/4")** — 1× **Line In** (mono) + 2× **Line Out** (stereo: L + R), collegati
   ai pad LINE IN / LINE OUT dell'Audio Adaptor
 - Cavi jumper, cuffie
+- *(facoltativo)* **case stampato 3D** — 3 pezzi su 2 piatti 250×250, nessun supporto:
+  [`_CASE/`](_CASE/) · guida grafica [`_CASE/MONTAGGIO.pdf`](_CASE/MONTAGGIO.pdf)
 
-> ℹ️ Niente altoparlanti o Bluetooth a bordo — usa le **cuffie**. Per ragioni di licenza, porta i tuoi
-> WAV di campioni (mono / 16-bit / 44.1 kHz; `_SDCARD/wavmaker.py` li converte). La struttura delle cartelle
-> è documentata nel manuale di costruzione.
+> ℹ️ Niente altoparlanti o Bluetooth a bordo — usa le **cuffie**. La SD ha già un **set di campioni
+> public domain** (`_SDCARD/`); per aggiungere i tuoi WAV (mono / 16-bit / 44.1 kHz) usa
+> `_SDCARD/wavmaker`. La struttura delle cartelle è in `_SDCARD/README.md`.
 
 ---
 

@@ -263,10 +263,12 @@ switcher sits at the top of every page). PDF versions are included too.
 - 3× **6.35mm (1/4") mono TS jacks** — 1× **Line In** (mono) + 2× **Line Out** (stereo: L + R), wired to
   the Audio Adaptor's LINE IN / LINE OUT pads
 - Jumper wires, headphones
+- *(optional)* **3D-printed case** — 3 parts on 2 plates 250×250, no supports:
+  [`_CASE/`](_CASE/) · graphic guide [`_CASE/MONTAGGIO.pdf`](_CASE/MONTAGGIO.pdf)
 
-> ℹ️ No speakers or Bluetooth on board — use **headphones**. For licensing reasons, bring your own
-> sample WAVs (mono / 16-bit / 44.1 kHz; `_SDCARD/wavmaker.py` converts them). The folder structure
-> is documented in the build manual.
+> ℹ️ No speakers or Bluetooth on board — use **headphones**. The SD already ships a **public-domain
+> sample set** (`_SDCARD/`); to add your own WAVs (mono / 16-bit / 44.1 kHz) use `_SDCARD/wavmaker`.
+> The folder structure is in `_SDCARD/README.md`.
 
 ---
 

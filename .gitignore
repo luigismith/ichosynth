@@ -39,8 +39,14 @@ midi-map.txt
 settings.txt
 _SDCARD/autosaved.txt
 _SDCARD/settings.txt
-# user-recorded / imported samples (runtime content, not shipped)
-_SDCARD/samples/
+# user recordings (runtime content, not shipped). The factory browser library
+# _SDCARD/samples/<kick|snare|hat|clap|tom|perc|fx>/ IS shipped.
+_SDCARD/samples/9/
+
+# 3D case: render intermediates (rebuild with _CASE/render/render.ps1). The raw PNGs
+# stay local; the guide uses the optimized _CASE/img/*.jpg + the out/*.json overlays.
+_CASE/render/build/
+_CASE/render/out/*.png
 
 
 # PDF build tooling deps

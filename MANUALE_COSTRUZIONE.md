@@ -86,7 +86,7 @@ Tutto viene alimentato dalla porta **USB (5V)**.
 | 1 | Teensy Audio Adaptor Board, **Rev D (per Teensy 4.x)** | codec SGTL5000 + jack cuffie 3,5 mm (no altoparlante); il suo slot SD non si usa |
 | 1 | Matrice LED **WS2812 RGB 16×16** (256 LED) | rigida o flessibile; concatenabile a 32×16 |
 | **4** | Encoder rotativo **KY-040** con pulsante | E1 (sinistra) → E4 (destra) |
-| **3** | Tact switch (momentaneo, tactile/push) | PLAY · MENU · REC (ognuno: un capo al pin, l'altro a GND) |
+| **3** | Tact switch **6×6 mm** (momentaneo; **alto 4,3 mm** se usi il case) | PLAY · MENU · REC (ognuno: un capo al pin, l'altro a GND) |
 | 1 | Micro SD Card, **Class 10** | per campioni e pattern |
 | 1 | Cavo micro-USB + alimentatore 5V (≥ 2A consigliato) | alimentazione e programmazione |
 | 1 | Cuffie con jack 3,5 mm | ichosynth non ha altoparlanti; jack integrato per il monitoraggio |
@@ -94,9 +94,9 @@ Tutto viene alimentato dalla porta **USB (5V)**.
 | q.b. | *(opzionale)* Condensatore elettrolitico da 10 µF | blocco DC in serie sui jack di linea, solo se l'apparecchiatura collegata ronza |
 | 1 | OLED **SSD1306 0,96" 128×64 I²C** | schermo di stato (sostituisce gli anelli RGB degli encoder di TŒRN) |
 | q.b. | Cavetti jumper Dupont (~10 cm), strip di pin header | per i collegamenti |
-| 1 | *(opzionale)* Contenitore stampato 3D | file STL in `_DOCS/_ENCLOSURE/` |
+| 1 | *(opzionale)* **Case stampato 3D** (3 pezzi, 2 piatti 250×250) | `_CASE/` — guida grafica `_CASE/MONTAGGIO.pdf`; servono anche 8 viti M3×8 svasate e 4 piedini |
 
-> ℹ️ **Licenze campioni**: il progetto **non** include file audio. Userai i tuoi campioni (vedi [cap. 9](#9--preparare-la-micro-sd-campioni)).
+> ℹ️ **Campioni**: il set di fabbrica in `_SDCARD/` è **public domain** (raccolta *drum_sklad*), ridistribuibile liberamente. Puoi aggiungere i tuoi (vedi [cap. 9](#9--preparare-la-micro-sd-campioni)).
 
 ---
 
@@ -261,7 +261,7 @@ flowchart LR
 
 ### Fase 4 — Encoder (×4)
 1. Per ciascuno dei **4 encoder** collega CLK, DT, SW secondo la [tabella 6.3](#63-encoder-clk-dt-sw--pulsante), più "+" (3,3V) e GND.
-2. Disponili da sinistra a destra: **E1 → E2 → E3 → E4**.
+2. Disponili da sinistra a destra: **E1 → E2 → E3 → E4** (con il case stampato 3D invece stanno in 2×2: vedi [Case stampato 3D](#case-stampato-3d-opzionale)).
 3. Tieni i fili ordinati ed etichettali: incrociare CLK/DT è l'errore più comune (si corregge anche via software, vedi troubleshooting).
 4. ⚠️ Non usare per sbaglio i pin **2 / 3 / 4** (uso interno di TŒRN) né il **24** (striscia LED rimossa) — nessun encoder li tocca.
 
@@ -275,6 +275,15 @@ flowchart LR
 ### Fase 7 — Controllo finale prima di accendere
 1. Col multimetro verifica **assenza di corto** tra 5V e GND e tra 3,3V e GND.
 2. Ricontrolla che 5V/3,3V/GND siano nei pin giusti.
+
+### Case stampato 3D (opzionale)
+Il case stampato in 3D è in [`_CASE/`](_CASE/): 3 pezzi su 2 piatti, nessun supporto. La guida
+**tutta grafica**, passo per passo, è [`_CASE/MONTAGGIO.pdf`](_CASE/MONTAGGIO.pdf); stampa e
+parametri sono in [`_CASE/README.md`](_CASE/README.md). Con il case gli encoder stanno in 2×2
+(E2 E3 in alto, E1 E4 in basso: i cursori Y/X vicino alla mano), i fili si saldano direttamente
+sui pin dei KY-040, i tact switch devono essere quelli **alti 4,3 mm** e le cuffie escono dal retro.
+Dentro il case niente connettori Dupont: i fili si saldano (sul Teensy dal lato superiore), e i
+jack 6,35 mm devono stare in **22 mm di profondità e 16 mm di altezza** dietro la parete.
 
 ---
 

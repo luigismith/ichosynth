@@ -13,7 +13,9 @@
 - [ ] **Teensy Audio Adaptor Rev D** (codec SGTL5000 + jack 3,5 mm)
 - [ ] **Matrice LED WS2812B 16×16** (256 LED)
 - [ ] **4 encoder KY-040** (E1 · E2 · E3 · E4)
-- [ ] **3 tact switch** momentanei (PLAY · MENU · REC)
+- [ ] **3 tact switch** 6×6 momentanei (PLAY · MENU · REC) — **alti 4,3 mm** se usi il case
+- [ ] **3 jack mono 6,35 mm** (LINE IN · LINE OUT L · LINE OUT R) → pad della scheda audio
+- [ ] *(facoltativo)* **case stampato 3D** → `_CASE/MONTAGGIO.pdf` (+ 8 viti M3×8 svasate, 4 piedini)
 - [ ] **OLED SSD1306 0,96" I2C** (HUD di stato)
 - [ ] **micro SD** Class 10, ≤ 32 GB, **FAT32**
 - [ ] **cavo micro-USB dati** + alimentatore 5V ≥ 2A
