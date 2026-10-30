@@ -1,0 +1,172 @@
+# ichosynth — Handoff / come riprendere il progetto
+
+> Documento per riprendere il lavoro su un altro PC (o in una nuova sessione di
+> Claude Code) senza perdere il contesto. Lo stato del **codice** è interamente
+> su GitHub: `git clone` e hai tutto.
+
+Repo: **https://github.com/luigismith/ichosynth** (branch `master`).
+Progetto: **ichosynth** — una **build a basso costo di TŒRN** (il groovebox di
+SP_/soundpauli, MIT, https://toern.live) su hardware saldato a mano, per il
+workshop **ICHOS 2026** di Francesco Giannico a Taranto (12–14 giugno 2026).
+Autore/manutentore: **Luigi Massari (luigismith)**. Documentario sonoro: Roberta Trani.
+
+---
+
+## 1. Cos'è e cosa è stato fatto
+
+ichosynth fa girare il **firmware reale di TŒRN** su un **Teensy 4.1 + Audio Shield
+(SGTL5000) + matrice LED 16×16**, sostituendo i componenti costosi dell'originale
+con parti economiche e saldabili:
+
+- **4 encoder KY-040** (ruota + premi) al posto dei 4 encoder I²C RGB Duppa —
+  driver `firmware/libraries/i2cEncoderLibV2` (re-implementa l'API Duppa).
+- **3 tact switch** (PLAY/MENU/REC) al posto dei 3 sensori capacitivi —
+  driver `firmware/libraries/FastTouch` (`fastTouchRead` su `INPUT_PULLUP`).
+- **OLED SSD1306 I²C** al posto del feedback a colori degli anelli RGB —
+  driver `firmware/libraries/IchosOled` (HUD: canale / modo / trasporto / BPM /
+  volume / pagina). Tutto in FLASHMEM/PROGMEM → ~80 byte di RAM1.
+- Nessun PCB (tutto a fili). La 2ª striscia LED reattiva di TŒRN è rimossa
+  (libera il pin 24).
+
+Le **feature sono quelle complete di TŒRN**: 8 voci campione + 3 voci synth,
+polifonia, effetti per voce (reverb/bitcrusher/Moog ladder/detune/ottava), griglia
+16×16→32×16, pagine, sotto-pattern, song mode, velocity/probabilità/condizioni,
+mute, note-shift/copia-incolla, sample pack + browser SD, seek/length/reverse,
+load/save su SD, registrazione dal vivo (MIC/LINE + count-in), MIDI DIN su Serial8 (pin 34/35,
+circuito opzionale; il firmware non gestisce MIDI via USB), tap-tempo.
+
+L'**NI404** originale di SP_ (da cui il repo era partito come fork) resta solo come
+fallback/riferimento.
+
+Strumenti companion (Windows, Python+tkinter, exe PyInstaller, sviluppati da Luigi):
+- **`tools/wavmaker/wavmaker.exe`** — converte WAV in mono/16-bit/44.1k e **prepara la
+  SD**: scansiona, capisce la struttura, deduce il prossimo numero libero, crea
+  la struttura, e (se serve) formatta FAT32 — solo schede SD rimovibili, mai
+  dischi fissi/di sistema. Numero pack, categoria e "cartella locale invece della
+  SD" si scelgono nel pannello destinazione (non c'è una sezione "Avanzate").
+- **`tools/flasher/flasher.exe`** — flasha il firmware sul Teensy **in un clic**, con
+  un **loader HID puro-Python integrato** (`teensy_native.py`): niente Teensyduino,
+  niente binari esterni. Spedisce il firmware ichosynth precompilato.
+
+Stato hardware: il **firmware reale di TŒRN compila e linka** per il nostro Teensy
+4.1 con i driver KY-040/FastTouch; **HUD OLED** completo; **mappa pin senza
+collisioni**; 2ª striscia LED rimossa.
+
+---
+
+## 2. Mappa del repo (file chiave)
+
+| Percorso | Cosa |
+|---|---|
+| `firmware/build_toern.py` | compila TŒRN → `firmware/build/toern.hex` (arduino-cli + core teensy:avr) |
+| `firmware/build/toern.hex` | firmware ichosynth (TŒRN) compilato |
+| `firmware/libraries/i2cEncoderLibV2` | driver dei 4 encoder KY-040 |
+| `firmware/libraries/FastTouch` | driver dei 3 tact switch (PLAY/MENU/REC) |
+| `firmware/libraries/IchosOled` | driver OLED SSD1306 (HUD di stato) |
+| `firmware/README.md` | doc del port (mappa pin, build, perché -O1, OLED) |
+| `emulator/toern-src/` | sorgenti TŒRN (clonati da github.com/soundpauli/toern) |
+| `docs/reference/MAPPA_CONTROLLI.md` | come encoder/pulsanti pilotano TŒRN |
+| `docs/reference/FEATURE_INVENTORY.md` | catalogo funzioni |
+| `tools/wavmaker/wavmaker_gui.py` + `wavmaker.exe` | preparazione SD + conversione WAV |
+| `tools/flasher/flasher_gui.py` + `teensy_native.py` + `flasher.exe` | flasher autonomo |
+| `docs/wiring/CABLAGGIO.pdf` | **guida illustrata al cablaggio** (generata da `docs/wiring/make_cablaggio.py`, pin letti dai driver) |
+| `case/` | **case stampato 3D** (3 pezzi, 2 piatti Kobra S1): generatore `build_case.py`, verifiche `check_fit.py`, render Blender + guida grafica `MONTAGGIO.pdf`, progetti Anycubic Slicer Next (`make_slicer_project.py`) |
+| `docs/manuals/` | manuali IT/EN (.md + .pdf, rigenerati da `tools/pdf/build-pdfs.mjs`) |
+| `docs/workshop/` | materiali del workshop ICHOS 2026 |
+| `sdcard/` | contenuto della micro-SD (pack 0–5 + libreria `samples/`) |
+| `legacy/` | NI404 di SP_: firmware-banco (usato dal target `ni404emu` dell'emulatore), PCB e case originali |
+| `assets/` | diagrammi SVG (`_gen_assets.py`), illustrazioni del cablaggio, banner e anteprima social (`_make_banner.py`) |
+
+---
+
+## 3. Build & flash (promemoria)
+
+- **Build firmware:** `python firmware/build_toern.py` → `firmware/build/toern.hex`.
+  Serve `arduino-cli` su PATH + core `teensy:avr` (≥ 1.61.0). I sorgenti TŒRN sono
+  attesi in `emulator/toern-src/` (lo script li clona se mancano). Dettagli in
+  `firmware/README.md`.
+- **`-O1` obbligatorio (`opt=o1std`):** al default `-O2` il gcc del Teensy **crasha**
+  compilando la singola translation unit da ~23k righe di TŒRN (esce `0xffffffff`,
+  errore interno / out-of-memory). Da Arduino IDE: **Tools → Optimize → "Fast"** (= -O1).
+- **PSRAM:** TŒRN usa ~16,5 MB → servono **entrambi i chip** (16 MB) saldati,
+  altrimenti il firmware non parte.
+- **Pin remap del build:** `build_toern.py` riscrive i `#define SWITCH_1/2/3`
+  (default 2/3/4, in collisione con E4) sui pin dei tact switch; aggancia anche
+  l'OLED (`ichosOledBegin()` in setup + `ichosOledRender(...)` nel loop).
+- **Flash:** usa `tools/flasher/flasher.exe` → premi il pulsante **PROGRAM** sul Teensy
+  quando richiesto. (Il reboot software in bootloader è inaffidabile su Windows:
+  il pulsante è la via certa.)
+
+---
+
+## 4. Mappa pin (la "verità" del firmware)
+
+KY-040 `{CLK, DT, SW}`:
+
+| Encoder | CLK | DT | SW |  | Pulsanti | Pin |
+|---|---|---|---|---|---|---|
+| E1 | 5 | 22 | 15 |  | PLAY | 25 |
+| E2 | 32 | 33 | 41 |  | MENU | 26 |
+| E3 | 9 | 14 | 16 |  | REC | 28 |
+| E4 | 37 | 38 | 39 |  | | |
+
+LED DIN = 17 · OLED+codec I²C SDA=18 / SCL=19. Pulsanti: l'altro capo a GND
+(`INPUT_PULLUP`, attivi-bassi). Vedi `firmware/README.md` e `docs/reference/MAPPA_CONTROLLI.md`.
+
+## 5. Struttura SD
+
+```
+SD (FAT32)
+├── 0/  1.wav … 8.wav      ← samplepack 0 (kit di fabbrica), 8 voci
+├── 1/  1.wav … 8.wav      ← samplepack 1 … fino a 99/
+├── …
+└── samples/               ← libreria del browser (SET_WAV), nomi liberi
+    ├── kick/  …  snare/  …  hat/  …  perc/  …
+```
+Layout TŒRN: pack = `<pack>/1.wav..8.wav`; browser = `samples/<categoria>/<nome>.wav`.
+Tutto **WAV mono / 16-bit / 44100 Hz**. `wavmaker` scrive in entrambi (vedi `sdcard/README.md`).
+La vecchia convenzione NI404 `samples/<bank>/_<n>.wav` non è più usata.
+
+---
+
+## 6. Gotcha / lezioni apprese
+
+- **PSRAM:** servono i **2 chip** (TŒRN ~16,5 MB); senza, non parte.
+- **Board nuda (senza SD) si riavvia ogni ~8–15s**: è il loop che interroga lo slot
+  SD vuoto; con una SD inserita sparisce. Non è un bug.
+- **`-O2` crasha il compilatore** → usare `-O1` (`opt=o1std` / "Fast").
+- **"Device descriptor request failed" (VID_0000/PID_0002)** = cavo/porta USB, non firmware.
+- **Reboot software in HalfKay inaffidabile su Windows** → pulsante PROGRAM.
+- **Gli .exe non sono firmati** → SmartScreen al primo avvio ("Ulteriori informazioni → Esegui comunque").
+
+---
+
+## 7. Come riprendere su un altro PC
+
+1. **Codice:** `git clone https://github.com/luigismith/ichosynth.git D:\ichosynth`
+   (sul PC di lavoro la copia unica è `D:\ichosynth`; la vecchia `D:\NI404-main` non
+   si usa più). Se il clone c'è già: `git pull`.
+2. **Sorgenti TŒRN:** se manca `emulator/toern-src/`, lo clona `build_toern.py`,
+   oppure `git clone --depth 1 https://github.com/soundpauli/toern.git emulator/toern-src`.
+3. **Toolchain:** `arduino-cli` + core `teensy:avr` (per il firmware); per
+   l'emulatore vedi `emulator/MANUALE.md` (MSYS2/MinGW + SDL2, o Homebrew su Mac).
+4. **Memoria di Claude (contesto tra sessioni):** copia la cartella
+   `~/.claude/projects/D--ichosynth/memory/` sul nuovo PC nello stesso percorso
+   (le note più vecchie stanno in `~/.claude/projects/D--ni404-main/memory/`).
+5. **Strumenti del case:** Python con `manifold3d trimesh numpy matplotlib pillow`
+   (`pip install manifold3d trimesh numpy matplotlib pillow`); per i render Blender ≥ 4.2;
+   per il PDF della guida Chrome o Edge. Vedi `case/README.md`.
+6. Apri Claude Code nella cartella del repo: con questo `docs/HANDOFF.md` + la memoria,
+   il contesto è recuperato.
+
+---
+
+## 8. Prossimi passi
+
+- [ ] **Verifica on-hardware:** flash e conferma direzione encoder, polarità pulsanti
+  e combo come da `docs/reference/MAPPA_CONTROLLI.md`.
+- [ ] Rifinire l'HUD OLED (MIC/LINE in registrazione, nome filtro in FILTER mode).
+- [ ] **Case:** prima stampa di prova. Misurare sui componenti veri matrice (160 mm),
+  stack Teensy+audio (`STACK_GAP` = 2,6: scheda audio appoggiata sulla plastica dell'header),
+  posizione del jack cuffie sulla Rev D (`AUDIO_JACK_DX`), OLED, switch 4,3 mm; provare la sensazione dei tasti
+  flessibili (`TAB_T`, `NUB_GAP` in `case/build_case.py`) e rigenerare se serve.

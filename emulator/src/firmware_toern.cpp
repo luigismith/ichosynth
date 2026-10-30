@@ -89,7 +89,7 @@ bool ni404_sd_set_root(const char *path) { if (!path || !*path) return false; SD
 #include <cctype>
 #include <cstring>
 #ifndef NI404_SDCARD_PATH
-#define NI404_SDCARD_PATH "_SDCARD"
+#define NI404_SDCARD_PATH "sdcard"
 #endif
 const char *ni404_import_sample(const char *srcPath) {
     static char status[96];

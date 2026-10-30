@@ -7,8 +7,8 @@ variations of the synth on your desk before flashing the Teensy.
 
 Two firmwares can run in the emulator:
   * product  (default) -> the REAL TŒRN firmware (emulator/toern-src), i.e. exactly
-                          what teensy/build_toern.py flashes to the instrument.
-  * bench    (--bench) -> the NI404-based hybrid (../soundpauli_ni404.ino), the
+                          what firmware/build_toern.py flashes to the instrument.
+  * bench    (--bench) -> the NI404-based hybrid (../legacy/soundpauli_ni404/soundpauli_ni404.ino), the
                           fallback/reference firmware.
 
 Usage:

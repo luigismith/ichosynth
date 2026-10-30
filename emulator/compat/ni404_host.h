@@ -38,7 +38,7 @@ void ni404_setup();
 void ni404_loop();
 
 // Tell the SD shim where the executable lives (from argv[0]) so a distributed
-// binary can find an _SDCARD folder next to it. Call before ni404_setup().
+// binary can find an sdcard folder next to it. Call before ni404_setup().
 void ni404_set_base_dir(const char *dir);
 
 // ---- headless verification hooks (firmware.cpp sees the firmware globals) --

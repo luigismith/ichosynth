@@ -6,10 +6,10 @@ layer that emulates every Teensy/Arduino API it touches, so the sequencer/UI/MID
 sample logic *is* the device's, not a reimplementation.
 
 > **Two firmwares, one emulator.** The default target `ni404emu` runs the
-> **hybrid bench firmware** (`../soundpauli_ni404.ino`, 2845 lines) — a 4-encoder
+> **hybrid bench firmware** (`../legacy/soundpauli_ni404/soundpauli_ni404.ino`, 2845 lines) — a 4-encoder
 > NI404 fork used to prototype TŒRN-style features on PC. The **physical
 > instrument** ichosynth runs the **real TŒRN firmware** (built with
-> `teensy/build_toern.py`); the emulator runs that same TŒRN source in the
+> `firmware/build_toern.py`); the emulator runs that same TŒRN source in the
 > reference target `toernemu` (see `STATUS-toern.md`, `EMU_BUILD_TOERN_REF=ON`).
 > The bench remains the fast iteration loop; the Teensy build is the product.
 
@@ -17,7 +17,7 @@ Decisions locked with the user (2026-06-12):
 - Approach: **native C++ port** (max fidelity), not web/python.
 - Integration: **standalone** — computer keyboard/mouse drive the 16×16 grid and
   the 4 encoders + buttons; audio goes to the default output. No real MIDI I/O.
-- Samples: **reuse `../_SDCARD`** as the SD filesystem (`<folder>/_N.wav`).
+- Samples: **reuse `../sdcard`** as the SD filesystem (`<folder>/_N.wav`).
 
 ## Architecture
 
@@ -28,12 +28,12 @@ Decisions locked with the user (2026-06-12):
             +------------------------------------------|--------------+
                           calls setup()/loop()         | pulls 44100/int16 blocks
                                    |                    |
-   ../soundpauli_ni404.ino  <------+   compat/Audio.h (AudioStream graph) i2s1 sink
+   ../legacy/soundpauli_ni404/soundpauli_ni404.ino  <------+   compat/Audio.h (AudioStream graph) i2s1 sink
    (unmodified firmware)               compat/TeensyPolyphony.h (samplers + voices)
         |  uses Arduino/Teensy APIs ->  compat/* shims
         +-- FastLED leds[256]  -> compat/FastLED.h  -> framebuffer -> SDL texture
         +-- Encoder/Switch     -> compat/* fed by SDL key state
-        +-- SD/File            -> compat/SD.h  -> ../_SDCARD on disk
+        +-- SD/File            -> compat/SD.h  -> ../sdcard on disk
         +-- EEPROM             -> compat/EEPROM.h -> emulator/eeprom.bin
         +-- usbMIDI            -> compat/usb_midi.h (no-op stub)
         +-- IntervalTimer      -> compat/IntervalTimer.h (driven from loop/audio)
@@ -71,7 +71,7 @@ Legend: [ ] todo  [~] in progress  [x] done & compiles  [t] done & tested
 - [ ] `Encoder.h` — read()/write(), backed by host input (register by pinA)
 - [ ] `avdweb_Switch.h` — poll()/pushed()/released() (also check how encoder push-buttons BTN_LEFT/RIGHT/MIDL are read — only filterButton uses Switch)
 - [ ] `EEPROM.h` — get/put -> eeprom.bin
-- [ ] `SD.h` + `File` — begin/open/exists/mkdir/remove + read/write/seek/size/close, maps to _SDCARD
+- [ ] `SD.h` + `File` — begin/open/exists/mkdir/remove + read/write/seek/size/close, maps to sdcard
 - [ ] `usb_midi.h` — usbMIDI stub (setHandle*, read, sendNoteOn, sendRealTime)
 
 The LED bridge: `host_io.cpp` holds the framebuffer; `FastLED.show()` calls
@@ -113,11 +113,11 @@ recursive mutex); noteEvent/playRaw must also take it (they touch reader state).
 - [ ] host input -> real device encoders/buttons/grid cursor (currently demo mapping)
 
 ### Integration & polish
-- [x] Remaining shims: Encoder, avdweb_Switch (full callback state machine), EEPROM(->eeprom.bin), SD(->_SDCARD), IntervalTimer (pumped each loop), usb_midi
-- [x] `src/firmware.cpp` now `#include`s the REAL `../soundpauli_ni404.ino`; ni404_setup->setup(), ni404_loop->loop()+ni404_pump_timers()
+- [x] Remaining shims: Encoder, avdweb_Switch (full callback state machine), EEPROM(->eeprom.bin), SD(->sdcard), IntervalTimer (pumped each loop), usb_midi
+- [x] `src/firmware.cpp` now `#include`s the REAL `../legacy/soundpauli_ni404/soundpauli_ni404.ino`; ni404_setup->setup(), ni404_loop->loop()+ni404_pump_timers()
 - [x] Auto-generated Arduino-style prototypes (`src/ni404_prototypes.h`); `-fpermissive` (matches Teensy core); `sprintf`->bounded `snprintf` in Arduino.h
 - [x] **The unmodified 2845-line firmware COMPILES and RUNS** — setup() + loop() execute, LEDs render (selftest: 41 lit frames), no crash.
-- [x] Audio path VERIFIED headless (`--verify`): loads real WAVs from _SDCARD and
+- [x] Audio path VERIFIED headless (`--verify`): loads real WAVs from sdcard and
       all 8 sample channels produce sound (peak ~0.35–0.50). SD->WAV->resampling
       voice->envelope->filter->mixer->output confirmed with real data.
 - [x] LED XY orientation: renderer now undoes the firmware's serpentine `light()`
@@ -164,7 +164,7 @@ integration step (swap firmware.cpp as above).
 ## Open questions / risks
 - TeensyPolyphony voice-stealing & note→playbackRate mapping must match the lib
   the firmware was built against (newdigate teensy-variable-playback family).
-  Source of truth for the reader is `../_DOCS/ResamplingReader.h`; the polyphony
+  Source of truth for the reader is `../firmware/patches/ResamplingReader.h`; the polyphony
   manager API used by the firmware is `_samplers[i].addSample(note, ptr, len, ch)`
   plus note-on/off routing — to be reconstructed from firmware usage.
 - `EXTMEM unsigned char sampled[13][~1.2MB]` (~15.6 MB static) — fine on desktop.

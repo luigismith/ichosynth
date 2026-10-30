@@ -111,7 +111,7 @@ Testo corrente. Il sistema usa <b>Segoe UI</b> per l'interfaccia e la documentaz
 con un grigio tenue per le note secondarie.</p>
 <div class="h" style="margin-top:24px">Monospace — pin e codice</div>
 <div class="mono" style="font-size:15px">E1 5 / 22 / 15 &nbsp; E4 37 / 38 / 39 &nbsp; pulsanti 25 / 26 / 28</div>
-<div class="mono" style="font-size:13px;color:{SUB};margin-top:6px">python teensy/build_toern.py → toern.hex</div>
+<div class="mono" style="font-size:13px;color:{SUB};margin-top:6px">python firmware/build_toern.py → toern.hex</div>
 """
     write("foundations/typography.html",
           card("Foundations", body, "Tipografia", "Tipografia",

@@ -8,12 +8,13 @@ build/
 *.hex
 *.elf
 # ...but DO ship the pre-compiled firmware the flasher flashes
-!_FLASHER/ichosynth.hex
-# TŒRN port build output (rebuild with teensy/build_toern.py)
-teensy/firmware/
+!tools/flasher/ichosynth.hex
+# TŒRN port build output (rebuild with firmware/build_toern.py)
+firmware/build/
 
 # Backup archives (PCB/enclosure exports)
-_DOCS/**/*.zip
+legacy/**/*.zip
+docs/**/*.zip
 
 # Generated asset previews / PDF render checks (review only, not committed)
 assets/_preview/
@@ -37,17 +38,17 @@ eeprom.bin
 midi-log.txt
 midi-map.txt
 settings.txt
-_SDCARD/autosaved.txt
-_SDCARD/settings.txt
+sdcard/autosaved.txt
+sdcard/settings.txt
 # user recordings (runtime content, not shipped). The factory browser library
-# _SDCARD/samples/<kick|snare|hat|clap|tom|perc|fx>/ IS shipped.
-_SDCARD/samples/9/
+# sdcard/samples/<kick|snare|hat|clap|tom|perc|fx>/ IS shipped.
+sdcard/samples/9/
 
-# 3D case: render intermediates (rebuild with _CASE/render/render.ps1). The raw PNGs
-# stay local; the guide uses the optimized _CASE/img/*.jpg + the out/*.json overlays.
-_CASE/render/build/
-_CASE/render/out/*.png
+# 3D case: render intermediates (rebuild with case/render/render.ps1). The raw PNGs
+# stay local; the guide uses the optimized case/img/*.jpg + the out/*.json overlays.
+case/render/build/
+case/render/out/*.png
 
 
 # PDF build tooling deps
-scripts/pdf/node_modules/
+tools/pdf/node_modules/

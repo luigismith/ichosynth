@@ -5,7 +5,7 @@ shim technique as the bench build) to get ALL its features, **plus render the
 SSD1306 OLED HUD** as a window panel.
 
 > This is the same TŒRN firmware the **physical ichosynth runs** on the Teensy 4.1
-> (built with `teensy/build_toern.py`, with the KY-040 / FastTouch / IchosOled
+> (built with `firmware/build_toern.py`, with the KY-040 / FastTouch / IchosOled
 > drivers). The emulator's `toernemu` target lets you rehearse the real instrument's
 > control mapping on PC before touching hardware. It is a **reference target, OFF by
 > default** (`-DEMU_BUILD_TOERN_REF=ON`; see the 2026-06-16 update below).
@@ -119,7 +119,7 @@ firmware glue+prototypes → compile-iterate → display → recording/granular 
 - **16x16 view** kept (user chose 16x16 over 32x16; renderer shows the matrix).
 - **Sample kit on SD**: `scripts/gen_samples.cpp` -> 12 one-shots (kick/snare/hats/
   clap/rim/tom/cowbell/bass/blip/stab/sweep) as 16-bit mono 44.1k WAV in
-  `../_SDCARD/3/` (_300.._311) + README. Verified: load+play through the resampling
+  `../sdcard/3/` (_300.._311) + README. Verified: load+play through the resampling
   voice (peaks 0.77-0.88). Non-destructive (packs 0/1/2 untouched).
 
 ## CODE-REVIEW (high) + HARDENING — DONE
@@ -161,7 +161,7 @@ Root cause found with per-stage output taps (--stagetest, since removed):
 - voice 0.999, env 0.829, FILTER 0.038 (21x drop!), mixer_end 0.019 -> output 0.002.
 - The filter1 live cutoff read back as **fc=20 Hz** (the min clamp), not 9 kHz.
   setup() opens all filters (applyAllFilters, 9 kHz) then autoLoad() reads the whole
-  SMP struct from _SDCARD/autosaved.txt and RE-applies filters from the loaded
+  SMP struct from sdcard/autosaved.txt and RE-applies filters from the loaded
   filter_knob[]. That stale dev-created autosave had filter_knob[]=0 (invalid: the
   live range is 1..maxfilterResolution), so mapf(0,...) underflowed below
   FILTER_MIN_HZ and the cutoff clamped to 20 Hz -> ~20x loss. The same file also had

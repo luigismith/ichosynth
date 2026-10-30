@@ -11,7 +11,7 @@
 #include <string>
 
 // Executable directory (set by the frontend from argv[0]); SD.h uses it to find
-// an _SDCARD folder next to a distributed binary. Empty until set.
+// an sdcard folder next to a distributed binary. Empty until set.
 static std::string &base_dir() { static std::string *d = new std::string(); return *d; }
 void ni404_set_base_dir(const char *d) { base_dir() = d ? d : ""; }
 const char *ni404_base_dir() { return base_dir().c_str(); }

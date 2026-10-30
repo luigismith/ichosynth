@@ -1,5 +1,5 @@
 // loop_type.h — newdigate teensy-variable-playback enums (reconstructed to match
-// the ResamplingReader.h interface in ../_DOCS).
+// the ResamplingReader.h interface in ../firmware/patches).
 #ifndef NI404_NEWDIGATE_LOOP_TYPE_H
 #define NI404_NEWDIGATE_LOOP_TYPE_H
 

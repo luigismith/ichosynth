@@ -11,7 +11,7 @@ FONT = "'Segoe UI',Helvetica,Arial,sans-serif"
 MONO = "'JetBrains Mono','Consolas','Courier New',monospace"
 
 # ---- design tokens -------------------------------------------------------
-# tema chiaro (stesso stile delle guide _CASE/MONTAGGIO.pdf e _DOCS/CABLAGGIO.pdf)
+# tema chiaro (stesso stile delle guide case/MONTAGGIO.pdf e docs/wiring/CABLAGGIO.pdf)
 BG      = "#ffffff"
 PANEL   = "#f6f8fa"
 INK     = "#1f2328"
@@ -441,7 +441,7 @@ def gen_midi():
 # 7) MODES MAP (state machine)
 # =========================================================================
 def gen_modes():
-    # Per-mode table: what each of the 4 encoders does. From _DOCS/MAPPA_CONTROLLI.md §5.
+    # Per-mode table: what each of the 4 encoders does. From docs/reference/MAPPA_CONTROLLI.md §5.
     cols = ["", "E1 ruota", "E2 ruota", "E3 ruota", "E4 ruota"]
     rows = [
         ("DRAW",     "Y / nota",  "pagina",      "filtro rapido", "X / colonna", INK),
@@ -533,8 +533,8 @@ def gen_flash():
     steps = [
         ("arduino-cli", "+ core teensy:avr", "#1f6feb"),
         ("build_toern.py", "compila (-O1)", "#2AD4B8"),
-        ("toern.hex", "in teensy/firmware/", GREEN),
-        ("Flash ▶", "GUI (_FLASHER) o CLI", "#E83A3A"),
+        ("toern.hex", "in firmware/build/", GREEN),
+        ("Flash ▶", "GUI (tools/flasher) o CLI", "#E83A3A"),
     ]
     bw, bh, gap = 150, 56, 26
     W = 28 * 2 + len(steps) * bw + (len(steps) - 1) * gap

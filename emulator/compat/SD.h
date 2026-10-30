@@ -1,5 +1,5 @@
 // SD.h — desktop shim for the Teensy SD library, backed by a real folder on disk
-// (NI404_SDCARD_PATH, the repo's ../_SDCARD). Implements the File operations the
+// (NI404_SDCARD_PATH, the repo's ../sdcard). Implements the File operations the
 // NI404 firmware uses: read()/read(buf,n), write(b)/write(buf,n), seek, size,
 // available, peek, close; and SD.begin/open/exists/mkdir/remove.
 #ifndef NI404_COMPAT_SD_H
@@ -28,7 +28,7 @@
 #define FILE_WRITE (O_WRITE | O_CREAT)
 
 #ifndef NI404_SDCARD_PATH
-#define NI404_SDCARD_PATH "_SDCARD"
+#define NI404_SDCARD_PATH "sdcard"
 #endif
 
 class File : public Print {
@@ -93,7 +93,7 @@ private:
 };
 
 // Optional base directory (the executable's folder), set by the frontend from
-// argv[0]; lets a distributed binary find an _SDCARD sitting next to it.
+// argv[0]; lets a distributed binary find an sdcard sitting next to it.
 const char *ni404_base_dir();
 
 class SDClass {
@@ -106,14 +106,14 @@ public:
 
     // Find the SD-card folder at RUNTIME so the binary is portable (the baked
     // compile-time path points at the build machine and is only the last resort).
-    // Order: $NI404_SDCARD, then _SDCARD next to the exe / a couple levels up from
+    // Order: $NI404_SDCARD, then sdcard next to the exe / a couple levels up from
     // it, then the same relative to the working directory, then the baked default.
     static std::string resolve_root() {
         namespace fs = std::filesystem;
         std::error_code ec;
         if (const char *e = std::getenv("NI404_SDCARD"))
             if (e[0] && fs::exists(e, ec)) return e;
-        const char *rel[] = { "_SDCARD", "../_SDCARD", "../../_SDCARD", "../../../_SDCARD" };
+        const char *rel[] = { "sdcard", "../sdcard", "../../sdcard", "../../../sdcard" };
         std::string b = ni404_base_dir() ? ni404_base_dir() : "";
         if (!b.empty())
             for (const char *r : rel) { fs::path p = fs::path(b) / r; if (fs::exists(p, ec)) return p.string(); }
@@ -179,7 +179,7 @@ private:
         return a + "/" + b;
     }
     // Resolve a device path to a real file. The firmware addresses samples as
-    // "samples/<folder>/_<n>.wav"; the repo's _SDCARD holds "<folder>/_<n>.wav"
+    // "samples/<folder>/_<n>.wav"; the repo's sdcard holds "<folder>/_<n>.wav"
     // at its root, so if "samples/..." is not found we retry with that prefix
     // stripped.
     std::string resolve(const char *path, bool forWrite) {

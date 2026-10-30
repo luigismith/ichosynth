@@ -9,7 +9,7 @@
 set -euo pipefail
 here="$(cd "$(dirname "$0")" && pwd)"
 root="$(cd "$here/.." && pwd)"          # emulator/
-repo="$(cd "$root/.." && pwd)"          # repo root (holds _SDCARD)
+repo="$(cd "$root/.." && pwd)"          # repo root (holds sdcard)
 build="$root/build"
 dist="$root/dist-macos/NI404-emulator-macOS"
 
@@ -38,7 +38,7 @@ cmake -S "$root" -B "$build" \
   -DCMAKE_C_COMPILER="$GCC" \
   -DCMAKE_CXX_COMPILER="$GXX" \
   -DCMAKE_PREFIX_PATH="$(brew --prefix sdl2)" \
-  -DNI404_SDCARD_PATH=_SDCARD
+  -DNI404_SDCARD_PATH=sdcard
 
 echo "-- Compilo ni404emu..."
 cmake --build "$build" --target ni404emu -j"$(sysctl -n hw.ncpu)"
@@ -61,9 +61,9 @@ for b in "$dist"/ni404emu "$dist"/toernemu; do
   install_name_tool -add_rpath @executable_path/libs/ "$b"
 done
 
-# Ship the sample card next to the binary (it looks for ./_SDCARD at runtime).
-cp -R "$repo/_SDCARD" "$dist/_SDCARD"
-rm -f "$dist/_SDCARD/wavmaker.exe" "$dist/_SDCARD/"*.bak2 2>/dev/null || true
+# Ship the sample card next to the binary (it looks for ./sdcard at runtime).
+cp -R "$repo/sdcard" "$dist/sdcard"
+rm -f "$dist/sdcard/"*.bak2 2>/dev/null || true
 
 cat > "$dist/LEGGIMI.txt" <<'TXT'
 Emulatore NI404 — build macOS

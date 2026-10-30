@@ -6,15 +6,15 @@ sull'hardware, ma sul computer, con la griglia LED 16×16, il display OLED, l'au
 e i controlli su tastiera/mouse e controller MIDI.
 
 > Lo **strumento fisico** ichosynth fa girare il **firmware reale di TŒRN** (si
-> compila con `teensy/build_toern.py`). L'emulatore può eseguire **lo stesso
+> compila con `firmware/build_toern.py`). L'emulatore può eseguire **lo stesso
 > sorgente TŒRN** nel target `toernemu` (riferimento, §10), utile per provare la
 > mappatura dei controlli prima dell'hardware. Il target di default `ni404emu` è
-> invece il **firmware-banco** (l'ibrido a 4 encoder, `soundpauli_ni404.ino`) con
+> invece il **firmware-banco** (l'ibrido a 4 encoder, `legacy/soundpauli_ni404/soundpauli_ni404.ino`) con
 > cui prototipiamo velocemente le feature in stile TŒRN su PC.
 
 | Programma | Cosa esegue |
 |---|---|
-| `ni404emu` | Il firmware-banco di ichosynth (`soundpauli_ni404.ino`) + OLED SSD1306 — **build di default** |
+| `ni404emu` | Il firmware-banco di ichosynth (`legacy/soundpauli_ni404/soundpauli_ni404.ino`) + OLED SSD1306 — **build di default** |
 | `toernemu` | Il firmware **TŒRN** reale (quello dello strumento fisico) — **riferimento**, NON compilato di default (vedi §10) |
 
 ---
@@ -36,7 +36,7 @@ python emulator/run.py --build-only   # compila soltanto, non avvia
 
 È così che provi le **varianti del synth sullo stesso hardware**: modifichi il firmware
 (o le rimozioni di feature), rilanci `python emulator/run.py` e lo strumento riparte con
-la variante — la stessa che poi flashi sul Teensy con `teensy/build_toern.py`.
+la variante — la stessa che poi flashi sul Teensy con `firmware/build_toern.py`.
 
 ### Windows (eseguibile già compilato)
 1. Apri la cartella `emulator\build\` (o `emulator\playable-2026-06-13\`).
@@ -56,8 +56,8 @@ Il binario macOS va generato su un Mac (vedi §10). Una volta compilato:
 ./build/ni404emu --demo     # con la demo
 ```
 
-> L'emulatore legge i campioni da `C:\NI404-main\_SDCARD` (su Mac: la cartella
-> `_SDCARD` del repository). Non spostarla.
+> L'emulatore legge i campioni dalla cartella `sdcard` del repository (il percorso
+> è fissato al momento della compilazione). Non spostarla.
 
 ---
 
@@ -226,11 +226,11 @@ Premi **Esc** per uscire.
 
 ## 9. SD card e campioni
 
-I campioni vivono in **`_SDCARD/`**, che fa da scheda SD virtuale, con la struttura
+I campioni vivono in **`sdcard/`**, che fa da scheda SD virtuale, con la struttura
 attesa dal firmware:
 
 ```
-_SDCARD/
+sdcard/
   0/ 1/ 2/ 3/ ...        # cartelle/pacchetti
   3/_300.wav .. _311.wav # il kit della demo (16-bit mono 44.1 kHz)
   autosaved.txt          # pattern salvato automaticamente
@@ -238,7 +238,7 @@ _SDCARD/
 ```
 
 - I file sono WAV **16-bit mono 44.1 kHz** con header standard.
-- Puoi gestire/creare la struttura con **`wavmaker`** (in `_SDCARD/`).
+- Puoi gestire/creare la struttura con **`wavmaker`** (in `sdcard/`).
 - Il kit della demo è generato da `emulator/scripts/gen_samples.cpp`.
 
 ### Importare campioni (WAV / MP3 / FLAC)

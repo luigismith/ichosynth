@@ -289,10 +289,10 @@ static int run_selftest() {
 }
 
 // Headless audio-path verification: boot the firmware (which loads the sample
-// pack from _SDCARD), then trigger each sample channel like a MIDI note and
+// pack from sdcard), then trigger each sample channel like a MIDI note and
 // measure the audio it produces. Proves SD load -> resampling voice -> graph.
 static int run_verify() {
-    std::printf("[verify] ni404_setup() (loads sample pack from _SDCARD)...\n");
+    std::printf("[verify] ni404_setup() (loads sample pack from sdcard)...\n");
     ni404_setup();
     float buf[256 * 2];
     int sounding = 0;
@@ -311,7 +311,7 @@ static int run_verify() {
     }
     std::printf("[verify] %d/8 channels produced audio.\n", sounding);
     std::printf("[verify] %s\n", sounding > 0 ? "OK — sample playback path works."
-                                              : "no audio — check _SDCARD samples / paths.");
+                                              : "no audio — check sdcard samples / paths.");
     return sounding > 0 ? 0 : 2;
 }
 
@@ -529,7 +529,7 @@ int main(int argc, char **argv) {
         }
     }
 #endif
-    // Tell the SD shim where we live, so a distributed binary finds _SDCARD next
+    // Tell the SD shim where we live, so a distributed binary finds sdcard next
     // to it (the compile-time path points at the build machine).
     { std::string a0 = (argc > 0 && argv[0]) ? argv[0] : "";
       size_t sl = a0.find_last_of("/\\");

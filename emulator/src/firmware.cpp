@@ -1,6 +1,6 @@
 // firmware.cpp — integrates the REAL NI404 device firmware into the emulator.
 //
-// The unmodified sketch (../soundpauli_ni404.ino) is compiled as part of this
+// The unmodified sketch (../legacy/soundpauli_ni404/soundpauli_ni404.ino) is compiled as part of this
 // translation unit. It defines setup(), loop(), the audio graph (audioinit.h),
 // the LED array `leds[]`, the sequencer, modes, MIDI handlers — everything. The
 // compat/ shims satisfy every Teensy/Arduino API it touches.
@@ -22,7 +22,7 @@
 #include <cmath>
 
 #ifndef NI404_SDCARD_PATH
-#define NI404_SDCARD_PATH "_SDCARD"
+#define NI404_SDCARD_PATH "sdcard"
 #endif
 
 // Drag-and-drop sample loader: convert a dropped WAV to the kit format (16-bit

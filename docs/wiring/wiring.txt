@@ -1,0 +1,139 @@
+ichosynth wiring — TŒRN port on hand-soldered hardware
+======================================================
+
+Hand-wired, point-to-point, NO custom PCB.
+Teensy 4.1 (with BOTH 16 MB PSRAM chips soldered — mandatory) running the real
+TŒRN firmware (by SP_/soundpauli, https://toern.live).
+
+Pins live in the build sources, NOT in a config.h:
+  - firmware/libraries/.../i2cEncoderLibV2.h   -> ICHOS_ENC_PINS  (encoders)
+  - firmware/libraries/.../FastTouch.h         -> ICHOS_BTN_PINS  (buttons)
+  - firmware/build_toern.py                    -> SWITCH_1/2/3 remap
+
+These pins deliberately avoid TŒRN's hard-coded GPIO and the Teensy Audio
+Shield's reserved pins. Do NOT use pins 2/3/4 (TŒRN internal use) or 24 (was an
+optional LED strip, removed in this build).
+
+
+> LED-Matrix (WS2812 16x16, chainable to 32x16):
+DIN    - Teensy: 17
++5V    - Teensy: +5V
+GND    - Teensy: GND
+
+
+> Encoders (KY-040, turn + push), {CLK, DT, SW}, left -> right.
+  Each encoder also: + -> 3V3, GND -> GND.
+
+Encoder E1 (left):
+CLK    - Teensy: 5
+DT     - Teensy: 22
+SW     - Teensy: 15
+
+Encoder E2:
+CLK    - Teensy: 32
+DT     - Teensy: 33
+SW     - Teensy: 41
+
+Encoder E3:
+CLK    - Teensy: 9
+DT     - Teensy: 14
+SW     - Teensy: 16
+
+Encoder E4 (right):
+CLK    - Teensy: 37
+DT     - Teensy: 38
+SW     - Teensy: 39
+
+
+> Buttons — 3 tact switches (PLAY / MENU / REC).
+  Each: one leg -> Teensy pin, other leg -> GND. Active-low (internal pull-up).
+B1 PLAY - Teensy: 25
+B2 MENU - Teensy: 26
+B3 REC  - Teensy: 28
+
+
+> Audio (Teensy Audio Adaptor, SGTL5000). Easiest: stack on the Teensy.
+  Hand-wired signals:
+MCLK   - Teensy: 23
+BCLK   - Teensy: 21
+LRCLK  - Teensy: 20   (WS)
+TX     - Teensy: 7    (DIN to codec)
+RX     - Teensy: 8    (DOUT from codec)
+SDA    - Teensy: 18   (I2C, shared with OLED)
+SCL    - Teensy: 19   (I2C, shared with OLED)
++3     - 3V3
+GND    - GND
+  (SD is used from the Teensy 4.1's built-in slot, not the audio board slot.)
+
+
+> Audio — output on the on-board 3.5mm stereo headphone jack (no wiring needed).
+  Input: 1x 6.35mm (1/4") MONO TS Line In jack, wired to the Audio Shield's
+  LINE IN L pad (NOT to Teensy GPIO).
+
+  Line IN  (mono, 1 jack):  tip -> Audio Shield LINE IN  L   ; sleeve -> GND
+  Headphone (output):       on-board 3.5mm stereo jack
+
+  Notes:
+   - Line In is mono: TŒRN records/monitors the LEFT line-in as a mono sample.
+     LINE IN is already the firmware's default record input (no firmware change).
+   - Optional 10uF DC-blocking cap in series only if the source hums; direct
+     wiring is normally fine.
+
+
+> OLED (SSD1306 0.96" 128x64 I2C). Shares the audio I2C bus.
+  Replaces TŒRN's encoder RGB-ring feedback (shows channel/mode/transport/BPM/
+  volume/page). Default I2C address 0x3C.
+SDA    - Teensy: 18
+SCL    - Teensy: 19
+VCC    - 3V3
+GND    - GND
+
+
+Overall used pins:
+------------------------------------------------
+0   ->  (free)
+1   ->  (free)
+2   ->  (reserved — TŒRN internal use, do NOT wire)
+3   ->  (reserved — TŒRN internal use, do NOT wire)
+4   ->  (reserved — TŒRN internal use, do NOT wire)
+5   ->  E1 (left)  CLK
+6   ->  MEMORYCHIP
+7   ->  AudioDAC DIN (TX)
+8   ->  AudioDAC DOUT (RX)
+9   ->  E3 CLK
+10  ->  (audio board SD chip-select — not used: the SD is the Teensy 4.1 built-in slot)
+11  ->  Audio board SPI MOSI (SD/MEM on the audio board, unused)
+12  ->  Audio board SPI MISO (unused)
+13  ->  Audio board SPI SCK  (unused)
+14  ->  E3 DT
+15  ->  E1 (left)  SW   (= audio board A1/VOL pad: do NOT fit the volume pot)
+16  ->  E3 SW
+17  ->  LED-Matrix DIN
+18  ->  I2C SDA  (audio codec + OLED)
+19  ->  I2C SCL  (audio codec + OLED)
+20  ->  Audio LRCLK (WS), 44.1 kHz
+21  ->  Audio BCLK, 1.41 / 2.82 MHz
+22  ->  E1 (left)  DT
+23  ->  Audio MCLK, 11.29 MHz
+24  ->  (reserved — was optional LED strip, removed; do NOT wire)
+25  ->  Button B1 PLAY
+26  ->  Button B2 MENU
+28  ->  Button B3 REC
+32  ->  E2 CLK
+33  ->  E2 DT
+34  ->  MIDI IN  (Serial8 RX — optional DIN MIDI circuit with optocoupler)
+35  ->  MIDI OUT (Serial8 TX — optional DIN MIDI circuit)
+37  ->  E4 (right) CLK
+38  ->  E4 (right) DT
+39  ->  E4 (right) SW
+41  ->  E2 SW
+
+
+Firmware / flashing:
+------------------------------------------------
+Build:  python firmware/build_toern.py   ->  firmware/build/toern.hex
+        (needs arduino-cli + teensy:avr core; builds at -O1 / opt=o1std)
+Flash:  python firmware/build_toern.py --flash    (CLI, teensy_loader_cli)
+        or use the one-click GUI flasher in tools/flasher for a prebuilt .hex.
+See firmware/README.md for details. Board: Teensy 4.1 (USB type handled by the
+build script).

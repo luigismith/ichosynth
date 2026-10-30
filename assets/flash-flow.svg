@@ -15,10 +15,10 @@
 <polygon points="380.0,120.0 371.3,125.0 371.3,115.0" fill="#8a8f98"/>
 <rect x="380" y="92" width="150" height="56" rx="9" ry="9" fill="#f6f8fa" stroke="#2ea44f" stroke-width="2"/>
 <text x="455.0" y="118.0" font-family="'Segoe UI',Helvetica,Arial,sans-serif" font-size="12.5" fill="#1f2328" text-anchor="middle" font-weight="700">toern.hex</text>
-<text x="455.0" y="135.0" font-family="'Segoe UI',Helvetica,Arial,sans-serif" font-size="10.5" fill="#57606a" text-anchor="middle" font-weight="400">in teensy/firmware/</text>
+<text x="455.0" y="135.0" font-family="'Segoe UI',Helvetica,Arial,sans-serif" font-size="10.5" fill="#57606a" text-anchor="middle" font-weight="400">in firmware/build/</text>
 <line x1="530" y1="120.0" x2="547.0" y2="120.0" stroke="#8a8f98" stroke-width="2" stroke-linecap="round"/>
 <polygon points="556.0,120.0 547.3,125.0 547.3,115.0" fill="#8a8f98"/>
 <rect x="556" y="92" width="150" height="56" rx="9" ry="9" fill="#f6f8fa" stroke="#E83A3A" stroke-width="2"/>
 <text x="631.0" y="118.0" font-family="'Segoe UI',Helvetica,Arial,sans-serif" font-size="12.5" fill="#1f2328" text-anchor="middle" font-weight="700">Flash ▶</text>
-<text x="631.0" y="135.0" font-family="'Segoe UI',Helvetica,Arial,sans-serif" font-size="10.5" fill="#57606a" text-anchor="middle" font-weight="400">GUI (_FLASHER) o CLI</text>
+<text x="631.0" y="135.0" font-family="'Segoe UI',Helvetica,Arial,sans-serif" font-size="10.5" fill="#57606a" text-anchor="middle" font-weight="400">GUI (tools/flasher) o CLI</text>
 </svg>

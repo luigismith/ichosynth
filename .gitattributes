@@ -20,6 +20,8 @@
 *.f3d   binary
 *.step  binary
 *.dxf   binary
+*.3mf   binary
+*.pptx  binary
 
 # --- Explicit text types (kept LF) ---
 *.svg   text eol=lf

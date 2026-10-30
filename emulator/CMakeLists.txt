@@ -10,15 +10,16 @@ endif()
 
 find_package(SDL2 REQUIRED)
 
-# We develop ONE thing: ichosynth (our hybrid firmware, built as the ni404emu
-# target from ../soundpauli_ni404.ino). The upstream TŒRN build is only a study
-# reference — off by default so a normal build produces a single emulator.
+# Default target ni404emu: the NI404-based bench firmware
+# (../legacy/soundpauli_ni404/soundpauli_ni404.ino). The TŒRN build is opt-in —
+# off by default so a normal build produces a single emulator.
 # Enable with: cmake ... -DEMU_BUILD_TOERN_REF=ON
 option(EMU_BUILD_TOERN_REF "Also build the upstream TŒRN reference emulator" OFF)
 
-# The firmware lives one level up; its quote-includes (config.h, colors.h,
-# files.h, audioinit.h, display.h) resolve relative to its own directory.
+# FIRMWARE_DIR = repo root (for sdcard); the sketch and its quote-includes
+# (config.h, colors.h, files.h, audioinit.h, display.h) live in LEGACY_DIR.
 get_filename_component(FIRMWARE_DIR "${CMAKE_SOURCE_DIR}/.." ABSOLUTE)
+set(LEGACY_DIR "${FIRMWARE_DIR}/legacy/soundpauli_ni404")
 
 add_executable(ni404emu
   src/main.cpp
@@ -43,7 +44,7 @@ endif()
 target_include_directories(ni404emu PRIVATE
   "${CMAKE_SOURCE_DIR}/compat"
   "${CMAKE_SOURCE_DIR}/vendor"
-  "${FIRMWARE_DIR}"
+  "${LEGACY_DIR}"
   ${SDL2_INCLUDE_DIRS}
 )
 
@@ -68,9 +69,9 @@ elseif(APPLE)
   target_link_libraries(ni404emu PRIVATE "-framework CoreMIDI" "-framework CoreFoundation")
 endif()
 
-# Bundle the SD card path so the firmware finds samples at ../_SDCARD.
+# Bundle the SD card path so the firmware finds samples at ../sdcard.
 target_compile_definitions(ni404emu PRIVATE
-  NI404_SDCARD_PATH="${FIRMWARE_DIR}/_SDCARD")
+  NI404_SDCARD_PATH="${FIRMWARE_DIR}/sdcard")
 
 # Statically link the mingw C++ runtime so the .exe runs on any Windows machine
 # (no libstdc++-6.dll / libgcc_s_seh-1.dll / libwinpthread-1.dll needed; only
@@ -110,7 +111,7 @@ if(EMU_BUILD_TOERN_REF AND EXISTS "${TOERN_SRC}/toern.ino")
     "${CMAKE_SOURCE_DIR}/compat" "${CMAKE_SOURCE_DIR}/vendor" "${TOERN_SRC}" ${SDL2_INCLUDE_DIRS})
   target_compile_definitions(toernemu PRIVATE
     SDL_MAIN_HANDLED NI404_EMULATOR=1
-    NI404_SDCARD_PATH="${FIRMWARE_DIR}/_SDCARD")
+    NI404_SDCARD_PATH="${FIRMWARE_DIR}/sdcard")
   target_compile_options(toernemu PRIVATE -fpermissive)
   # The vendored freeverb's DSP body is gated on __ARM_ARCH_7EM__ but is portable
   # C; enable it for that file only (NOT globally — would break std headers).

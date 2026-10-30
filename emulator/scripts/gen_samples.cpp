@@ -4,7 +4,7 @@
 //
 //   g++ -O2 -std=c++17 gen_samples.cpp -o gen_samples && ./gen_samples <outdir>
 //
-// Writes _300.._311.wav into <outdir> (default ../_SDCARD/3). Non-destructive.
+// Writes _300.._311.wav into <outdir> (default ../sdcard/3). Non-destructive.
 #include <cstdio>
 #include <cstdint>
 #include <cstring>
@@ -50,7 +50,7 @@ static float env(int i, int n, float a, float d) {  // simple AD envelope
 struct LP { float y = 0, a; LP(float cut) { a = 1.f - std::exp(-2.f * 3.14159f * cut / SR); } float p(float x) { y += a * (x - y); return y; } };
 
 int main(int argc, char **argv) {
-    std::string out = argc > 1 ? argv[1] : "../_SDCARD/3";
+    std::string out = argc > 1 ? argv[1] : "../sdcard/3";
     std::printf("Generating kit into %s\n", out.c_str());
 
     // 300 KICK: pitch-swept sine
