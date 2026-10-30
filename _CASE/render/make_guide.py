@@ -123,7 +123,8 @@ def build_html():
         f'<div class="col">{figure("plate2")}<div class="cap">{chip("PIATTO 2", strong=True)}{chip("PLA/PETG traslucido")}'
         f'{chip(f"Z {b.DIFF_T:g} mm → nero", "colorchange")}</div></div></div>'
         f'<div class="cap center">{chip("0,2 mm")}{chip("3 perimetri")}{chip("15 %")}{chip("niente supporti", "nosupport")}'
-        f'{chip("stl/plate1.stl · stl/window.stl")}</div>'), n))
+        f'{chip("tutto PLA o tutto PETG", strong=True)}</div>'
+        f'<div class="cap center">{chip("ichosynth_case_S1Combo.3mf (PLA)")}{chip("ichosynth_case_S1Combo_PETG.3mf")}</div>'), n))
     n += 1
 
     items = [("item_matrix", "×1", "matrice WS2812B 16×16"), ("item_teensy", "×1", "Teensy 4.1 + Audio Rev D"),

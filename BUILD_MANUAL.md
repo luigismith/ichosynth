@@ -120,12 +120,12 @@ Without both, the firmware won't start.
 
 **3.2 · Stack the audio board**
 
-<p align="center"><img src="assets/ill-stack.svg" alt="Side view: Teensy, long male headers, audio board about 11 mm above, wires soldered onto the pin tips sticking out on top" width="560"></p>
+<p align="center"><img src="assets/ill-stack.svg" alt="Side view: Teensy, long male headers, audio board resting on the header plastic, wires soldered onto the pin tips sticking out on top" width="560"></p>
 
 1. Solder **2 strips of 14 long male headers** to the Teensy: the first 14 positions on each side,
    from the USB end down, plastic resting on the Teensy.
-2. Slide the audio board on with its **headphone jack on the same side as the USB**, about 11 mm up,
-   and solder it.
+2. Slide the audio board on with its **headphone jack on the same side as the USB**, push it down
+   until it **rests on the header plastic** (about 2.5 mm above the Teensy) and solder it.
 3. The tips sticking out above the audio board **are the Teensy's pins**: the wires for the pins
    covered by the audio board are soldered there.
 
@@ -285,6 +285,11 @@ the panel.
 <td align="center"><img src="_CASE/img/plate1.jpg" width="330"><br>plate 1 · black</td>
 <td align="center"><img src="_CASE/img/plate2.jpg" width="330"><br>plate 2 · translucent</td>
 </tr></table>
+
+Ready-made **Anycubic Slicer Next** projects (Kobra S1 Combo + ACE Pro, slot 1 black, slot 2
+translucent, colour change already set): `_CASE/ichosynth_case_S1Combo.3mf` (all PLA) and
+`_CASE/ichosynth_case_S1Combo_PETG.3mf` (all PETG). **Never mix PLA and PETG in one part**: they
+don't bond to each other.
 
 👉 Step-by-step guide: **[`_CASE/MONTAGGIO.pdf`](_CASE/MONTAGGIO.pdf)** · printing and parameters:
 [`_CASE/README.md`](_CASE/README.md). With the case: encoders 2×2, **4.3 mm** switches, soldered

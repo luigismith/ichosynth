@@ -120,11 +120,12 @@ entrambi il firmware non parte.
 
 **3.2 · Impila la scheda audio**
 
-<p align="center"><img src="assets/ill-stack.svg" alt="Vista di lato: Teensy, header maschi lunghi, scheda audio a circa 11 mm, fili saldati sulle punte che sporgono sopra" width="560"></p>
+<p align="center"><img src="assets/ill-stack.svg" alt="Vista di lato: Teensy, header maschi lunghi, scheda audio appoggiata sulla plastica dell'header, fili saldati sulle punte che sporgono sopra" width="560"></p>
 
 1. Salda **2 strisce da 14 header maschi lunghi** sul Teensy: le prime 14 posizioni di ogni lato,
    dalla USB in giù, con la plastica appoggiata sul Teensy.
-2. Infila la scheda audio con il **jack cuffie dallo stesso lato della USB**, a circa 11 mm, e saldala.
+2. Infila la scheda audio con il **jack cuffie dallo stesso lato della USB**, spingila giù finché
+   **appoggia sulla plastica dell'header** (circa 2,5 mm sopra il Teensy) e saldala.
 3. Le punte che sporgono sopra la scheda audio **sono i pin del Teensy**: i fili per i pin coperti dalla
    scheda audio si saldano lì.
 
@@ -283,6 +284,11 @@ USB escono dal retro, LINE IN dal fianco; i tasti sono linguette flessibili rica
 <td align="center"><img src="_CASE/img/plate1.jpg" width="330"><br>piatto 1 · nero</td>
 <td align="center"><img src="_CASE/img/plate2.jpg" width="330"><br>piatto 2 · traslucido</td>
 </tr></table>
+
+Progetti pronti per **Anycubic Slicer Next** (Kobra S1 Combo + ACE Pro, slot 1 nero, slot 2
+traslucido, cambio colore già impostato): `_CASE/ichosynth_case_S1Combo.3mf` (tutto PLA) e
+`_CASE/ichosynth_case_S1Combo_PETG.3mf` (tutto PETG). **Mai PLA e PETG nello stesso pezzo**: non si
+attaccano fra loro.
 
 👉 Guida passo-passo: **[`_CASE/MONTAGGIO.pdf`](_CASE/MONTAGGIO.pdf)** · stampa e parametri:
 [`_CASE/README.md`](_CASE/README.md). Con il case: encoder in 2×2, switch **alti 4,3 mm**, fili

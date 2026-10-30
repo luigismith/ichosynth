@@ -56,8 +56,9 @@ def teensy():
     hdr = []
     for sx in (-1, 1):
         xc = tx + sx * 7.62
-        hdr.append(box(xc - 1.27, y1 - 35, zp + 1.6, xc + 1.27, y1 - 1, za))       # header femmina
+        hdr.append(box(xc - 1.27, y1 - 35, zp + 1.6, xc + 1.27, y1 - 1, za))       # plastica dell'header
         hdr.append(box(xc - 1.27, y0 + 1, zp - 2.5, xc + 1.27, y1 - 1, zp))        # pin sotto
+        hdr.append(box(xc - 0.4, y1 - 35, za + 1.6, xc + 0.4, y1 - 1, za + 1.6 + 2.5))  # punte sopra l'audio
     return [
         ("teensy_pcb", box(tx - 8.9, y0, zp + E, tx + 8.9, y1, zp + 1.6), "pcb_green"),
         ("teensy_chip", union([box(tx - 5, y0 + 26, zp + 1.6, tx + 5, y0 + 36, zp + 2.5),
@@ -68,9 +69,9 @@ def teensy():
         ("teensy_headers", union(hdr), "black_plastic"),
         ("audio_pcb", box(tx - aw / 2, y1 - al, za, tx + aw / 2, y1, za + 1.6), "pcb_green"),
         ("audio_chip", box(tx - 3, y1 - 22, za + 1.6, tx + 3, y1 - 16, za + 2.4), "black_plastic"),
-        # jack cuffie sul lato USB, a filo del bordo (posizione lungo il bordo: al centro)
-        ("audio_jack", box(tx - 3.5, y1 - 12, za + 1.6, tx + 3.5, y1 + 0.3, za + 1.6 + b.AUDIO_JACK_H),
-         "black_plastic"),
+        # jack cuffie sul lato USB, a filo del bordo, spostato verso un angolo
+        ("audio_jack", box(tx + b.AUDIO_JACK_DX - 3.5, y1 - 12, za + 1.6,
+                           tx + b.AUDIO_JACK_DX + 3.5, y1 + 0.3, za + 1.6 + b.AUDIO_JACK_H), "black_plastic"),
     ]
 
 
@@ -79,9 +80,10 @@ def plugs():
     tx, y1, _, zp = teensy_geom()
     zu = zp + 1.6 + b.USB_Z_ABOVE_PCB
     usb = union([box(tx - 3.6, y1 + 0.4 + E, zu - 1.2, tx + 3.6, b.D - b.T + 1, zu + 1.2),      # spinotto
-                 box(tx - 6.0, b.D - b.T + 1.0, zu - 4.0, tx + 6.0, b.D + 25, zu + 4.0)])       # corpo 12x8
-    hp = union([rot_y(M.cylinder(b.T + 4, 1.75, 1.75, 24)).translate([tx, y1 + 0.3 + E, b.HP_Z]),
-                rot_y(M.cylinder(25, 5.75, 5.75, 32)).translate([tx, b.D - b.T + 1.0, b.HP_Z])])  # corpo Ø11,5
+                 box(tx - 5.25, b.D - b.T + 1.0, zu - 3.5, tx + 5.25, b.D + 25, zu + 3.5)])     # corpo 10,5x7
+    hx = tx + b.AUDIO_JACK_DX
+    hp = union([rot_y(M.cylinder(b.T + 4, 1.75, 1.75, 24)).translate([hx, y1 + 0.3 + E, b.HP_Z]),
+                rot_y(M.cylinder(25, 4.0, 4.0, 32)).translate([hx, b.D - b.T + 1.0, b.HP_Z])])    # corpo Ø8
     return [("plug_usb", usb, "black_plastic"), ("plug_phones", hp, "black_plastic")]
 
 

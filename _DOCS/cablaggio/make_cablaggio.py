@@ -273,22 +273,23 @@ def stack_svg(w=600):
     o = []
     x0 = 90
     o.append(rect(x0, 190, 400, 12, "#2a7a46", rx=3)); o.append(txt(x0 + 410, 201, "Teensy 4.1", 13, INK, "start", "700"))
-    o.append(rect(x0, 98, 260, 12, "#2a7a46", rx=3)); o.append(txt(x0 + 270, 109, "scheda audio Rev D", 13, INK, "start", "700"))
-    o.append(rect(x0, 178, 260, 12, "#1d1f24", rx=2)); o.append(txt(x0 + 270, 190, "plastica dell'header", 11, SUB))
+    # la scheda audio appoggia direttamente sulla plastica dell'header (~2,5 mm), niente distanziali
+    o.append(rect(x0, 160, 260, 12, "#2a7a46", rx=3)); o.append(txt(x0 + 270, 168, "scheda audio Rev D", 13, INK, "start", "700"))
+    o.append(rect(x0, 172, 260, 18, "#1d1f24", rx=2)); o.append(txt(x0 + 270, 186, "plastica dell'header", 11, SUB))
     for k in range(9):
         x = x0 + 14 + k * 28
-        o.append(rect(x - 2.5, 72, 5, 140, "#d4a64a"))
-    o.append(rect(x0 + 2, 56, 34, 42, "#16181d", rx=4)); o.append(txt(x0 - 6, 70, "jack", 11, SUB, "end"))
-    o.append(txt(x0 - 6, 84, "cuffie", 11, SUB, "end"))
+        o.append(rect(x - 2.5, 142, 5, 72, "#d4a64a"))
+    o.append(rect(x0 + 2, 124, 34, 36, "#16181d", rx=4)); o.append(txt(x0 - 6, 138, "jack", 11, SUB, "end"))
+    o.append(txt(x0 - 6, 152, "cuffie", 11, SUB, "end"))
     o.append(txt(x0 + 19, 226, "lato USB", 11, SUB, "middle", "700"))
-    o.append(line(40, 110, 40, 178, SUB, 1.5)); o.append(line(34, 110, 46, 110, SUB, 1.5)); o.append(line(34, 178, 46, 178, SUB, 1.5))
-    o.append(txt(52, 148, "≈11 mm", 12, INK, "start", "700"))
+    o.append(line(40, 172, 40, 190, SUB, 1.5)); o.append(line(34, 172, 46, 172, SUB, 1.5)); o.append(line(34, 190, 46, 190, SUB, 1.5))
+    o.append(txt(40, 210, "≈2,5 mm", 12, INK, "middle", "700"))
     # fili saldati sulle punte che sporgono sopra la scheda audio
     for k, c in ((3, ENC_COL["E1"]), (5, LED_COL), (7, I2C_COL)):
         x = x0 + 14 + k * 28
-        o.append(circ(x, 76, 5, "#b9bec6"))
-        o.append(path(f"M{x},{74} C {x},{44} {x + 50},{36} {x + 80},{30}", c, 4))
-    o.append(pill(x0 + 300, 22, "saldi i fili sulle punte", ORANGE, 12))
+        o.append(circ(x, 146, 5, "#b9bec6"))
+        o.append(path(f"M{x},{144} C {x},{100} {x + 50},{70} {x + 80},{56}", c, 4))
+    o.append(pill(x0 + 300, 46, "saldi i fili sulle punte", ORANGE, 12))
     return svg(w, 236, "".join(o), "ill")
 
 
@@ -456,7 +457,7 @@ def build_pages(start=1):
     # 3 · scheda audio + alimentazione
     stack = card("1 · Impila la scheda audio",
                  f'{stack_svg()}' + note("Salda <b>2 strisce da 14 header maschi lunghi</b> sul Teensy (le prime 14 posizioni di ogni lato, dalla USB in giù), con la plastica appoggiata sul Teensy.") +
-                 note("Infila la scheda audio con il <b>jack cuffie dallo stesso lato della USB</b>, a circa 11 mm, e saldala.") +
+                 note("Infila la scheda audio con il <b>jack cuffie dallo stesso lato della USB</b>, spingila giù finché <b>appoggia sulla plastica dell'header</b> e saldala.") +
                  note("Le punte che sporgono sopra la scheda audio sono i pin del Teensy: <b>i fili dei pin sotto la scheda audio si saldano lì</b>.", "ok"))
     power = card("2 · Barre di alimentazione",
                  f'<div class="row2">{wago_svg("3V3", C3V)}{wago_svg("GND", CGND)}</div>' +

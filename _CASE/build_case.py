@@ -2,8 +2,8 @@
 
     python _CASE/build_case.py          # genera _CASE/stl/*.stl
 
-Il case è a gradino: la zona matrice è bassa (~16 mm), la zona comandi alta (~29 mm)
-perché sotto c'è lo stack Teensy 4.1 + scheda audio.
+Il case è a gradino: la zona matrice è bassa (~16 mm), la zona comandi alta (~22 mm)
+perché sotto ci sono lo stack Teensy 4.1 + scheda audio e il jack LINE IN.
 
 Pezzi:
   piatto 1, opaco:
@@ -71,16 +71,21 @@ OLED_WIN = (25.0, 14.5)       # finestra (area attiva 21.7x10.9)
 OLED_GLASS = 1.6              # spessore vetro sopra il PCB
 TEENSY = (18.4, 61.2)         # Teensy 4.1 (17.8x61 + gioco)
 TEENSY_STANDOFF = 3.0         # PCB sollevato (spazio per i pin sotto)
-STACK_GAP = 11.0              # Teensy -> scheda audio impilata (header femmina)
+STACK_GAP = 2.6               # scheda audio appoggiata sul Teensy: in mezzo solo la plastica dell'header
 AUDIO = (35.0, 37.0)          # scheda audio Rev D (x, y), impilata sul lato USB del Teensy
 AUDIO_JACK_H = 5.2            # jack cuffie sopra la scheda audio: il punto più alto dello stack
+AUDIO_JACK_DX = -9.0          # jack cuffie verso un angolo del bordo, non sopra la micro-USB; la finestra
+                              # sul retro è larga quanto la scheda, quindi il lato esatto non conta
                               # (il jack è sullo stesso lato della USB -> esce dal retro)
 STACK_CLR = 2.0               # aria fra lo stack e il pannello
 USB_Z_ABOVE_PCB = 1.4         # centro connettore micro-USB sopra il PCB
 SCREW_PILOT = 2.5             # foro pilota per vite autofilettante M3
 SCREW_HOLE = 3.4
 SCREW_CSK = 6.4               # svasatura testa piana M3
-JACK_Z = 12.0                 # centro dei jack 6,35: corpo alto fino a 16 mm, fra il fondo e l'OLED
+JACK_BODY_H = 16.0            # altezza del corpo del jack 6,35 dietro la parete
+JACK_Z = FLOOR + JACK_BODY_H / 2 + 0.5   # centro del jack: il corpo sta appena sopra il fondo
+ENC_DEPTH = 8.6               # KY-040 sotto il pannello: corpo EC11 + PCB + stagnature
+ENC_WIRE_CLR = 3.0            # spazio per piegare i fili sotto i KY-040
 TXT_DEPTH = 0.6
 
 # --- quote derivate -----------------------------------------------------------------
@@ -94,7 +99,11 @@ MX = MY = T + MARGIN + MAT / 2          # centro matrice
 Z_MAT = FLOOR + UNDER_H                 # appoggio matrice (cima nervature)
 Z_TOP_M = Z_MAT + MAT_T + BAFFLE_GAP + BAFFLE_H + DIFF_T    # piano zona matrice
 Z_WALL_M = Z_TOP_M - LID_T
-Z_WALL_C = FLOOR + TEENSY_STANDOFF + 1.6 + STACK_GAP + 1.6 + AUDIO_JACK_H + STACK_CLR
+# altezza della zona comandi = il più alto fra: stack Teensy+audio, jack LINE IN (sopra ha solo
+# il pannello), KY-040 con i fili sotto
+Z_WALL_C = max(FLOOR + TEENSY_STANDOFF + 1.6 + STACK_GAP + 1.6 + AUDIO_JACK_H + STACK_CLR,
+               JACK_Z + JACK_BODY_H / 2 + 0.5,
+               FLOOR + ENC_DEPTH + ENC_WIRE_CLR)
 Z_TOP_C = Z_WALL_C + LID_T              # piano zona comandi
 Z_AUDIO = FLOOR + TEENSY_STANDOFF + 1.6 + STACK_GAP                  # fondo della scheda audio
 HP_Z = Z_AUDIO + 1.6 + AUDIO_JACK_H / 2                             # asse del jack cuffie
@@ -112,7 +121,8 @@ OLED_C = (29, 122)
 LOGO_V = 155
 TEENSY_X = CX0 + 18                     # Teensy lungo Y, a sinistra, USB contro la parete posteriore
 # fianco destro: nome -> (v, diametro foro). Jack mono TS 6,35 mm (filetto 3/8").
-JACKS = {"LINE IN": (122, 9.8)}       # l'uscita è solo quella cuffie della scheda audio (retro)
+# accanto alla scheda audio (x > scheda), sopra ha solo il pannello: non alza il case
+JACKS = {"LINE IN": (150, 9.8)}       # l'uscita è solo quella cuffie della scheda audio (retro)
 JACK_DEPTH = 22.0                       # ingombro massimo del jack dietro la parete (corpo + linguette)
 
 R_COL_M = 3.5                           # colonne zona matrice (strette: c'è poco margine)
@@ -280,8 +290,10 @@ def build_tray():
     # scritte sulle pareti
     side = (np.array([0, 1, 0]), np.array([0, 0, 1]))
     back = (np.array([-1, 0, 0]), np.array([0, 0, 1]))       # letto da dietro
-    cut.append(text_cut("USB", 3.0, [TEENSY_X - 13, D, zu], *back))
-    cut.append(text_cut("PHONES", 3.0, [TEENSY_X + AUDIO[0] / 2 + 10, D, HP_Z], *back))
+    # USB e cuffie escono dalla stessa finestra: le scritte stanno accanto, fuori dall'apertura
+    lab_x = TEENSY_X + AUDIO[0] / 2 + 10
+    cut.append(text_cut("PHONES", 3.0, [lab_x, D, HP_Z + 2.5], *back))
+    cut.append(text_cut("USB", 3.0, [lab_x, D, zu - 1.0], *back))
     for name, (v, dia) in JACKS.items():          # sopra il dado da 3/8" (14,6 mm sugli spigoli)
         cut.append(text_cut(name, 2.4, [W, CY0 + v, JACK_Z + 7.3 + 2.4], *side))
 
