@@ -290,12 +290,14 @@ def build_tray():
     # scritte sulle pareti
     side = (np.array([0, 1, 0]), np.array([0, 0, 1]))
     back = (np.array([-1, 0, 0]), np.array([0, 0, 1]))       # letto da dietro
-    # USB e cuffie escono dalla stessa finestra: le scritte stanno accanto, fuori dall'apertura
-    lab_x = TEENSY_X + AUDIO[0] / 2 + 10
-    cut.append(text_cut("PHONES", 3.0, [lab_x, D, HP_Z + 2.5], *back))
-    cut.append(text_cut("USB", 3.0, [lab_x, D, zu - 1.0], *back))
-    for name, (v, dia) in JACKS.items():          # sopra il dado da 3/8" (14,6 mm sugli spigoli)
-        cut.append(text_cut(name, 2.4, [W, CY0 + v, JACK_Z + 7.3 + 2.4], *side))
+    # USB e cuffie escono dalla stessa finestra: le scritte stanno accanto, fuori dall'apertura,
+    # a metà fra il bordo della finestra e l'inizio dello spigolo arrotondato
+    lab_x = (TEENSY_X + AUDIO[0] / 2 + W - R_CORNER) / 2
+    cut.append(text_cut("PHONES", 3.8, [lab_x, D, HP_Z + 2.5], *back))
+    cut.append(text_cut("USB", 3.8, [lab_x, D, zu - 1.0], *back))
+    for name, (v, dia) in JACKS.items():          # davanti al dado da 3/8" (14,6 mm sugli spigoli):
+        w = text_cs(name, 4.0).bounds()           # sopra e sotto non c'è posto
+        cut.append(text_cut(name, 4.0, [W, CY0 + v - 7.3 - 2.0 - (w[2] - w[0]) / 2, JACK_Z], *side))
 
     return body - union(cut)
 
@@ -376,15 +378,16 @@ def build_panel():
     # scasso sopra l'apertura delle cuffie: la spina passa anche se è più grossa di Ø9
     cut.append(box(TEENSY_X - AUDIO[0] / 2, D - T - 0.5, z0 - 0.01, TEENSY_X + AUDIO[0] / 2, D + 1, z0 + HP_RELIEF))
 
-    # scritte incise
+    # scritte incise (il pannello si stampa capovolto: le scritte sono sul piatto e il primo
+    # strato schiacciato chiude i solchi sottili -> caratteri grandi, tratto >= ~0,6 mm)
     up = (np.array([1, 0, 0]), np.array([0, 1, 0]))
     for name, (u, v) in ENCODERS.items():
         x, y = ctrl(u, v)
-        cut.append(text_cut(name, 3.0, [x, y + 12.5, Z_TOP_C], *up))
+        cut.append(text_cut(name, 5.0, [x, y + 13.0, Z_TOP_C], *up))
     for name, (u, v) in BUTTONS.items():
         x, y = ctrl(u, v)
-        cut.append(text_cut(name, 2.8, [x, y - TAB_FRONT - TAB_SLOT - 3.0, Z_TOP_C], *up))
-    cut.append(text_cut("ichosynth", 5.0, [*ctrl(CTRL / 2, LOGO_V), Z_TOP_C], *up))
+        cut.append(text_cut(name, 4.0, [x, y - TAB_FRONT - TAB_SLOT - 3.0, Z_TOP_C], *up))
+    cut.append(text_cut("ichosynth", 6.5, [*ctrl(CTRL / 2, LOGO_V), Z_TOP_C], *up))
 
     return union([panel - union(cut)] + post)
 
