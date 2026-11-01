@@ -2,8 +2,9 @@
 
     python case/build_case.py          # genera case/stl/*.stl
 
-Il case è a gradino: la zona matrice è bassa (~16 mm), la zona comandi alta (~22 mm)
-perché sotto ci sono lo stack Teensy 4.1 + scheda audio e il jack LINE IN.
+Il case è a gradino: la zona matrice è bassa (~16 mm), la zona comandi alta (~29 mm)
+perché sotto ci sono lo stack Teensy 4.1 + scheda audio, con i pin lunghi e i fili saldati
+in cima, e il jack LINE IN.
 
 Pezzi:
   piatto 1, opaco:
@@ -67,7 +68,9 @@ TAB_T = 0.8                   # spessore linguetta: k ~2,7 N/mm (PLA) -> ~3 N pe
 TAB_SLOT = 0.8                # fessura attorno alla linguetta
 NUB_D, NUB_GAP = 4.0, 0.4     # perno sotto la linguetta e gioco sul pulsantino (switch 4,3 +-0,2 mm)
 OLED_PCB = (27.8, 28.3)       # modulo SSD1306 0.96" (PCB 27.3x27.8 + gioco)
-OLED_WIN = (25.0, 14.5)       # finestra (area attiva 21.7x10.9)
+OLED_WIN = (25.0, 12.5)       # finestra (area attiva 21.7x10.9)
+OLED_WIN_DY = 1.0             # finestra spostata verso i pin dell'OLED: sul lato opposto il vetro
+                              # ha una fascia spenta che si vedeva (prototipo del 2026-10)
 OLED_GLASS = 1.6              # spessore vetro sopra il PCB
 TEENSY = (18.4, 61.2)         # Teensy 4.1 (17.8x61 + gioco)
 TEENSY_STANDOFF = 3.0         # PCB sollevato (spazio per i pin sotto)
@@ -78,11 +81,16 @@ AUDIO_JACK_DX = -9.0          # jack cuffie verso un angolo del bordo, non sopra
                               # sul retro è larga quanto la scheda, quindi il lato esatto non conta
                               # (il jack è sullo stesso lato della USB -> esce dal retro)
 STACK_CLR = 2.0               # aria fra lo stack e il pannello
+HDR_PIN_UP = 10.9             # punte dei pin sopra il PCB del Teensy (pettine maschio da 15 mm)
+PIN_TOP_CLR = 8.5             # sopra le punte: stagnatura e piega dei fili (~2) + pin e fili dell'OLED
+                              # (3,25) + PCB e vetro dell'OLED (3,25), che sta sopra il Teensy.
+                              # Sul primo prototipo (zona comandi 7 mm più bassa) pin e fili
+                              # toccavano l'OLED e sollevavano il pannello.
 USB_Z_ABOVE_PCB = 1.4         # centro connettore micro-USB sopra il PCB
 SCREW_PILOT = 2.5             # foro pilota per vite autofilettante M3
 SCREW_HOLE = 3.4
 SCREW_CSK = 6.4               # svasatura testa piana M3
-JACK_BODY_H = 16.0            # altezza del corpo del jack 6,35 dietro la parete
+JACK_BODY_H = 21.0            # ingombro del jack 6,35 dietro la parete (anche tondo, rondella fino a Ø20)
 JACK_Z = FLOOR + JACK_BODY_H / 2 + 0.5   # centro del jack: il corpo sta appena sopra il fondo
 ENC_DEPTH = 8.6               # KY-040 sotto il pannello: corpo EC11 + PCB + stagnature
 ENC_WIRE_CLR = 3.0            # spazio per piegare i fili sotto i KY-040
@@ -99,19 +107,19 @@ MX = MY = T + MARGIN + MAT / 2          # centro matrice
 Z_MAT = FLOOR + UNDER_H                 # appoggio matrice (cima nervature)
 Z_TOP_M = Z_MAT + MAT_T + BAFFLE_GAP + BAFFLE_H + DIFF_T    # piano zona matrice
 Z_WALL_M = Z_TOP_M - LID_T
-# altezza della zona comandi = il più alto fra: stack Teensy+audio, jack LINE IN (sopra ha solo
-# il pannello), KY-040 con i fili sotto
-Z_WALL_C = max(FLOOR + TEENSY_STANDOFF + 1.6 + STACK_GAP + 1.6 + AUDIO_JACK_H + STACK_CLR,
+# altezza della zona comandi = il più alto fra: pin del Teensy con fili e OLED sopra, stack
+# Teensy+audio, jack LINE IN (sopra ha solo il pannello), KY-040 con i fili sotto
+Z_WALL_C = max(FLOOR + TEENSY_STANDOFF + 1.6 + HDR_PIN_UP + PIN_TOP_CLR,
+               FLOOR + TEENSY_STANDOFF + 1.6 + STACK_GAP + 1.6 + AUDIO_JACK_H + STACK_CLR,
                JACK_Z + JACK_BODY_H / 2 + 0.5,
                FLOOR + ENC_DEPTH + ENC_WIRE_CLR)
 Z_TOP_C = Z_WALL_C + LID_T              # piano zona comandi
 Z_AUDIO = FLOOR + TEENSY_STANDOFF + 1.6 + STACK_GAP                  # fondo della scheda audio
 HP_Z = Z_AUDIO + 1.6 + AUDIO_JACK_H / 2                             # asse del jack cuffie
-HP_R = 6.5                              # apertura cuffie: dall'asse in giù (spine fino a Ø12)
-HP_RELIEF = 1.5                         # scasso sotto il bordo posteriore del pannello sopra l'apertura
+HP_R = 6.5                              # apertura cuffie: +-HP_R dall'asse (spine fino a Ø12)
 
 # zona comandi, coordinate (u, v) dall'angolo interno anteriore-sinistro della zona.
-# v 0-136: comandi (sotto c'è solo la parte "nuda" del Teensy); oltre: sopra lo stack, libero.
+# v 0-136: comandi (sotto c'è solo il Teensy con i suoi pin); oltre: sopra lo stack, libero.
 # In DRAW di TŒRN E1 = cursore Y ed E4 = cursore X (i più usati) -> fila in basso, vicino
 # alla mano; E2 = pagina, E3 = filtro rapido -> fila in alto.
 ENCODERS = {"E2": (13.5, 82), "E3": (44.5, 82), "E1": (13.5, 44), "E4": (44.5, 44)}
@@ -278,8 +286,8 @@ def build_tray():
     usb = rrect(14, 10, 2.5).extrude(T + 2).translate([-7, -5, 0])
     cut.append(usb.rotate([-90, 0, 0]).translate([TEENSY_X, D - T - 1, zu]))
     # il jack cuffie della scheda audio è sul lato USB: apertura larga quanto la scheda
-    # (la posizione del jack lungo il bordo cambia fra i lotti), chiusa in alto dal pannello
-    cut.append(box(TEENSY_X - AUDIO[0] / 2, D - T - 1, HP_Z - HP_R, TEENSY_X + AUDIO[0] / 2, D + 1, Z_WALL_C + 1))
+    # (la posizione del jack lungo il bordo cambia fra i lotti)
+    cut.append(box(TEENSY_X - AUDIO[0] / 2, D - T - 1, HP_Z - HP_R, TEENSY_X + AUDIO[0] / 2, D + 1, HP_Z + HP_R))
     for v, dia in JACKS.values():
         cut.append(M.cylinder(T + 2, dia / 2, -1, SEG).rotate([0, 90, 0]).translate([W - T - 1, CY0 + v, JACK_Z]))
 
@@ -356,7 +364,8 @@ def build_panel():
     # OLED: finestra + squadrette di posizionamento del PCB
     ox, oy = ctrl(*OLED_C)
     pw, ph = OLED_PCB
-    cut.append(box(ox - OLED_WIN[0] / 2, oy - OLED_WIN[1] / 2, z0 - 0.01, ox + OLED_WIN[0] / 2, oy + OLED_WIN[1] / 2, Z_TOP_C + 0.01))
+    wy = oy + OLED_WIN_DY
+    cut.append(box(ox - OLED_WIN[0] / 2, wy - OLED_WIN[1] / 2, z0 - 0.01, ox + OLED_WIN[0] / 2, wy + OLED_WIN[1] / 2, Z_TOP_C + 0.01))
     gz0 = z0 - OLED_GLASS - 1.6 - 1.0
     for sx in (-1, 1):
         for sy in (-1, 1):
@@ -375,8 +384,6 @@ def build_panel():
 
     for x, y in SCREWS_C:
         cut.append(countersunk(x, y, Z_TOP_C, z0))
-    # scasso sopra l'apertura delle cuffie: la spina passa anche se è più grossa di Ø9
-    cut.append(box(TEENSY_X - AUDIO[0] / 2, D - T - 0.5, z0 - 0.01, TEENSY_X + AUDIO[0] / 2, D + 1, z0 + HP_RELIEF))
 
     # scritte incise (il pannello si stampa capovolto: le scritte sono sul piatto e il primo
     # strato schiacciato chiude i solchi sottili -> caratteri grandi, tratto >= ~0,6 mm)

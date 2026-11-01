@@ -56,9 +56,10 @@ def teensy():
     hdr = []
     for sx in (-1, 1):
         xc = tx + sx * 7.62
-        hdr.append(box(xc - 1.27, y1 - 35, zp + 1.6, xc + 1.27, y1 - 1, za))       # plastica dell'header
+        # pettini maschi lunghi su tutta la lunghezza (come sul primo prototipo), plastica sul Teensy
+        hdr.append(box(xc - 1.27, y0 + 1, zp + 1.6, xc + 1.27, y1 - 1, za))        # plastica dell'header
         hdr.append(box(xc - 1.27, y0 + 1, zp - 2.5, xc + 1.27, y1 - 1, zp))        # pin sotto
-        hdr.append(box(xc - 0.4, y1 - 35, za + 1.6, xc + 0.4, y1 - 1, za + 1.6 + 2.5))  # punte sopra l'audio
+        hdr.append(box(xc - 0.4, y0 + 1, za, xc + 0.4, y1 - 1, zp + 1.6 + b.HDR_PIN_UP))  # pin sopra
     return [
         ("teensy_pcb", box(tx - 8.9, y0, zp + E, tx + 8.9, y1, zp + 1.6), "pcb_green"),
         ("teensy_chip", union([box(tx - 5, y0 + 26, zp + 1.6, tx + 5, y0 + 36, zp + 2.5),
@@ -145,11 +146,12 @@ def switch(name, pressed=0.0):
 
 # --- jack 6,35 mm --------------------------------------------------------------------------
 def jack(name, part="all"):
-    """Jack mono 6,35 open-frame (13 x 16 x JACK_DEPTH dietro la parete) + boccola 3/8" + dado fuori."""
+    """Jack mono 6,35 (ingombro tondo Ø JACK_BODY_H-1 x JACK_DEPTH dietro la parete) + boccola 3/8" + dado fuori."""
     v, dia = b.JACKS[name]
     y, z, xi, xo = b.CY0 + v, b.JACK_Z, b.W - b.T, b.W
     hole = rot_x(M.cylinder(40, 3.2, 3.2, 32)).translate([xi - 30, y, z])
-    body = box(xi - b.JACK_DEPTH, y - 6.5, z - 8.0, xi - E, y + 6.5, z + 8.0)
+    r = b.JACK_BODY_H / 2 - 0.5
+    body = rot_x(M.cylinder(b.JACK_DEPTH - E, r, r, 48)).translate([xi - b.JACK_DEPTH, y, z])
     bush = rot_x(M.cylinder(xo + 2.5 - xi, dia / 2 - 0.2, dia / 2 - 0.2, 32)).translate([xi - E, y, z]) - hole
     nut = rot_x(M.cylinder(2.4, 7.3, 7.3, 6)).translate([xo + E, y, z]) - hole
     key = name.replace(" ", "")

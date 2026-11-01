@@ -4,8 +4,9 @@
 
 ![ichosynth](img/hero.jpg)
 
-Case **a gradino**: la zona matrice è bassa (16 mm), la zona comandi più alta (22 mm)
-perché sotto ci stanno lo stack Teensy 4.1 + scheda audio e il jack LINE IN. **3 pezzi su 2 piatti**
+Case **a gradino**: la zona matrice è bassa (16 mm), la zona comandi più alta (28,5 mm)
+perché sotto ci stanno lo stack Teensy 4.1 + scheda audio (pin lunghi con i fili saldati in
+cima, e l'OLED sopra) e il jack LINE IN. **3 pezzi su 2 piatti**
 della **Anycubic Kobra S1** (250 × 250 mm), **nessun supporto**.
 
 | Piatto | File | Pezzo | Materiale |
@@ -41,7 +42,7 @@ alla domanda carica anche le impostazioni). È già tutto dentro: stampante *Any
   PLA Translucent*). Se li hai in altri slot, sposta le bobine o rimappa gli slot quando
   invii la stampa; non cambiare l'ordine dei filamenti nel progetto (il cambio sul piatto 2
   punta allo slot 1).
-- **Piatto 1** — vasca + pannello, tutto slot 1. ~4 h 30', ~160 g (stime dello slicer).
+- **Piatto 1** — vasca + pannello, tutto slot 1. ~4 h 45', ~170 g (stime dello slicer).
 - **Piatto 2** — diffusore: slot 2 per i primi 7 layer (0–1,4 mm), poi **cambio automatico
   allo slot 1** al layer 1,6 (c'è già, lo vedi come segno sul cursore dei layer) e una piccola
   torre di spurgo nell'angolo davanti a sinistra. ~2 h 30', ~50 g traslucido + ~44 g nero.
@@ -52,7 +53,7 @@ alla domanda carica anche le impostazioni). È già tutto dentro: stampante *Any
   se usi il PEI testurizzato cambialo in alto.
 - **Tutto in PETG?** `ichosynth_case_S1Combo_PETG.3mf`: slot 1 = PETG nero, slot 2 = PETG
   traslucido (preset *Anycubic PETG* per entrambi), stessi piatti e stesso cambio. I tasti
-  flessibili del pannello durano di più. ~4 h 55' + ~2 h 45'.
+  flessibili del pannello durano di più. ~5 h 15' + ~2 h 45'.
 - **Mai PLA e PETG nello stesso pezzo**: non si attaccano fra loro, per questo i progetti sono
   due, ognuno tutto di un materiale.
 
@@ -91,7 +92,8 @@ combinazione a due dita (FILTER / SAMPLE BROWSER).
 stesso lato della USB del Teensy (così la monta anche PJRC/CCRMA): esce direttamente
 dall'apertura larga quanto la scheda, niente prolunghe — **controllalo sulla tua scheda
 prima di stampare**. Fianco destro: **LINE IN**, jack mono 6,35 mm da pannello
-(foro 9,8 mm, ingombro dietro la parete **max 22 mm di profondità e 16 mm di altezza**).
+(foro 9,8 mm, ingombro dietro la parete **max 22 mm di profondità e Ø20 mm**: va bene
+anche quello tondo con la rondella).
 La **micro-SD** del Teensy si raggiunge togliendo il pannello (4 viti).
 
 **Cablaggio dentro il case** — tutti i fili si **saldano**, niente connettori Dupont:
@@ -133,6 +135,12 @@ python case/render/make_guide.py               # guida HTML + PDF
 
 Tutte le quote sono parametri in testa a `build_case.py`. **Da misurare sui tuoi
 componenti prima di stampare**: lato della matrice (160 mm), altezza dello stack
-Teensy+audio (scheda audio appoggiata sulla plastica dell'header → `STACK_GAP` = 2,6 mm), area attiva dell'OLED (finestra 25 × 14,5 mm
-centrata sul modulo), altezza degli switch (`SW_H` = 4,3 mm). Dopo una modifica rilancia
-`build_case.py` e `check_fit.py`.
+Teensy+audio (scheda audio appoggiata sulla plastica dell'header → `STACK_GAP` = 2,6 mm;
+punte dei pin 10,9 mm sopra il PCB del Teensy con pettini da 15 mm → `HDR_PIN_UP`), area
+attiva dell'OLED (finestra 25 × 12,5 mm, spostata di 1 mm verso i pin perché dal lato
+opposto il vetro ha una fascia spenta), altezza degli switch (`SW_H` = 4,3 mm). Dopo una
+modifica rilancia `build_case.py` e `check_fit.py`.
+
+Primo prototipo stampato (ottobre 2026): con la zona comandi 7 mm più bassa i pin lunghi del
+Teensy, con i fili saldati in cima, toccavano l'OLED e sollevavano il pannello; le scritte
+piccole si chiudevano nel primo strato. Entrambe le cose sono corrette in questa versione.
