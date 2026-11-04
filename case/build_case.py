@@ -125,7 +125,8 @@ HP_R = 6.5                              # apertura cuffie: +-HP_R dall'asse (spi
 ENCODERS = {"E2": (13.5, 82), "E3": (44.5, 82), "E1": (13.5, 44), "E4": (44.5, 44)}
 ENC_HEADER = +1                         # i 5 pin dei KY-040 puntano verso il retro (+Y)
 BUTTONS = {"PLAY": (12, 20), "MENU": (29, 20), "REC": (46, 20)}
-OLED_C = (29, 122)
+OLED_C = (32, 122)                      # 3 mm a destra del centro: i pin dell'OLED stanno fuori
+                                        # dalla fila destra del Teensy (pin 41 = SW di E2, con filo)
 LOGO_V = 155
 TEENSY_X = CX0 + 18                     # Teensy lungo Y, a sinistra, USB contro la parete posteriore
 # fianco destro: nome -> (v, diametro foro). Jack mono TS 6,35 mm (filetto 3/8").

@@ -5,7 +5,8 @@
 I componenti (parts.py, gli stessi dei render) sono solidi semplici alle quote reali.
 Controlla: pezzi stampati fra loro, componenti contro pezzi, componenti fra loro, spine
 inserite, micro-SD estraibile, matrice spostata del gioco massimo sotto la griglia, corsa
-dei tasti flessibili, pezzi in un corpo unico, griglia attaccata al diffusore.
+dei tasti flessibili, spazio fra i pin dell'OLED e quelli del Teensy, pezzi in un corpo
+unico, griglia attaccata al diffusore.
 """
 import sys
 
@@ -73,6 +74,12 @@ def main():
         x, y = b.ctrl(*b.BUTTONS[n])
         seat = printed["vasca"] ^ box(x - 3, y - 3, zf - 0.3, x + 3, y + 3, zf)
         check(seat.volume() > 0.3 * 36 * 0.3, f"tasto {n}: lo switch non appoggia sul piedistallo")
+
+    # pin dell'OLED sopra le punte dei pin del Teensy, dove si saldano i fili (il pin 41 è lo SW
+    # di E2): serve spazio per stagnatura e filo, altrimenti un filo tocca il GND dell'OLED
+    pins = next(m for n, m, _ in parts.oled() if n == "oled_pins")
+    gap = pins.min_gap(comps["teensy+audio"], 10.0)
+    check(gap >= 2.5, f"pin dell'OLED a {gap:.2f} mm dai pin del Teensy (servono 2,5 per stagnatura e filo)")
 
     # viti svasate: almeno 0,8 mm di materiale fra la svasatura e il bordo del pezzo
     for pname, pts, x0, x1 in (("diffusore", b.SCREWS_M, 0, b.X_STEP - 0.2), ("pannello", b.SCREWS_C, b.X_STEP, b.W)):

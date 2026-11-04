@@ -197,7 +197,8 @@ python tools/checklinks.py                              # link e ancore dei .md
   fili in cima, toccavano l'OLED e sollevavano il pannello. Versione attuale (commit
   `3e9349a`, render rifatti in `b883e1b`): zona comandi **28,5 mm** (+7 mm, scelta di Luigi
   "così è sicuro"), scritte incise più grandi, jack LINE IN tondo fino a Ø20, finestra
-  dell'OLED 25 × 12,5 spostata di 1 mm verso i pin. **Non ancora ristampata.**
+  dell'OLED 25 × 12,5 spostata di 1 mm verso i pin, OLED 3 mm a destra del centro (pin
+  lontani dal pin 41 del Teensy). **Non ancora ristampata.**
 - **Release v1.0** su GitHub: STL, `.3mf` e `MONTAGGIO.pdf` già sostituiti con la versione
   a 28,5 mm.
 
@@ -216,11 +217,10 @@ python tools/checklinks.py                              # link e ancore dei .md
 
 ## 10. Prossimi passi
 
-- [ ] **Pin 41 sotto l'OLED** (da risolvere prima di ristampare): il pin GND dell'OLED sta
-  2 mm sopra la punta del pin 41 del Teensy, che è lo **SW dell'encoder E2** e quindi ha un
-  filo saldato. Un filo o una stagnatura lì possono toccare il GND dell'OLED (E2 sempre
-  premuto). Possibili soluzioni: spostare l'OLED di ~3 mm a destra (pin fuori dalla fila del
-  Teensy) oppure accorciare i pin dell'OLED e saldare i fili a filo del PCB.
+- [x] **Pin 41 sotto l'OLED** (2026-11-04): il pin GND dell'OLED stava 2 mm sopra la punta
+  del pin 41 del Teensy (SW di E2, con filo saldato). OLED spostato di 3 mm a destra
+  (`OLED_C` = (32, 122)): ora 2,7 mm, e `check_fit` vuole almeno 2,5. I render mostrano
+  ancora l'OLED centrato.
 - [ ] **Ristampare il case** a 28,5 mm e provare il montaggio (pettini lunghi, jack tondo).
 - [ ] A schermo acceso, controllare che la finestra dell'OLED non tagli l'immagine
   (`OLED_WIN`, `OLED_WIN_DY` in `case/build_case.py`).

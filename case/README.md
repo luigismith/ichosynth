@@ -145,6 +145,10 @@ attiva dell'OLED (finestra 25 × 12,5 mm, spostata di 1 mm verso i pin perché d
 opposto il vetro ha una fascia spenta), altezza degli switch (`SW_H` = 4,3 mm). Dopo una
 modifica rilancia `build_case.py` e `check_fit.py`.
 
+L'OLED è **3 mm a destra del centro** del pannello: così i suoi pin non stanno sopra la fila
+destra del Teensy, dove sul pin 41 (SW di E2) è saldato un filo (`check_fit` vuole almeno
+2,5 mm fra i pin).
+
 Primo prototipo stampato (ottobre 2026): con la zona comandi 7 mm più bassa i pin lunghi del
 Teensy, con i fili saldati in cima, toccavano l'OLED e sollevavano il pannello; le scritte
 piccole si chiudevano nel primo strato. Entrambe le cose sono corrette in questa versione.
