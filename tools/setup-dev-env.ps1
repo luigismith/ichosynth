@@ -91,6 +91,15 @@ if ((Test-Path $Src) -and $Target) {
   Warn 'could not patch (src or target missing) - patch manually: see manual cap. 8.3'
 }
 
+Say 'Python packages for the 3D case (case\requirements.txt)'
+python -m pip install --quiet -r (Join-Path $RepoRoot 'case\requirements.txt')
+if ($LASTEXITCODE -eq 0) { Ok 'case tools ready (build_case, check_fit, slicer projects, guide)' }
+else { Warn 'pip failed - the case tools will not run (firmware is not affected)' }
+if (Get-Command npm -ErrorAction SilentlyContinue) {
+  npm --prefix (Join-Path $RepoRoot 'tools\pdf') install --silent *> $null
+  if ($LASTEXITCODE -eq 0) { Ok 'PDF tools ready (tools\pdf)' } else { Warn 'npm install failed in tools\pdf' }
+} else { Warn 'npm not found - only needed to rebuild the manual PDFs (tools\pdf)' }
+
 if (-not $NoBuild) {
   Say 'Compile-check: TŒRN port (firmware\build_toern.py)'
   python (Join-Path $RepoRoot 'firmware\build_toern.py')

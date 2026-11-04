@@ -12,7 +12,9 @@ non può divergere dal codice. La piedinatura del Teensy 4.1 è quella della sch
 La stessa impaginazione viene inserita anche in case/MONTAGGIO.pdf (pages()).
 """
 import html
+import os
 import re
+import shutil
 import subprocess
 import sys
 from pathlib import Path
@@ -595,11 +597,22 @@ def html_doc(pages, title="ichosynth · cablaggio"):
 CHROME = ["C:/Program Files/Google/Chrome/Application/chrome.exe",
           "C:/Program Files (x86)/Google/Chrome/Application/chrome.exe",
           "C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe",
-          "C:/Program Files/Microsoft/Edge/Application/msedge.exe"]
+          "C:/Program Files/Microsoft/Edge/Application/msedge.exe",
+          "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
+          "/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge"]
+
+
+def find_chrome():
+    """Chrome o Edge per stampare i PDF: $CHROME, i percorsi soliti di Windows/macOS, poi il PATH."""
+    if os.environ.get("CHROME"):
+        return os.environ["CHROME"]
+    found = next((p for p in CHROME if Path(p).exists()), None)
+    return found or next(filter(None, map(shutil.which, ("google-chrome", "chromium", "chromium-browser",
+                                                         "microsoft-edge"))), None)
 
 
 def to_pdf(html_path):
-    chrome = next((p for p in CHROME if Path(p).exists()), None)
+    chrome = find_chrome()
     if not chrome:
         print("Chrome/Edge non trovato: PDF non generato (l'HTML è pronto)")
         return None

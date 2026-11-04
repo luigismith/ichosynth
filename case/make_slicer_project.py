@@ -47,8 +47,16 @@ import trimesh
 
 HERE = Path(__file__).resolve().parent
 STL = HERE / "stl"
-SLICER = Path(r"C:\Program Files\AnycubicSlicerNext")
-PROFILES = SLICER / "resources" / "profiles"
+# installazione di Anycubic Slicer Next: $ICHOS_SLICER, altrimenti il percorso solito
+# di Windows o di macOS. I preset si leggono da lì, quindi serve anche senza --verifica.
+if sys.platform == "darwin":
+    SLICER = Path(os.environ.get("ICHOS_SLICER", "/Applications/AnycubicSlicerNext.app"))
+    PROFILES = SLICER / "Contents" / "Resources" / "profiles"
+    SLICER_EXE = SLICER / "Contents" / "MacOS" / "AnycubicSlicerNext"
+else:
+    SLICER = Path(os.environ.get("ICHOS_SLICER", r"C:\Program Files\AnycubicSlicerNext"))
+    PROFILES = SLICER / "resources" / "profiles"
+    SLICER_EXE = SLICER / "AnycubicSlicerNext.exe"
 VENDOR = "Anycubic"
 APP_VERSION = "2.0.0.3"                 # versione di Anycubic Slicer Next installata
 
@@ -398,12 +406,15 @@ def verify(objs, cfg):
     write_3mf(objs, cfg, proj, PLATE_STRIDE_CLI)      # stessa cosa, passo piatti della CLI
     out, datadir = tmp / "out", tmp / "datadir"
     out.mkdir(); datadir.mkdir()
-    cmd = [str(SLICER / "AnycubicSlicerNext.exe"), "--datadir", str(datadir), "--slice", "0",
+    cmd = [str(SLICER_EXE), "--datadir", str(datadir), "--slice", "0",
            "--outputdir", str(out), "--export-3mf", "sliced.3mf", str(proj)]
     print(f"slicing headless (priorità bassa): {tmp}")
-    flags = subprocess.BELOW_NORMAL_PRIORITY_CLASS | subprocess.CREATE_NO_WINDOW
+    if os.name == "nt":
+        low = dict(creationflags=subprocess.BELOW_NORMAL_PRIORITY_CLASS | subprocess.CREATE_NO_WINDOW)
+    else:
+        low = dict(preexec_fn=lambda: os.nice(10))
     with open(tmp / "slicer_log.txt", "w") as log:
-        rc = subprocess.run(cmd, stdout=log, stderr=subprocess.STDOUT, creationflags=flags, timeout=1800).returncode
+        rc = subprocess.run(cmd, stdout=log, stderr=subprocess.STDOUT, timeout=1800, **low).returncode
     assert rc == 0, f"lo slicer è uscito con codice {rc} (log in {tmp / 'slicer_log.txt'})"
 
     ok = True

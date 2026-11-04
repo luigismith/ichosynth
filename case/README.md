@@ -120,16 +120,20 @@ La **micro-SD** del Teensy si raggiunge togliendo il pannello (4 viti).
 | `parts.py` | componenti acquistati alle quote reali (usati da verifiche e render) |
 | `make_slicer_project.py` | progetto **Anycubic Slicer Next** (`ichosynth_case_S1Combo*.3mf`): 2 piatti, preset S1, slot ACE, cambio filamento; `--verifica` fa lo slicing headless e controlla il G-code |
 | `check_fit.py` | verifiche, **exit 1 se qualcosa non va**: interferenze pezzi/componenti/spine, micro-SD estraibile, matrice spostata del gioco massimo, corsa dei tasti, pezzi in un corpo unico, griglia attaccata |
+| `mutation_test.py` | prova le verifiche: introduce difetti apposta (stack più alto, pin più lunghi, jack più grosso…) e controlla che `check_fit` se ne accorga |
 | `render/scenes.py` | prepara le scene per Blender (mesh, camere, frecce) |
 | `render/blender_render.py` | render Cycles (materiali PLA/PCB/metallo, LED accesi sotto il diffusore) |
-| `render/render.ps1` | lancia Blender **a priorità bassa e con pochi thread** (il PC resta usabile) |
+| `render/render.ps1` · `render/render.sh` | lancia Blender **a priorità bassa e con pochi thread** (il PC resta usabile); `.ps1` per Windows, `.sh` per macOS/Linux |
+| `requirements.txt` | pacchetti Python di tutti gli script del case |
 | `render/make_guide.py` | impagina la guida grafica → `MONTAGGIO.html` + `MONTAGGIO.pdf` (Chrome/Edge headless) |
 
 ```sh
-pip install manifold3d trimesh numpy matplotlib pillow
+pip install -r case/requirements.txt
 python case/build_case.py                      # STL
 python case/check_fit.py                       # verifiche
+python case/mutation_test.py                   # le verifiche se ne accorgono? (tutte OK)
 powershell -File case/render/render.ps1        # render (Blender 4.2+), ~1-2 min a scena
+case/render/render.sh                          # idem su macOS/Linux
 python case/render/make_guide.py               # guida HTML + PDF
 ```
 

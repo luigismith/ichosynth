@@ -25,10 +25,6 @@ import make_cablaggio as cab                             # noqa: E402  tavole di
 
 ORANGE, INK, SUB, BG = "#FF8A1A", "#1f2328", "#57606a", "#0d1117"
 VOICE = ["#E83A3A", "#3A6BE8", "#E8D23A", "#36C24A", "#E83AA6", "#A6E03A", "#FF7A1A", "#2AD4B8"]
-CHROME = ["C:/Program Files/Google/Chrome/Application/chrome.exe",
-          "C:/Program Files (x86)/Google/Chrome/Application/chrome.exe",
-          "C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe",
-          "C:/Program Files/Microsoft/Edge/Application/msedge.exe"]
 
 # --- pittogrammi (SVG semplici, stile istruzioni di montaggio) ----------------------------
 ICON = {
@@ -223,7 +219,7 @@ def build_html():
 
 
 def build_pdf(html_path):
-    chrome = next((p for p in CHROME if Path(p).exists()), None)
+    chrome = cab.find_chrome()
     if not chrome:
         print("Chrome/Edge non trovato: PDF non generato (l'HTML è pronto)")
         return None

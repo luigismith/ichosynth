@@ -94,6 +94,19 @@ else
   warn "could not patch (src or target missing) — patch manually: see manual cap. 8.3"
 fi
 
+say "Python packages for the 3D case (case/requirements.txt)"
+if python3 -m pip install --quiet -r "$REPO/case/requirements.txt"; then
+  ok "case tools ready (build_case, check_fit, slicer projects, guide)"
+else
+  warn "pip failed — the case tools will not run (firmware is not affected)"
+fi
+if command -v npm >/dev/null 2>&1; then
+  if npm --prefix "$REPO/tools/pdf" install --silent >/dev/null 2>&1; then ok "PDF tools ready (tools/pdf)"
+  else warn "npm install failed in tools/pdf"; fi
+else
+  warn "npm not found — only needed to rebuild the manual PDFs (tools/pdf)"
+fi
+
 if [[ "$BUILD" == "1" ]]; then
   say "Compile-check: TŒRN port (firmware/build_toern.py)"
   if python3 "$REPO/firmware/build_toern.py"; then
