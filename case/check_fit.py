@@ -77,6 +77,12 @@ def main():
 
     # pin dell'OLED sopra le punte dei pin del Teensy, dove si saldano i fili (il pin 41 è lo SW
     # di E2): serve spazio per stagnatura e filo, altrimenti un filo tocca il GND dell'OLED
+    # spina del LINE IN inserita: la punta sporge dal fondo del jack, non deve arrivare su
+    # Teensy e scheda audio (sul prototipo urtava la scheda)
+    for n in b.JACKS:
+        gap = comps[f"spina {n}"].min_gap(comps["teensy+audio"], 10.0)
+        check(gap >= 2.0, f"spina {n} inserita a {gap:.2f} mm da Teensy/scheda audio (servono 2)")
+
     pins = next(m for n, m, _ in parts.oled() if n == "oled_pins")
     gap = pins.min_gap(comps["teensy+audio"], 10.0)
     check(gap >= 2.5, f"pin dell'OLED a {gap:.2f} mm dai pin del Teensy (servono 2,5 per stagnatura e filo)")

@@ -91,7 +91,9 @@ SCREW_PILOT = 2.5             # foro pilota per vite autofilettante M3
 SCREW_HOLE = 3.4
 SCREW_CSK = 6.4               # svasatura testa piana M3
 JACK_BODY_H = 21.0            # ingombro del jack 6,35 dietro la parete (anche tondo, rondella fino a Ø20)
-JACK_Z = FLOOR + JACK_BODY_H / 2 + 0.5   # centro del jack: il corpo sta appena sopra il fondo
+JACK_Z = FLOOR + JACK_BODY_H / 2         # centro del jack: il corpo sta appena sopra il fondo (0,5 mm)
+                                         # e sotto il PCB dell'OLED, che gli sta sopra
+PLUG_LEN = 32.0               # spina 6,35 inserita: ~31 mm dalla battuta alla punta, che sporge dal fondo del jack
 ENC_DEPTH = 8.6               # KY-040 sotto il pannello: corpo EC11 + PCB + stagnature
 ENC_WIRE_CLR = 3.0            # spazio per piegare i fili sotto i KY-040
 TXT_DEPTH = 0.6
@@ -130,8 +132,9 @@ OLED_C = (32, 122)                      # 3 mm a destra del centro: i pin dell'O
 LOGO_V = 155
 TEENSY_X = CX0 + 18                     # Teensy lungo Y, a sinistra, USB contro la parete posteriore
 # fianco destro: nome -> (v, diametro foro). Jack mono TS 6,35 mm (filetto 3/8").
-# accanto alla scheda audio (x > scheda), sopra ha solo il pannello: non alza il case
-JACKS = {"LINE IN": (150, 9.8)}       # l'uscita è solo quella cuffie della scheda audio (retro)
+# davanti alla scheda audio, sotto l'OLED: la spina inserita sporge dal fondo del jack e passa
+# davanti alla scheda, a 4 mm dai pin del Teensy (sul prototipo, a v=150, urtava la scheda audio)
+JACKS = {"LINE IN": (124, 9.8)}       # l'uscita è solo quella cuffie della scheda audio (retro)
 JACK_DEPTH = 22.0                       # ingombro massimo del jack dietro la parete (corpo + linguette)
 
 R_COL_M = 3.5                           # colonne zona matrice (strette: c'è poco margine)

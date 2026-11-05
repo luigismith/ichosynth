@@ -93,7 +93,9 @@ stesso lato della USB del Teensy (così la monta anche PJRC/CCRMA): esce diretta
 dall'apertura larga quanto la scheda, niente prolunghe — **controllalo sulla tua scheda
 prima di stampare**. Fianco destro: **LINE IN**, jack mono 6,35 mm da pannello
 (foro 9,8 mm, ingombro dietro la parete **max 22 mm di profondità e Ø20 mm**: va bene
-anche quello tondo con la rondella).
+anche quello tondo con la rondella). Il jack sta **davanti alla scheda audio**, sotto l'OLED: la punta
+della spina inserita sporge dal fondo del jack e passa a 4 mm dal Teensy (sul prototipo, più
+indietro, urtava la scheda audio; `check_fit` ora simula la spina da 32 mm).
 La **micro-SD** del Teensy si raggiunge togliendo il pannello (4 viti).
 
 **Cablaggio dentro il case** — tutti i fili si **saldano**, niente connettori Dupont:

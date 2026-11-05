@@ -188,7 +188,7 @@ python tools/checklinks.py                              # link e ancore dei .md
 
 ---
 
-## 8. Stato al 2026-11-04
+## 8. Stato al 2026-11-05
 
 - **Firmware**: compila e linka; nessuna delle correzioni del 30/10 (pulsanti in PULLUP,
   SD, EEPROM, OLED) è ancora provata sull'hardware.
@@ -198,7 +198,8 @@ python tools/checklinks.py                              # link e ancore dei .md
   `3e9349a`, render rifatti in `b883e1b`): zona comandi **28,5 mm** (+7 mm, scelta di Luigi
   "così è sicuro"), scritte incise più grandi, jack LINE IN tondo fino a Ø20, finestra
   dell'OLED 25 × 12,5 spostata di 1 mm verso i pin, OLED 3 mm a destra del centro (pin
-  lontani dal pin 41 del Teensy). **Non ancora ristampata.**
+  lontani dal pin 41 del Teensy), jack LINE IN spostato in avanti (v = 124, prima 150) perché
+  la spina inserita urtava la scheda audio. **Non ancora ristampata.**
 - **Release v1.0** su GitHub: STL, `.3mf` e `MONTAGGIO.pdf` già sostituiti con la versione
   a 28,5 mm.
 
@@ -221,6 +222,11 @@ python tools/checklinks.py                              # link e ancore dei .md
   del pin 41 del Teensy (SW di E2, con filo saldato). OLED spostato di 3 mm a destra
   (`OLED_C` = (32, 122)): ora 2,7 mm, e `check_fit` vuole almeno 2,5. I render mostrano
   ancora l'OLED centrato.
+- [x] **Spina del LINE IN sulla scheda audio** (2026-11-05, dal prototipo): la punta della
+  spina sporge dal fondo del jack e a v = 150 entrava nella scheda audio. Jack spostato a
+  v = 124 (davanti alla scheda, sotto l'OLED) e 0,5 mm più in basso (`JACK_Z` 12,5); ora
+  `check_fit` simula la spina inserita (`PLUG_LEN` 32 mm) e vuole ≥ 2 mm da Teensy e scheda
+  (sono 4). I render mostrano ancora il jack nella posizione vecchia.
 - [ ] **Ristampare il case** a 28,5 mm e provare il montaggio (pettini lunghi, jack tondo).
 - [ ] A schermo acceso, controllare che la finestra dell'OLED non tagli l'immagine
   (`OLED_WIN`, `OLED_WIN_DY` in `case/build_case.py`).

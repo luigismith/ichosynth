@@ -163,6 +163,16 @@ def jack(name, part="all"):
     return out
 
 
+def jack_plug(name):
+    """Punta della spina 6,35 inserita: la parte che sporge dal fondo del jack, dentro il case."""
+    v, _ = b.JACKS[name]
+    y, z = b.CY0 + v, b.JACK_Z
+    back = b.W - b.T - b.JACK_DEPTH                    # fondo del jack
+    tip = min(b.W + 2.5 - b.PLUG_LEN, back - 0.5)      # battuta della spina sulla boccola
+    return [(f"plug_{name.replace(' ', '')}", rot_x(M.cylinder(back - E - tip, 3.25, 3.25, 32)).translate([tip, y, z]),
+             "metal")]
+
+
 # --- minuteria --------------------------------------------------------------------------
 def screw(x, y, ztop, tag):
     head = cyl(x, y, ztop - 1.5, ztop - E, 1.6, 3.05) - hexcyl(x, y, ztop - 1.0, ztop + 1, 1.25)
@@ -191,6 +201,7 @@ def all_components():
         c[f"switch {n}"] = switch(n)
     for n in b.JACKS:
         c[f"jack {n}"] = jack(n)
+        c[f"spina {n}"] = jack_plug(n)
     c["spina USB"], c["spina cuffie"] = [plugs()[0]], [plugs()[1]]
     c["viti diffusore"], c["viti pannello"] = screws("m"), screws("c")
     return c
