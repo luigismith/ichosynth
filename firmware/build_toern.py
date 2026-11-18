@@ -25,6 +25,13 @@ Two things this script takes care of that a naive `arduino-cli compile` does not
 Usage:
     python firmware/build_toern.py            # build -> firmware/build/toern.hex
     python firmware/build_toern.py --flash     # build, then flash with teensy_loader_cli if found
+    python firmware/build_toern.py --stage-only DIR   # only stage + patch the sketch into DIR/toern
+    python firmware/build_toern.py --fetch-only       # only fetch the pinned TŒRN sources
+
+The desktop emulator (emulator/, target toernemu) compiles the SAME staged + patched
+sketch: its CMake configure step calls `--stage-only`, so every patch below reaches the
+emulator too and the two builds cannot drift apart. Staging rewrites only the files whose
+content changed, so an unchanged sketch does not trigger a rebuild.
 
 Requires: arduino-cli on PATH, the teensy:avr core (>=1.61.0) installed, and the
 TŒRN sources under emulator/toern-src/ (cloned automatically if missing).
@@ -102,6 +109,10 @@ def ensure_sources():
     a fresh checkout is pinned there instead of following HEAD.
     """
     if not os.path.isfile(os.path.join(TOERN_SRC, "toern.ino")):
+        if not shutil.which("git"):
+            sys.exit(f"TŒRN sources missing at {TOERN_SRC} and git is not installed. Install git "
+                     f"(https://git-scm.com) or download {TOERN_REPO_URL} at commit {TOERN_COMMIT} "
+                     f"into emulator/toern-src/.")
         print(f"TŒRN sources not found at {TOERN_SRC} -> cloning {TOERN_REPO_URL} @ {TOERN_COMMIT[:10]}")
         os.makedirs(os.path.dirname(TOERN_SRC), exist_ok=True)
         r = run(["git", "clone", TOERN_REPO_URL, TOERN_SRC])
@@ -229,11 +240,81 @@ def add_oled_hud(sketch):
     print("  OLED HUD wired in (IchosOled library: include + begin + loop glue)")
 
 
+def stage_patched(build_root):
+    """Stage the pinned TŒRN sources into build_root/toern and apply every patch.
+
+    This is THE definition of "what gets flashed": the Teensy build compiles the result,
+    and the emulator's toernemu target compiles the very same files (see sync_tree()).
+    """
+    ensure_sources()
+    print("Staging TŒRN sources ...")
+    sketch = stage(build_root)
+    patch_pins(sketch)
+    patch_behaviour(sketch)
+    remove_features(sketch)
+    add_oled_hud(sketch)
+    return sketch
+
+
+def sync_tree(src, dst):
+    """Mirror src into dst, rewriting only files whose bytes changed (and pruning stale
+    ones), so make/ninja see unchanged timestamps and skip the 23k-line rebuild."""
+    changed = 0
+    keep = set()
+    for root, _dirs, files in os.walk(src):
+        rel = os.path.relpath(root, src)
+        os.makedirs(os.path.join(dst, rel), exist_ok=True)
+        for name in files:
+            s = os.path.join(root, name)
+            d = os.path.normpath(os.path.join(dst, rel, name))
+            keep.add(d)
+            with open(s, "rb") as f:
+                data = f.read()
+            if os.path.isfile(d):
+                with open(d, "rb") as f:
+                    if f.read() == data:
+                        continue
+            with open(d, "wb") as f:
+                f.write(data)
+            changed += 1
+    for root, _dirs, files in os.walk(dst):
+        for name in files:
+            d = os.path.normpath(os.path.join(root, name))
+            if d not in keep:
+                os.remove(d)
+                changed += 1
+    return changed
+
+
+def stage_only(dest):
+    """--stage-only: put the patched sketch in dest/toern (for the emulator build)."""
+    tmp = tempfile.mkdtemp(prefix="toernstage_")
+    try:
+        sketch = stage_patched(tmp)
+        out = os.path.join(os.path.abspath(dest), "toern")
+        n = sync_tree(sketch, out)
+        print(f"Patched sketch staged in {out} ({n} file(s) updated)")
+    finally:
+        shutil.rmtree(tmp, ignore_errors=True)
+
+
 def main():
     ap = argparse.ArgumentParser(description="Build the real TŒRN firmware for our Teensy 4.1.")
     ap.add_argument("--flash", action="store_true", help="flash after building (teensy_loader_cli)")
     ap.add_argument("--keep", action="store_true", help="keep the temporary build folder")
+    ap.add_argument("--stage-only", metavar="DIR",
+                    help="only stage + patch the sketch into DIR/toern (no arduino-cli needed)")
+    ap.add_argument("--fetch-only", action="store_true",
+                    help="only make sure emulator/toern-src holds the pinned TŒRN sources")
     args = ap.parse_args()
+
+    if args.fetch_only:
+        ensure_sources()
+        print(f"TŒRN sources ready in {TOERN_SRC}")
+        return
+    if args.stage_only:
+        stage_only(args.stage_only)
+        return
 
     cli = find_arduino_cli()
     if not cli:
@@ -241,16 +322,10 @@ def main():
     fastled = core_library(cli, "FastLED")
     if not fastled:
         sys.exit("FastLED bundled with the teensy:avr core not found. Install the teensy:avr core (>=1.61.0).")
-    ensure_sources()
 
     build_root = tempfile.mkdtemp(prefix="toernbuild_")
     try:
-        print("Staging TŒRN sources ...")
-        sketch = stage(build_root)
-        patch_pins(sketch)
-        patch_behaviour(sketch)
-        remove_features(sketch)
-        add_oled_hud(sketch)
+        sketch = stage_patched(build_root)
 
         os.makedirs(OUT_DIR, exist_ok=True)
         print(f"Compiling for {FQBN} ...")

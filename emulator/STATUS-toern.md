@@ -7,8 +7,9 @@ SSD1306 OLED HUD** as a window panel.
 > This is the same TŒRN firmware the **physical ichosynth runs** on the Teensy 4.1
 > (built with `firmware/build_toern.py`, with the KY-040 / FastTouch / IchosOled
 > drivers). The emulator's `toernemu` target lets you rehearse the real instrument's
-> control mapping on PC before touching hardware. It is a **reference target, OFF by
-> default** (`-DEMU_BUILD_TOERN_REF=ON`; see the 2026-06-16 update below).
+> control mapping on PC before touching hardware. Since 2026-11-18 it is the **main
+> target, built by default**, and compiles the staged + patched sketch with the real
+> drivers (see the 2026-11-18 update at the end; the 2026-06-16 note is superseded).
 
 Source cloned to `emulator/toern-src/` (https://github.com/soundpauli/toern,
 MIT). **23,442 lines** across 12 .ino files (~8× NI404). `toern.ino` is 328 KB.
@@ -194,3 +195,40 @@ both targets (shared main.cpp; NI404 is a toern fork, same panel wiring).
   recording also drives toern's `AudioRecordQueue` shim (so toern recording would
   capture real input too). `firmware_toern.cpp` carries stubs for the new SD/recording
   hooks so the reference target still links.
+
+## UPDATE (2026-11-18) — a faithful test bench for the real firmware
+
+An independent review found the emulator diverged from the hardware (tests could pass
+while the board would fail). Fixed:
+
+- **Same sources as the .hex.** CMake runs `firmware/build_toern.py --stage-only` (the
+  Teensy build's staging + patches; only changed files are rewritten) and compiles the
+  staged sketch. The emulator's own HUD and its copies of the encoder/touch drivers are
+  gone: the real `firmware/libraries/` drivers (i2cEncoderLibV2, FastTouch, IchosOled)
+  are compiled, so E1 honours `DIRE_LEFT`, debounce and `readStatus()` are the driver's.
+- **Hardware models instead of stubs:** GPIO with pin modes and buttons to GND
+  (a PULLDOWN button reads pressed; boot prints a `[gpio]` audit); an I2C bus
+  (`src/i2c_bus.cpp`) with an SSD1306 that decodes the real command/data stream into the
+  OLED view (NACK when absent, 32-byte buffer, bus time); SD in the built-in slot only,
+  `--no-sd`, SdFat `FILE_WRITE` append, no `samples/` alias (bench only); EEPROM erased =
+  0xFF, one image per target next to the exe.
+- **Audio:** device opened after `setup()`; pool = exactly `AudioMemory(n)` blocks,
+  idempotent, real usage/failure counters; Teensy `transmit()` (an occupied input keeps
+  its block); only connected nodes update; SVF with LP/BP/HP outputs and frequency
+  control; ladder with input 1 (+ octaveControl) and 2; Teensy DAHDSR envelope (defaults,
+  hold, forced release, no advance without input); I2S input fed by the capture device
+  (resampled from the granted rate, lock-free ring); Teensy record queue (53 blocks) fed
+  by the graph; a silent clock runs the graph when no output device opens.
+- **Timing:** IntervalTimers on their own thread (1 ms resolution, re-anchored after a
+  stall); `loop()` on a firmware thread; one interrupt lock for timers, audio,
+  `noInterrupts()` and `AudioNoInterrupts()`.
+- **Tooling:** `run.py` checks the tools, copies SDL2.dll, pins TŒRN via build_toern.py,
+  builds at low priority, passes `-- args` through. CI builds both targets and runs
+  `toernemu --hwtest`. macOS: Homebrew GCC, so no CoreMIDI (documented).
+- **`--hwtest`** checks boot, HUD text, E1/E4 direction, B2 menu, E3 play/stop, tempo vs
+  BPM, audio memory, the GPIO model, import (48 kHz stereo -> samples/import/ mono
+  44.1 kHz) and a recording (tone on the input -> 0/<ch>.wav). All pass.
+
+Found on the way (firmware, not emulator): on an erased EEPROM TŒRN writes its first-run
+defaults with recMode = MIC, so build_toern.py's LINE IN default does not survive a fresh
+board or CLR RAM. Still open: Granular and AudioPlaySdWav are stubs.

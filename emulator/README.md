@@ -5,9 +5,14 @@ keyboard/mouse controls and MIDI controllers. Useful to try things without the h
 · *Esegue il firmware di ichosynth sul computer: griglia LED, OLED, audio, controlli e MIDI.*
 
 ```sh
-python emulator/run.py            # the real TŒRN firmware (toernemu)
-python emulator/run.py --bench    # the NI404-based bench firmware (ni404emu)
+python emulator/run.py              # the real ichosynth firmware (toernemu)
+python emulator/run.py -- --hwtest  # headless check of the board's behaviour
+python emulator/run.py --bench      # the NI404-based bench firmware (ni404emu)
 ```
+
+`toernemu` compiles the sketch staged and patched by `firmware/build_toern.py` with the real
+drivers from `firmware/libraries/`, on models of the Teensy's GPIO, I2C (SSD1306), SD, EEPROM,
+timers and audio library.
 
 Ready-made Windows and macOS builds come from CI:
 [emulator-latest](https://github.com/luigismith/ichosynth/releases/tag/emulator-latest).

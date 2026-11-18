@@ -23,6 +23,43 @@ void ni404_host_encoder_set(int idx, long value);
 void ni404_host_button_set(int idx, bool down);
 bool ni404_host_button_get(int idx);
 
+// ---- virtual wiring: which board pins the host controls are soldered to ----
+// The firmware glue (firmware*.cpp) declares the board, before setup(): each encoder
+// slot on a CLK/DT pin pair, each button slot on a pin (a push button to GND). The
+// Encoder shim and digitalRead() then behave like the real circuit (compat/Arduino.h).
+void ni404_wire_encoder(int encSlot, int clkPin, int dtPin);
+void ni404_wire_button(int btnSlot, int pin);
+// Encoder slot wired to (clk, dt); *reversed = the pins were given swapped. -1 = none.
+int  ni404_wiring_encoder_for(int clkPin, int dtPin, bool *reversed);
+// After setup(): print every wired pin's mode and warn about the ones that would
+// misbehave on the board (a button pin left INPUT_PULLDOWN reads "pressed" when
+// released; INPUT with no pull floats). Returns the number of warnings.
+int  ni404_gpio_audit();
+const char *ni404_pin_mode_name(int pin);
+
+// ---- threads ----------------------------------------------------------------
+// setup() and then loop() run on their own "firmware" thread; anything else that touches
+// firmware state (SD root, sample import, the bench's sample loader) takes this lock
+// first. While setup() is still running (it may wait for ever, e.g. TŒRN's "SD?" screen
+// until a card is inserted) the guard does not wait: the SD root is safe on its own.
+void ni404_fw_lock();
+void ni404_fw_unlock();
+void ni404_fw_set_in_setup(bool inSetup);
+bool ni404_fw_in_setup();
+struct Ni404FwGuard {
+    bool held;
+    Ni404FwGuard() : held(!ni404_fw_in_setup()) { if (held) ni404_fw_lock(); }
+    ~Ni404FwGuard() { if (held) ni404_fw_unlock(); }
+};
+void ni404_timers_stop();      // stop the IntervalTimer thread (at exit)
+
+// ---- runtime files ------------------------------------------------------------
+// Path of an emulator runtime file (settings, eeprom, midi map/log): next to the
+// executable, prefixed with the target name so ni404emu and toernemu never share
+// one ("toernemu-settings.txt", "toernemu-eeprom.bin", ...).
+const char *ni404_runtime_path(const char *name);
+const char *ni404_target_name();
+
 // ---- output: frontend reads ----------------------------------------------
 // Latest LED frame (brightness applied). Returns a generation counter.
 uint64_t ni404_get_leds(CRGB *out, int max, int *count);
@@ -37,9 +74,12 @@ uint64_t ni404_get_oled(uint8_t *out, int maxBytes, int *w, int *h);
 void ni404_setup();
 void ni404_loop();
 
-// Tell the SD shim where the executable lives (from argv[0]) so a distributed
-// binary can find an sdcard folder next to it. Call before ni404_setup().
+// Tell the SD shim / runtime files where the executable lives, so a distributed
+// binary finds the sdcard folder and keeps its settings next to it. Call before
+// ni404_setup().
 void ni404_set_base_dir(const char *dir);
+// Simulate a missing micro SD card (--no-sd): SD.begin() fails like an empty slot.
+void ni404_sd_set_card_present(bool present);
 
 // ---- headless verification hooks (firmware.cpp sees the firmware globals) --
 void ni404_test_trigger(int channel);    // play channel's sample like a MIDI note

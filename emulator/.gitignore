@@ -7,7 +7,12 @@ eeprom.bin
 toern-src/
 # local ready-to-run snapshots (binaries/DLLs) — distributables come from CI
 playable-*/
-# runtime files written next to the exe
+# runtime files written next to the exe (<target>-settings.txt, -eeprom.bin, -midi-*.txt)
 settings.txt
 midi-log.txt
+*-settings.txt
+*-eeprom.bin
+*-midi-map.txt
+*-midi-log.txt
+dist-macos/
 *.log

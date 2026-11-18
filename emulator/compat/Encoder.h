@@ -1,26 +1,43 @@
-// Encoder.h — desktop shim for the Teensy Encoder library. Each physical knob is
-// mapped (by its CLK pin from config.h) to a host encoder slot the SDL frontend
-// drives. read() returns quadrature counts at 4 counts per detent, exactly like
-// the hardware (the firmware divides by 4 / maps over max*4).
+// Encoder.h — desktop shim for the PJRC Encoder library (quadrature on two pins).
+//
+// The encoder is found through the emulator's VIRTUAL WIRING (ni404_host.h,
+// ni404_wire_encoder): each on-screen knob is "soldered" to a CLK/DT pin pair, exactly
+// as on the board. Encoder(a, b) reads the knob wired to those pins, 4 counts per
+// detent like a KY-040; if the firmware passes the pins swapped (b, a) the count runs
+// backwards, as it would on the hardware; if nothing is wired there it never moves.
+// The lookup is lazy (first read), so encoders built as static globals work too.
+//
+// Convention: a clockwise turn of the on-screen knob (keyboard A/S/D/F, wheel up,
+// clockwise drag) adds counts on Encoder(CLK, DT).
 #ifndef NI404_COMPAT_ENCODER_H
 #define NI404_COMPAT_ENCODER_H
 
-#include "config.h"
+#include "Arduino.h"
 #include "ni404_host.h"
 
 class Encoder {
 public:
-    Encoder(int clkPin, int /*dtPin*/) : slot(slotForPin(clkPin)) {}
-    long read() { return ni404_host_encoder_get(slot); }
-    void write(long value) { ni404_host_encoder_set(slot, value); }
+    Encoder(uint8_t pinA, uint8_t pinB) : a(pinA), b(pinB) {
+        pinMode(a, INPUT_PULLUP);   // the PJRC library enables the pull-ups itself
+        pinMode(b, INPUT_PULLUP);
+    }
+    long read() { resolve(); return pos + (slot < 0 ? 0 : sign * (ni404_host_encoder_get(slot) - hostBase)); }
+    void write(long p) {
+        resolve();
+        pos = p;
+        hostBase = slot < 0 ? 0 : ni404_host_encoder_get(slot);
+    }
 
 private:
-    int slot;
-    static int slotForPin(int clk) {
-        if (clk == ENC_LEFT_CLK)  return ENC_LEFT;
-        if (clk == ENC_RIGHT_CLK) return ENC_RIGHT;
-        if (clk == ENC_MIDL_CLK)  return ENC_CENTER;
-        return ENC_4TH;
+    uint8_t a, b;
+    int slot = -2;          // -2 = not looked up yet, -1 = nothing wired to these pins
+    long sign = 1, pos = 0, hostBase = 0;
+    void resolve() {
+        if (slot != -2) return;
+        bool reversed = false;
+        slot = ni404_wiring_encoder_for(a, b, &reversed);
+        sign = reversed ? -1 : 1;
+        hostBase = slot < 0 ? 0 : ni404_host_encoder_get(slot);
     }
 };
 
