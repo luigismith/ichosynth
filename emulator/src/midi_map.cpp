@@ -4,18 +4,20 @@
 //
 // Because different controllers (and even different MPK Mini revisions: mk2/mk3/
 // mk4/Plus) send DIFFERENT CC numbers for their knobs, the mapping is:
-//   * configurable at runtime via `midi-map.txt` next to the exe (no rebuild), and
+//   * configurable at runtime via `<target>-midi-map.txt` next to the exe (e.g.
+//     toernemu-midi-map.txt; no rebuild), and
 //   * monitored: every incoming CC/Note is printed to the console, so you can see
 //     exactly what your controller sends and set the right numbers.
 //
 // Defaults (MPK Mini mk3-style): knobs K1..K4 = CC 70,71,72,73 -> the 4 encoders;
 // pads (Bank A notes 36..43) -> buttons + grid stepping; keys -> played by the
-// firmware. Edit midi-map.txt to match YOUR controller (see what the monitor prints).
+// firmware. Edit the map file to match YOUR controller (see what the monitor prints).
 #include "ni404_host.h"
 #include <cstdint>
 #include <cstdio>
 #include <cstring>
 #include <cstdlib>
+#include <string>
 
 // Knob k -> encoder slot.
 static const int KNOB_ENC[4] = { ENC_LEFT, ENC_CENTER, ENC_RIGHT, ENC_4TH };
@@ -37,10 +39,11 @@ static bool ccSeen[128];
 static void loadConfig() {
     if (g_loaded) return;
     g_loaded = true;
-    FILE *f = std::fopen("midi-map.txt", "r");
+    const std::string mapPath = ni404_runtime_path("midi-map.txt");
+    FILE *f = std::fopen(mapPath.c_str(), "r");
     if (!f) {
         // Write a self-documenting default so the user can edit it next to the exe.
-        if ((f = std::fopen("midi-map.txt", "w"))) {
+        if ((f = std::fopen(mapPath.c_str(), "w"))) {
             std::fprintf(f,
                 "# NI404/toern emulator - MIDI controller map. Edit and restart.\n"
                 "# Defaults are for the Akai MPK Mini IV (mk4).\n"
@@ -76,7 +79,7 @@ static void loadConfig() {
             g_monitor = std::atoi(line + 8) != 0;
     }
     std::fclose(f);
-    if (g_monitor) g_log = std::fopen("midi-log.txt", "w");  // truncate at startup
+    if (g_monitor) g_log = std::fopen(ni404_runtime_path("midi-log.txt"), "w");  // truncate at startup
 }
 
 // Fixed velocity for keys/pads that play a sample (pads behave like buttons).

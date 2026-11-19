@@ -1,12 +1,15 @@
-// main.cpp — SDL2 frontend for the NI404 emulator: opens a window that renders
-// the 16x16 LED matrix, opens the default audio device and drives the audio
-// graph from its callback, and maps the computer keyboard onto the device's 3
-// encoders + buttons. It calls the firmware's setup() once and loop() every
-// frame (via ni404_setup/ni404_loop).
+// main.cpp — SDL2 frontend of the emulator (both targets): a window with the 16x16
+// LED matrix, the OLED view and on-screen controls; the audio device drives the audio
+// graph from its callback; keyboard/mouse/touch/MIDI drive the 4 encoders + buttons.
 //
-// `--selftest` runs headless: no window/audio device, just exercises setup(),
-// a few loop() ticks, audio rendering and the LED bridge, then prints stats and
-// exits — so the pipeline can be verified in CI / headless shells.
+// Start-up order follows the hardware: the firmware's setup() runs first (it calls
+// AudioMemory(), builds the graph, mounts the SD), THEN the audio output starts; then
+// loop() runs continuously on its own "firmware" thread, decoupled from the 60 Hz
+// redraw, while IntervalTimer callbacks run on the timer thread (host_io.cpp).
+//
+// Headless modes (no window/audio device): --selftest, --hwtest (the real board's
+// controls, OLED HUD, tempo, audio memory, SD import + recording), and the NI404
+// bench's --verify / --demotest / --play.
 #define NOMINMAX
 #define WIN32_LEAN_AND_MEAN
 
@@ -16,9 +19,13 @@
 #include <cmath>
 #include <string>
 #include <vector>
+#include <algorithm>
 #include <cstdint>
 #include <thread>
+#include <atomic>
 #include <chrono>
+#include <fstream>
+#include <map>
 #include <filesystem>       // detect a dropped folder (set as SD card)
 #include "FastLED.h"        // CRGB
 #include "ni404_host.h"
@@ -27,6 +34,19 @@
 #ifdef _WIN32
 #include <windows.h>        // AttachConsole (GUI subsystem: no console window pops up)
 #endif
+
+// Plain functions from the compat layer (Audio.h / Arduino.h can't be included in this
+// TU: their macros clash with windows.h).
+unsigned AudioMemoryUsage();
+unsigned AudioMemoryUsageMax();
+unsigned audio_memory_total();
+unsigned audio_alloc_failures();
+float    AudioProcessorUsageMax();
+void pinMode(uint8_t pin, uint8_t mode);
+int  digitalRead(uint8_t pin);
+void ni404_capture_test_tone(float hz);
+int  ni404_test_recording();
+const char *ni404_test_rec_input();
 
 // MIDI backend (src/midi_in.cpp)
 int  ni404_midi_list(std::vector<std::string> *names);
@@ -284,6 +304,8 @@ static int run_selftest() {
     for (int i = 0; i < ow * oh; i++) if (oled[i]) olit++;
     std::printf("[selftest] oled: %dx%d gen=%llu lit-pixels=%d\n",
                 ow, oh, (unsigned long long)ogen, olit);
+    std::printf("[selftest] audio memory: max %u of %u blocks, %u failed allocations\n",
+                AudioMemoryUsageMax(), audio_memory_total(), audio_alloc_failures());
     std::printf("[selftest] OK\n");
     return 0;
 }
@@ -310,6 +332,8 @@ static int run_verify() {
                     ch, playing, peak, snd ? "SOUND" : "(silent)");
     }
     std::printf("[verify] %d/8 channels produced audio.\n", sounding);
+    std::printf("[verify] audio memory: max %u of %u blocks, %u failed allocations\n",
+                AudioMemoryUsageMax(), audio_memory_total(), audio_alloc_failures());
     std::printf("[verify] %s\n", sounding > 0 ? "OK — sample playback path works."
                                               : "no audio — check sdcard samples / paths.");
     return sounding > 0 ? 0 : 2;
@@ -367,6 +391,12 @@ static int run_play() {
     //    path), then read the grid back. (Run before the demo, which fills the grid.)
     std::printf("\n* Editing dalla griglia (encoder = cursore, pulsante centro = piazza):\n");
     auto tick = [&](int n){ for (int i = 0; i < n; i++) ni404_loop(); };
+    // Gestures are timed by the firmware with millis(), so hold them for REAL time,
+    // not for a number of loop() calls (loop() speed is not the hardware's anyway).
+    auto tick_ms = [&](int ms) {
+        auto end = std::chrono::steady_clock::now() + std::chrono::milliseconds(ms);
+        while (std::chrono::steady_clock::now() < end) { ni404_loop(); std::this_thread::sleep_for(std::chrono::milliseconds(1)); }
+    };
     tick(2);
     std::snprintf(d, sizeof d, "modo=%s", ni404_test_mode());
     check("avvio in un modo di editing (DRAW)", std::strcmp(ni404_test_mode(), "DRAW") == 0, d);
@@ -381,20 +411,21 @@ static int run_play() {
     for (int t = 0; t < 40; t++) { int y = ni404_test_cursor_y(); if (y >= 2 && y <= 10) break;
         ni404_host_encoder_add(ENC_LEFT, 4); tick(2); }
     int erow = ni404_test_cursor_y(), eedit = ni404_test_edit_page();
-    int placed = 0, got[3] = {-9,-9,-9};
+    int placed = 0, got[3] = {-9,-9,-9}, cols[3] = {0,0,0};
     for (int k = 0; k < 3; k++) {
         ni404_host_encoder_add(ENC_CENTER, 8); tick(4);    // move to a new column
         int cx = ni404_test_cursor_x();
+        cols[k] = cx;
         // A button gesture is only acted on ~80 ms after it changes (the firmware's
-        // reset-timer fires checkMode() then clears the buttons), so HOLD centre
-        // ~110 ms (>80 ms to register, <300 ms so it stays a tap, not a long-press).
-        ni404_host_button_set(BTN_C, true);  tick(24);     // press centre -> paint()
-        ni404_host_button_set(BTN_C, false); tick(4);      // release
+        // millis() reset-timer fires checkMode() then clears the buttons), so HOLD
+        // centre 110 ms (>80 ms to register, <300 ms so it stays a tap, not a long-press).
+        ni404_host_button_set(BTN_C, true);  tick_ms(110);  // press centre -> paint()
+        ni404_host_button_set(BTN_C, false); tick_ms(120);  // release; let the gesture close (>80 ms)
         got[k] = ni404_test_note_at((eedit - 1) * 16 + cx, erow);
         if (got[k] == erow - 1) placed++;
     }
-    std::snprintf(d, sizeof d, "riga %d (canale %d): piazzate %d/3 (note lette %d,%d,%d, atteso %d)",
-                  erow, erow - 1, placed, got[0], got[1], got[2], erow - 1);
+    std::snprintf(d, sizeof d, "riga %d (canale %d), colonne %d,%d,%d: piazzate %d/3 (note lette %d,%d,%d, atteso %d)",
+                  erow, erow - 1, cols[0], cols[1], cols[2], placed, got[0], got[1], got[2], erow - 1);
     check("piazzo note sulla griglia col pulsante centrale", placed == 3, d);
 
     // 0) Filter FIRST (clean graph, nothing else ringing): a bright source (closed
@@ -514,6 +545,268 @@ static int run_demotest() {
     return (bad == 0) ? 0 : 2;
 }
 
+#ifdef EMU_TARGET_TOERN
+// ---------------------------------------------------------------------------
+// --hwtest: drive the emulated BOARD like a person would and check that it behaves
+// like the hardware drivers: boot, OLED HUD text, E1..E4 direction, the three tact
+// switches, the sequencer tempo (timer thread), audio-memory headroom, the GPIO
+// pull-up model, drag-and-drop import and a LINE IN recording, all on a throw-away
+// copy of the SD card. Prints PASS/FAIL lines; exit code = number of failures.
+// ---------------------------------------------------------------------------
+int  ni404_test_beat();
+int  ni404_test_page();
+int  ni404_test_playing();
+int  ni404_test_bpm();
+int  ni404_test_cursor_x();
+int  ni404_test_cursor_y();
+const char *ni404_test_mode();
+
+// Real time: run loop() as the firmware thread would and keep the audio graph
+// running at the audio clock (128-sample blocks), so timers, debounce, the record
+// queue and the I2C bus time all behave as live.
+static void hw_pump(int ms) {
+    using clk = std::chrono::steady_clock;
+    static float buf[128 * 2];
+    const auto end = clk::now() + std::chrono::milliseconds(ms);
+    static auto audioT = clk::now();
+    if (clk::now() - audioT > std::chrono::milliseconds(50)) audioT = clk::now();
+    while (clk::now() < end) {
+        ni404_loop();
+        while (audioT < clk::now()) {                 // catch the audio clock up
+            ni404_audio_render(buf, 128);
+            audioT += std::chrono::microseconds(2902);
+        }
+        std::this_thread::sleep_for(std::chrono::milliseconds(1));
+    }
+}
+static void hw_tap(int btn, int holdMs) { ni404_host_button_set(btn, true); hw_pump(holdMs); ni404_host_button_set(btn, false); hw_pump(150); }
+static void hw_oled_rows(char rows[4][32]) {
+    static uint8_t fb[128 * 64]; int w = 0, h = 0;
+    std::memset(fb, 0, sizeof fb);
+    ni404_get_oled(fb, sizeof fb, &w, &h);
+    for (int r = 0; r < 4; r++) menu_ocr_oled_row(fb, r * 2, rows[r], 32);
+}
+struct WavInfo { int ch = 0, rate = 0, bits = 0; long frames = 0; double peak = 0; };
+static bool read_wav(const std::string &path, WavInfo &w) {
+    std::ifstream f(path, std::ios::binary);
+    if (!f) return false;
+    std::vector<char> d((std::istreambuf_iterator<char>(f)), std::istreambuf_iterator<char>());
+    if (d.size() < 44 || std::memcmp(d.data(), "RIFF", 4) || std::memcmp(d.data() + 8, "WAVE", 4)) return false;
+    size_t p = 12;
+    while (p + 8 <= d.size()) {
+        uint32_t len; std::memcpy(&len, d.data() + p + 4, 4);
+        if (!std::memcmp(d.data() + p, "fmt ", 4) && p + 24 <= d.size()) {
+            uint16_t c, b; uint32_t r;
+            std::memcpy(&c, d.data() + p + 10, 2); std::memcpy(&r, d.data() + p + 12, 4); std::memcpy(&b, d.data() + p + 22, 2);
+            w.ch = c; w.rate = (int)r; w.bits = b;
+        } else if (!std::memcmp(d.data() + p, "data", 4)) {
+            size_t n = std::min<size_t>(len, d.size() - p - 8);
+            if (w.bits == 16 && w.ch > 0) {
+                w.frames = (long)(n / 2 / w.ch);
+                for (size_t i = 0; i + 1 < n; i += 2) {
+                    int16_t v; std::memcpy(&v, d.data() + p + 8 + i, 2);
+                    w.peak = std::max(w.peak, std::fabs(v / 32768.0));
+                }
+            }
+            return true;
+        }
+        p += 8 + len + (len & 1);
+    }
+    return false;
+}
+// Every .wav on the card with (size, mtime), to see what a gesture created or rewrote.
+static std::map<std::string, std::pair<uintmax_t, long long>> list_wavs(const std::string &root) {
+    namespace fs = std::filesystem; std::error_code ec; std::map<std::string, std::pair<uintmax_t, long long>> v;
+    for (fs::recursive_directory_iterator it(root, ec), e; !ec && it != e; it.increment(ec))
+        if (it->is_regular_file(ec) && it->path().extension() == ".wav")
+            v[fs::relative(it->path(), root, ec).generic_string()] =
+                { it->file_size(ec), (long long)it->last_write_time(ec).time_since_epoch().count() };
+    return v;
+}
+
+static int run_hwtest() {
+    namespace fs = std::filesystem;
+    int fails = 0;
+    auto check = [&](const char *what, bool ok, const std::string &detail) {
+        std::printf("  [%s] %s%s%s\n", ok ? "PASS" : "FAIL", what, detail.empty() ? "" : "  -> ", detail.c_str());
+        if (!ok) fails++;
+    };
+    char d[256];
+    // Throw-away copy of the SD card, so the test never writes into the repo's sdcard/.
+    std::error_code ec;
+    const fs::path sd = fs::temp_directory_path(ec) / ("ichosynth-hwtest-sd-" + std::to_string((long long)std::chrono::steady_clock::now().time_since_epoch().count()));
+    fs::remove_all(sd, ec);
+    fs::copy(ni404_sd_default_root(), sd, fs::copy_options::recursive, ec);
+    { Ni404FwGuard fw; ni404_sd_set_root(sd.string().c_str()); }
+    std::printf("== HWTEST (%s): the emulated board vs the hardware drivers ==\n  SD copy: %s\n", ni404_target_name(), sd.string().c_str());
+
+    // Boot with the slot empty: like the board, TŒRN must wait ("SD?") and carry on
+    // as soon as the card goes in.
+    std::printf("\n* Boot without a micro SD, then insert it:\n");
+    ni404_sd_set_card_present(false);
+    std::atomic<bool> booted{false};
+    std::thread boot([&booted] { ni404_setup(); booted = true; });
+    std::this_thread::sleep_for(std::chrono::milliseconds(2500));
+    const bool waited = !booted.load();
+    ni404_sd_set_card_present(true);
+    for (int i = 0; i < 300 && !booted.load(); i++) std::this_thread::sleep_for(std::chrono::milliseconds(50));
+    if (!booted.load()) {
+        check("setup() continues once the card is inserted", false, "still waiting after 15 s");
+        std::fflush(stdout);
+        std::_Exit(fails);
+    }
+    boot.join();
+    check("without a card setup() waits (TOERN shows SD?); inserting it lets the boot finish", waited, waited ? "waited, then booted" : "did not wait");
+    hw_pump(2500);                                     // boot animation, first HUD rows
+
+    std::printf("\n* Boot + OLED HUD (IchosOled -> I2C -> SSD1306 model):\n");
+    char rows[4][32]; hw_oled_rows(rows);
+    for (int r = 0; r < 4; r++) std::printf("      OLED row %d: '%s'\n", r, rows[r]);
+    std::snprintf(d, sizeof d, "mode=%s", ni404_test_mode());
+    check("boots into DRAW", std::strcmp(ni404_test_mode(), "DRAW") == 0, d);
+    check("HUD row 0 shows the channel and transport", std::strncmp(rows[0], "CH:", 3) == 0 && std::strstr(rows[0], "STOP"), rows[0]);
+    check("HUD row 1 shows the mode", std::strncmp(rows[1], "MODE: DRAW", 10) == 0, rows[1]);
+    check("HUD row 2 shows the BPM", std::strncmp(rows[2], "BPM:", 4) == 0, rows[2]);
+
+    std::printf("\n* Encoders (clockwise = +1 detent on the knob):\n");
+    // Start away from the grid edges, so a step either way is visible.
+    for (int i = 0; i < 20 && ni404_test_cursor_y() != 8; i++) {
+        int y = ni404_test_cursor_y();
+        ni404_host_encoder_add(ENC_LEFT, y < 8 ? -4 : +4); hw_pump(40);
+        if (ni404_test_cursor_y() == y) { ni404_host_encoder_add(ENC_LEFT, y < 8 ? +8 : -8); hw_pump(40); }
+    }
+    for (int i = 0; i < 8 && ni404_test_cursor_x() < 5; i++) { ni404_host_encoder_add(ENC_4TH, +4); hw_pump(40); }
+    for (int e = 0; e < 4; e++) {
+        int x0 = ni404_test_cursor_x(), y0 = ni404_test_cursor_y(), p0 = ni404_test_page();
+        ni404_host_encoder_add(e, +4); hw_pump(60);
+        int x1 = ni404_test_cursor_x(), y1 = ni404_test_cursor_y(), p1 = ni404_test_page();
+        ni404_host_encoder_add(e, -4); hw_pump(60);
+        int x2 = ni404_test_cursor_x(), y2 = ni404_test_cursor_y();
+        std::printf("      E%d CW: x %d->%d  y %d->%d  page %d->%d   (CCW back: x=%d y=%d)\n",
+                    e + 1, x0, x1, y0, y1, p0, p1, x2, y2);
+        if (e == 0) {
+            std::snprintf(d, sizeof d, "y %d -> %d -> %d (clockwise = %s)", y0, y1, y2, y1 < y0 ? "down" : "up");
+            check("E1 moves the cursor row one step per detent and back", std::abs(y1 - y0) == 1 && y2 == y0, d);
+        }
+        if (e == 3) {
+            std::snprintf(d, sizeof d, "x %d -> %d -> %d (clockwise = %s)", x0, x1, x2, x1 > x0 ? "right" : "left");
+            check("E4 moves the cursor column one step per detent and back", std::abs(x1 - x0) == 1 && x2 == x0, d);
+        }
+    }
+
+    std::printf("\n* Tact switches (pins 25/26/28 to GND, INPUT_PULLUP) and encoder pushes:\n");
+    hw_tap(BTN_TOUCH2, 120);                          // B2 = MENU
+    std::string m1 = ni404_test_mode();
+    hw_tap(BTN_TOUCH2, 120);
+    std::string m2 = ni404_test_mode();
+    std::snprintf(d, sizeof d, "DRAW -> %s -> %s", m1.c_str(), m2.c_str());
+    check("B2 (MENU) enters the menu and leaves it", m1 != "DRAW" && m2 == "DRAW", d);
+    hw_tap(BTN_R, 60);                                // E3 push = play/pause
+    int playing = ni404_test_playing();
+    check("E3 push starts the sequencer", playing == 1, playing ? "playing" : "stopped");
+
+    std::printf("\n* Sequencer tempo (IntervalTimer on the timer thread):\n");
+    {
+        // Rate between the first and the last observed step (not over a fixed window,
+        // whose edges would add up to one step of error).
+        using clk = std::chrono::steady_clock;
+        int bpm = ni404_test_bpm(), steps = -1, last = ni404_test_beat();
+        clk::time_point first{}, lastT{};
+        const auto t0 = clk::now();
+        while (clk::now() - t0 < std::chrono::seconds(4)) {
+            hw_pump(1);
+            int b = ni404_test_beat();
+            if (b != last) {
+                const auto now = clk::now();
+                if (steps < 0) { first = now; steps = 0; }
+                else steps += (b > last) ? (b - last) : 1;
+                lastT = now; last = b;
+            }
+        }
+        double secs = steps > 0 ? std::chrono::duration<double>(lastT - first).count() : 1.0;
+        double rate = steps > 0 ? steps / secs : 0.0, want = bpm * 4.0 / 60.0;
+        std::snprintf(d, sizeof d, "%.2f steps/s at %d BPM, expected %.2f (16ths)", rate, bpm, want);
+        check("steps advance at the BPM rate (within 3%)", std::fabs(rate - want) <= want * 0.03, d);
+        hw_pump(300);
+        char r0[4][32]; hw_oled_rows(r0);
+        check("HUD shows >PLAY while playing", std::strstr(r0[0], ">PLAY") != nullptr, r0[0]);
+    }
+    hw_tap(BTN_R, 60);
+    check("E3 push stops it again", ni404_test_playing() == 0, "");
+
+    std::printf("\n* Audio memory (AudioMemory(n) is a hard cap, as on the Teensy):\n");
+    std::snprintf(d, sizeof d, "max %u of %u blocks in use, %u failed allocations, CPU max %.1f%%",
+                  AudioMemoryUsageMax(), audio_memory_total(), audio_alloc_failures(), AudioProcessorUsageMax());
+    check("the graph never ran out of blocks", audio_memory_total() > 0 && audio_alloc_failures() == 0, d);
+
+    std::printf("\n* GPIO model (a PULLDOWN mistake must be visible):\n");
+    {
+        const uint8_t pin = 26;                        // B2
+        pinMode(pin, 3 /*INPUT_PULLDOWN*/);
+        int pd = digitalRead(pin);
+        pinMode(pin, 2 /*INPUT_PULLUP*/);
+        int pu = digitalRead(pin);
+        ni404_host_button_set(BTN_TOUCH2, true); int pressed = digitalRead(pin); ni404_host_button_set(BTN_TOUCH2, false);
+        std::snprintf(d, sizeof d, "released: PULLDOWN=%s PULLUP=%s, pressed=%s", pd ? "HIGH" : "LOW", pu ? "HIGH" : "LOW", pressed ? "HIGH" : "LOW");
+        check("button pin reads like the circuit (PULLDOWN looks pressed)", pd == 0 && pu == 1 && pressed == 0, d);
+    }
+
+    std::printf("\n* Drag-and-drop import (48 kHz stereo WAV -> SD):\n");
+    {
+        fs::path src = fs::temp_directory_path(ec) / "Hw Test Tone.wav";
+        { std::ofstream o(src, std::ios::binary);
+          const uint32_t rate = 48000, frames = 24000; const uint16_t ch = 2, bits = 16;
+          uint32_t dataBytes = frames * ch * 2, v32; uint16_t v16;
+          o.write("RIFF", 4); v32 = 36 + dataBytes; o.write((char *)&v32, 4); o.write("WAVEfmt ", 8);
+          v32 = 16; o.write((char *)&v32, 4); v16 = 1; o.write((char *)&v16, 2); o.write((char *)&ch, 2);
+          o.write((char *)&rate, 4); v32 = rate * ch * 2; o.write((char *)&v32, 4); v16 = ch * 2; o.write((char *)&v16, 2);
+          o.write((char *)&bits, 2); o.write("data", 4); o.write((char *)&dataBytes, 4);
+          for (uint32_t i = 0; i < frames; i++) { int16_t s = (int16_t)(16000 * std::sin(6.2831853 * 440.0 * i / rate)); o.write((char *)&s, 2); o.write((char *)&s, 2); } }
+        const char *res = nullptr;
+        { Ni404FwGuard fw; res = ni404_import_sample(src.string().c_str()); }
+        fs::path out = sd / "samples" / "import" / "hw-test-tone.wav";
+        WavInfo w; bool ok = read_wav(out.string(), w);
+        std::snprintf(d, sizeof d, "'%s' -> %s: %d ch, %d Hz, %d bit, %.2f s", res, ok ? "samples/import/hw-test-tone.wav" : "(missing)",
+                      w.ch, w.rate, w.bits, w.rate ? (double)w.frames / w.rate : 0.0);
+        check("lands in samples/import/ as mono 16-bit 44.1 kHz", ok && w.ch == 1 && w.rate == 44100 && w.bits == 16
+              && std::fabs((double)w.frames / 44100.0 - 0.5) < 0.01, d);
+        fs::remove(src, ec);
+    }
+
+    std::printf("\n* Recording (a 440 Hz tone on the codec input, hold B3 in DRAW):\n");
+    {
+        std::printf("      record input selected by the firmware: %s\n", ni404_test_rec_input());
+        ni404_capture_test_tone(440.0f);
+        for (int i = 0; i < 16 && ni404_test_cursor_y() < 3; i++) { ni404_host_encoder_add(ENC_LEFT, +4); hw_pump(40); }
+        for (int i = 0; i < 16 && ni404_test_cursor_y() < 3; i++) { ni404_host_encoder_add(ENC_LEFT, -4); hw_pump(40); }
+        auto before = list_wavs(sd.string());
+        ni404_host_button_set(BTN_TOUCH3, true);
+        int sawRec = 0;
+        for (int t = 0; t < 30; t++) { hw_pump(50); if (ni404_test_recording()) sawRec = 1; }
+        ni404_host_button_set(BTN_TOUCH3, false);
+        hw_pump(1500);
+        ni404_capture_test_tone(0.0f);
+        auto after = list_wavs(sd.string());
+        std::vector<std::string> added;
+        for (auto &f : after) { auto b = before.find(f.first); if (b == before.end() || b->second != f.second) added.push_back(f.first); }
+        std::printf("      cursor y=%d, recording seen=%d, files written: %d\n", ni404_test_cursor_y(), sawRec, (int)added.size());
+        bool good = false;
+        for (auto &f : added) {
+            WavInfo w; bool ok = read_wav((sd / f).string(), w);
+            std::printf("      + %s: %d ch, %d Hz, %d bit, %.2f s, peak %.2f\n", f.c_str(), w.ch, w.rate, w.bits,
+                        w.rate ? (double)w.frames / w.rate : 0.0, w.peak);
+            if (ok && w.ch == 1 && w.bits == 16 && w.frames > 0 && w.peak > 0.05) good = true;
+        }
+        check("the take is saved on the SD with the tone in it", good, added.empty() ? "no .wav written on the SD" : added[0]);
+    }
+
+    std::printf("\n== HWTEST: %s (%d failed) ==\n", fails ? "FAILURES" : "ALL PASS", fails);
+    ni404_timers_stop();
+    fs::remove_all(sd, ec);
+    return fails;
+}
+#endif
+
 int main(int argc, char **argv) {
     SDL_SetMainReady();
 #ifdef _WIN32
@@ -529,25 +822,42 @@ int main(int argc, char **argv) {
         }
     }
 #endif
-    // Tell the SD shim where we live, so a distributed binary finds sdcard next
-    // to it (the compile-time path points at the build machine).
-    { std::string a0 = (argc > 0 && argv[0]) ? argv[0] : "";
-      size_t sl = a0.find_last_of("/\\");
-      ni404_set_base_dir(sl == std::string::npos ? "." : a0.substr(0, sl).c_str()); }
+    // Tell the SD shim / runtime files where we live, so a distributed binary finds
+    // sdcard next to it and keeps its settings there (the compile-time path points at
+    // the build machine). SDL_GetBasePath works however the exe was started.
+    if (char *bp = SDL_GetBasePath()) { ni404_set_base_dir(bp); SDL_free(bp); }
+    else { std::string a0 = (argc > 0 && argv[0]) ? argv[0] : "";
+           size_t sl = a0.find_last_of("/\\");
+           ni404_set_base_dir(sl == std::string::npos ? "." : a0.substr(0, sl).c_str()); }
+    for (int i = 1; i < argc; i++)
+        if (std::strcmp(argv[i], "--no-sd") == 0) { ni404_sd_set_card_present(false); std::printf("[sd] --no-sd: the card slot is empty\n"); }
 
     int midiDev = 0;
     bool demo = false;
+    const char *shotPath = nullptr;
+    Uint32 shotMs = 4000;
     for (int i = 1; i < argc; i++) {
         if (std::strcmp(argv[i], "--selftest") == 0) return run_selftest();
         if (std::strcmp(argv[i], "--verify") == 0) return run_verify();
         if (std::strcmp(argv[i], "--demotest") == 0) return run_demotest();
         if (std::strcmp(argv[i], "--play") == 0) return run_play();
+#ifdef EMU_TARGET_TOERN
+        if (std::strcmp(argv[i], "--hwtest") == 0) return run_hwtest();
+#else
+        if (std::strcmp(argv[i], "--hwtest") == 0) { std::printf("--hwtest checks the real board: run it on toernemu\n"); return 2; }
+#endif
         if (std::strcmp(argv[i], "--import") == 0 && i + 1 < argc) {
             ni404_setup();
             std::printf("[import] %s\n", ni404_import_sample(argv[++i]));
             return 0;
         }
         if (std::strcmp(argv[i], "--demo") == 0) demo = true;
+        // --screenshot FILE.bmp [MS]: save the window contents MS ms after it opened
+        // (default 4000) and quit - a check of the real windowed path (renderer, audio, firmware thread).
+        if (std::strcmp(argv[i], "--screenshot") == 0 && i + 1 < argc) {
+            shotPath = argv[++i];
+            if (i + 1 < argc && argv[i + 1][0] != '-') shotMs = (Uint32)std::atoi(argv[++i]);
+        }
         if (std::strcmp(argv[i], "--midi") == 0 && i + 1 < argc) midiDev = std::atoi(argv[++i]);
     }
 
@@ -556,7 +866,12 @@ int main(int argc, char **argv) {
         return 1;
     }
 
-    SDL_Window *win = SDL_CreateWindow("NI404 emulator",
+#ifdef EMU_TARGET_TOERN
+    const char *title = "ichosynth emulator - TŒRN firmware (toernemu)";
+#else
+    const char *title = "ichosynth emulator - NI404 bench firmware (ni404emu)";
+#endif
+    SDL_Window *win = SDL_CreateWindow(title,
         SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, WIN_W, WIN_H, SDL_WINDOW_SHOWN);
     SDL_Renderer *ren = SDL_CreateRenderer(win, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
     if (!ren) ren = SDL_CreateRenderer(win, -1, SDL_RENDERER_SOFTWARE);  // fall back to software
@@ -566,32 +881,54 @@ int main(int argc, char **argv) {
         return 1;
     }
 
-    // Audio device + settings are owned by the menu (TAB to change devices/volume).
+    // Settings + device lists are owned by the menu (TAB to change devices/volume).
+    // As on the Teensy, audio starts only once setup() has run (AudioMemory, graph).
     menu_init(audio_cb);
-
-    ni404_setup();
-    if (demo) ni404_demo();          // load kit + paint a beat + start playing
     open_midi(midiDev);
     build_widgets();
 
+    // The firmware thread runs setup() and then loop() flat out (as on the device, where
+    // nothing waits for the display), ~1 kHz with a 1 ms nap so the PC stays usable.
+    // The window is live from the start, so whatever setup() draws (boot animation,
+    // TŒRN's "SD?" while it waits for a card) is visible; audio starts once setup() is
+    // done, as on the Teensy.
+    std::atomic<bool> fwRun{true}, setupDone{false};
+    ni404_fw_set_in_setup(true);
+    std::thread fwThread([&fwRun, &setupDone, demo] {
+        const Uint32 t0 = SDL_GetTicks();
+        ni404_setup();
+        if (demo) ni404_demo();          // load kit + paint a beat + start playing
+        std::printf("[emu] setup() took %u ms\n", (unsigned)(SDL_GetTicks() - t0));
+        ni404_fw_set_in_setup(false);
+        setupDone = true;
+        while (fwRun.load()) {
+            { Ni404FwGuard fw; ni404_loop(); }
+            std::this_thread::sleep_for(std::chrono::milliseconds(1));
+        }
+    });
+    bool audioStarted = false;
+
     std::printf(
-        "\n== Emulatore NI404/toern - comandi ==\n"
-        "  A schermo (mouse o touch): le 4 manopole (- / premi / +) e i pulsanti.\n"
-        "  Tastiera - Encoder (ruota -/+):  Q/A  W/S  E/D  R/F   Premi: Z X C V\n"
-        "  Filtro = 4o encoder (R/F)     Pulsanti: 1=PLAY 2=MENU 3=REC\n"
-        "  TAB = menu impostazioni (audio, volume, MIDI)   Esci: Esc\n"
-        "  Trascina un file .wav nella finestra per caricarlo come campione.\n\n");
+        "\n== Emulatore ichosynth (%s) - comandi ==\n"
+        "  A schermo (mouse o touch): le 4 manopole E1-E4 (bordo = ruota, centro = premi) e i 3 pulsanti.\n"
+        "  Tastiera - Encoder E1..E4 (ruota -/+):  Q/A  W/S  E/D  R/F   Premi: Z X C V\n"
+        "  Pulsanti B1/B2/B3: 1 2 3   TAB = menu impostazioni   Esci: Esc\n"
+        "  Trascina un file audio nella finestra per importarlo sulla SD; una cartella = nuova SD.\n\n",
+        ni404_target_name());
 
     CRGB frame[GRID * GRID];
     bool running = true;
+    const Uint32 loopT0 = SDL_GetTicks();
     while (running) {
         SDL_Event e;
         while (SDL_PollEvent(&e)) {
             if (e.type == SDL_QUIT) { running = false; continue; }
-            if (e.type == SDL_DROPFILE) {          // drop a file = import sample; folder = set SD
+            if (e.type == SDL_DROPFILE) {          // drop a file = import sample; folder = insert/set SD
                 const char *path = e.drop.file;
                 std::error_code ec;
+                Ni404FwGuard fw;                   // loop() runs on the firmware thread
                 if (std::filesystem::is_directory(path, ec)) {
+                    ni404_sd_set_card_present(true);   // a folder dropped = a card inserted
                     const char *res = ni404_sd_set_root(path) ? "SD: cartella impostata" : "Cartella SD non valida";
                     std::printf("[sd] %s: %s\n", res, path);
                     menu_toast(res);
@@ -630,7 +967,7 @@ int main(int argc, char **argv) {
             }
         }
 
-        ni404_loop();
+        if (!audioStarted && setupDone.load()) { menu_start_audio(); audioStarted = true; }
 
         // Render the LED frame.
         int n = 0;
@@ -676,9 +1013,33 @@ int main(int argc, char **argv) {
         }
         render_controls(ren);             // on-screen encoders + buttons (mouse/touch)
         menu_render(ren, WIN_W, WIN_H);   // settings overlay (TAB)
+        if (shotPath && SDL_GetTicks() - loopT0 >= shotMs) { // --screenshot
+            SDL_Surface *sf = SDL_CreateRGBSurfaceWithFormat(0, WIN_W, WIN_H, 32, SDL_PIXELFORMAT_ARGB8888);
+            if (sf && SDL_RenderReadPixels(ren, nullptr, SDL_PIXELFORMAT_ARGB8888, sf->pixels, sf->pitch) == 0
+                && SDL_SaveBMP(sf, shotPath) == 0)
+                std::printf("[screenshot] %s\n", shotPath);
+            else
+                std::printf("[screenshot] failed: %s\n", SDL_GetError());
+            if (sf) SDL_FreeSurface(sf);
+            running = false;
+        }
         SDL_RenderPresent(ren);
     }
 
+    fwRun = false;
+    if (!setupDone.load()) {
+        // setup() never returned (e.g. TŒRN still waiting on "SD?"): it cannot be
+        // joined, so close the devices and leave without running static destructors.
+        ni404_midi_close();
+        menu_shutdown();
+        SDL_DestroyRenderer(ren);
+        SDL_DestroyWindow(win);
+        SDL_Quit();
+        std::fflush(stdout);
+        std::_Exit(0);
+    }
+    fwThread.join();
+    ni404_timers_stop();
     ni404_midi_close();
     menu_shutdown();
     SDL_DestroyRenderer(ren);

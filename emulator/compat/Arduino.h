@@ -33,7 +33,7 @@
 #define F(s) (s)
 typedef const char *__FlashStringHelper_ptr;
 
-// ---- Basic Arduino constants / GPIO (stubbed — no real pins) --------------
+// ---- Basic Arduino constants / GPIO (modelled — see host_io.cpp) ----------
 #define HIGH 0x1
 #define LOW  0x0
 #define INPUT          0x0
@@ -56,19 +56,29 @@ enum {
 typedef uint8_t byte;
 typedef bool boolean;
 
-inline void pinMode(uint8_t, uint8_t) {}
-inline void digitalWrite(uint8_t, uint8_t) {}
-inline int  digitalRead(uint8_t) { return LOW; }
+// GPIO is modelled, not stubbed (host_io.cpp): every pin remembers its mode, and the
+// emulator's virtual wiring (ni404_host.h: ni404_wire_*) connects the on-screen
+// encoders/buttons to the same pins as the real board. A push button closes its pin to
+// GND, so digitalRead() gives what the hardware would: LOW while pressed; while
+// released HIGH with INPUT_PULLUP, LOW with INPUT_PULLDOWN (the "always pressed" bug a
+// touch-pad pinMode causes on a button), and noise on an INPUT pin with no pull.
+void pinMode(uint8_t pin, uint8_t mode);
+void digitalWrite(uint8_t pin, uint8_t val);
+int  digitalRead(uint8_t pin);
 inline int  analogRead(uint8_t) { return 0; }
 inline void analogWrite(uint8_t, int) {}
 inline void analogReadResolution(unsigned) {}
 inline void attachInterrupt(uint8_t, void (*)(), int) {}
 inline void detachInterrupt(uint8_t) {}
 inline uint8_t digitalPinToInterrupt(uint8_t p) { return p; }
-inline void interrupts() {}
-inline void noInterrupts() {}
-inline void __disable_irq() {}
-inline void __enable_irq() {}
+// noInterrupts()/interrupts() are real: they hold the emulator's "interrupt lock"
+// (host_io.cpp), the one IntervalTimer callbacks and the audio update run under, so a
+// critical section in loop() is not preempted by the sequencer timer, as on the Teensy.
+// Like the hardware they do not nest: one interrupts() re-enables.
+void interrupts();
+void noInterrupts();
+inline void __disable_irq() { noInterrupts(); }
+inline void __enable_irq() { interrupts(); }
 
 // Teensy NVIC / interrupt-priority helpers — no-ops on desktop.
 #define IRQ_SOFTWARE 0
@@ -363,5 +373,7 @@ extern HardwareSerial Serial1, Serial2, Serial3, Serial4, Serial5, Serial6, Seri
 #include "elapsedMillis.h"
 #include "IntervalTimer.h"
 #include "usb_midi.h"
+// The Teensy core's Arduino.h also brings in avr/pgmspace.h (pgm_read_byte, ...).
+#include "pgmspace.h"
 
 #endif // NI404_COMPAT_ARDUINO_H

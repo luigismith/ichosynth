@@ -5,9 +5,12 @@
 #define NI404_MENU_H
 
 #include <SDL.h>
+#include <cstdint>
 
-// Open the audio device per saved settings; cb is the audio render callback.
+// Load the saved settings and enumerate devices; cb is the audio render callback.
+// Does NOT start audio: call menu_start_audio() once the firmware's setup() ran.
 void menu_init(SDL_AudioCallback cb);
+void menu_start_audio();
 void menu_shutdown();
 
 // Handle an SDL event. Returns true if the menu consumed it (so the caller should
@@ -27,5 +30,8 @@ void menu_toast(const char *msg);
 // frontend can label the on-screen controls without including Adafruit_GFX.h
 // (which would drag Arduino.h's macros into a TU that also needs windows.h).
 void emu_draw_text(SDL_Renderer *r, int x, int y, const char *t, int s);
+
+// Read text row `page` (0..7) of a 128x64 OLED image back as a string (headless tests).
+int menu_ocr_oled_row(const uint8_t *fb, int page, char *out, int outlen);
 
 #endif // NI404_MENU_H

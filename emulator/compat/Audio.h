@@ -5,11 +5,19 @@
 //   AudioMixer4, AudioOutputI2S (ring-buffer sink) and AudioControlSGTL5000.
 //
 // The graph is *pull-driven by the audio callback*: the SDL callback runs
-// audio_update_all() (one 128-sample tick of every node, in creation order)
-// until enough output frames are queued. Param changes from the main thread are
-// serialised against ticks by AudioNoInterrupts()/AudioInterrupts() (a global
-// recursive mutex), which the firmware already brackets its critical sections
-// with.  See audio_engine.cpp for the pool, registry iteration and ring buffer.
+// audio_update_all() (one 128-sample tick of every connected node, in creation
+// order, like the Teensy's update list) until enough output frames are queued. The
+// tick runs under the emulator's interrupt lock (emu_irq.h), which
+// AudioNoInterrupts()/AudioInterrupts() and noInterrupts() also take, so the
+// firmware's critical sections work as on the device. See audio_engine.cpp for the
+// pool, registry iteration and ring buffer.
+//
+// Teensy semantics reproduced on purpose (tests must fail here when they would on
+// the board): the block pool holds exactly what AudioMemory(n) asked for, and
+// allocate() returns NULL when it is exhausted; AudioMemoryUsage()/Max() report the
+// real count; transmit() leaves a destination input alone if a block is still
+// queued there (the new one is dropped); the filter/envelope nodes follow the
+// Teensy Audio Library algorithms (outputs, defaults, state machine).
 #ifndef NI404_COMPAT_AUDIO_H
 #define NI404_COMPAT_AUDIO_H
 
@@ -41,15 +49,20 @@ struct audio_block_t {
 // ---- block pool (defined in audio_engine.cpp) -----------------------------
 audio_block_t *allocate(void);
 void           release(audio_block_t *block);
-void           transmit_init();
+// AudioMemory(n): make n blocks available. Idempotent: calling it again with the
+// same or a smaller n changes nothing (blocks already queued stay valid); a larger n
+// adds blocks. Storage is static, so a block pointer never moves.
 void           audio_memory_init(unsigned n);
 #define AudioMemory(n) audio_memory_init(n)
-#define AudioMemoryUsage() (0)
-#define AudioMemoryUsageMax() (0)
-inline void AudioMemoryUsageMaxReset() {}
-#define AudioProcessorUsage() (0.0f)
-#define AudioProcessorUsageMax() (0.0f)
-inline void AudioProcessorUsageMaxReset() {}
+unsigned AudioMemoryUsage();
+unsigned AudioMemoryUsageMax();
+void     AudioMemoryUsageMaxReset();
+unsigned audio_memory_total();      // blocks AudioMemory() made available
+unsigned audio_alloc_failures();    // allocate() calls that found the pool empty
+// Share of real time the graph update takes (percent of one 128-sample block).
+float AudioProcessorUsage();
+float AudioProcessorUsageMax();
+void  AudioProcessorUsageMaxReset();
 
 // ---- interrupt guard: a global recursive mutex (audio_engine.cpp) ---------
 void AudioNoInterrupts();
@@ -91,6 +104,7 @@ public:
     unsigned char num_inputs;
     audio_block_t **inputQueue;
     AudioConnection *destination_list;  // outgoing connections
+    bool active = false;                 // Teensy: only connected nodes are updated
 
 protected:
     audio_block_t *allocate(void) { return ::allocate(); }
@@ -160,57 +174,75 @@ private:
 };
 
 // ===========================================================================
-// ADSR envelope (linear segments; sustain is a 0..1 level)
+// DAHDSR envelope — the Teensy Audio Library's effect_envelope, same state machine:
+// delay, attack, hold, decay, sustain, release, plus the forced fast release when
+// noteOn() retriggers an active note (releaseNoteOn, 5 ms). Times are counted in
+// 8-sample steps like the original, with its defaults (attack 10.5 ms, hold 2.5 ms,
+// decay 35 ms, sustain 0.5, release 300 ms). IDLE transmits nothing; with no input
+// block the envelope does not advance (it only runs when audio arrives).
 // ===========================================================================
 class AudioEffectEnvelope : public AudioStream {
 public:
-    AudioEffectEnvelope() : AudioStream(1, inputQueueArray) { release(5.0f); }
-    void attack(float ms)  { attack_ms = ms; }
-    void hold(float ms)    { hold_ms = ms; }
-    void decay(float ms)   { decay_ms = ms; }
-    void sustain(float lv) { if (lv < 0) lv = 0; else if (lv > 1) lv = 1; sustain_level = lv; }
-    void release(float ms) { release_ms = ms; }
+    AudioEffectEnvelope() : AudioStream(1, inputQueueArray) {
+        delay(0.0f); attack(10.5f); hold(2.5f); decay(35.0f); sustain(0.5f);
+        release(300.0f); releaseNoteOn(5.0f);
+    }
+    void delay(float ms)   { delay_count = ms2count(ms); }
+    void attack(float ms)  { attack_count = ms2count(ms); if (!attack_count) attack_count = 1; }
+    void hold(float ms)    { hold_count = ms2count(ms); }
+    void decay(float ms)   { decay_count = ms2count(ms); if (!decay_count) decay_count = 1; }
+    void sustain(float lv) { if (lv < 0) lv = 0; else if (lv > 1) lv = 1; sustain_mult = lv; }
+    void release(float ms) { release_count = ms2count(ms); if (!release_count) release_count = 1; }
+    void releaseNoteOn(float ms) { release_forced_count = ms2count(ms); if (!release_forced_count) release_forced_count = 1; }
     void noteOn();
     void noteOff();
-    bool isActive() { return state != 0; }
-    bool isSustain() { return state == 4; }
+    bool isActive();
+    bool isSustain();
     void update(void) override;
 private:
     audio_block_t *inputQueueArray[1];
-    enum { IDLE = 0, ATTACK = 1, HOLD = 5, DECAY = 2, SUSTAIN = 4, RELEASE = 3, FORCED = 6 };
-    int   state = IDLE;
-    float attack_ms = 10.5f, hold_ms = 0, decay_ms = 35, sustain_level = 0.5f, release_ms = 5;
-    float mult = 0;       // current gain
-    float inc = 0;        // per-sample increment
-    int   count = 0;      // samples left in current segment
-    int msToSamples(float ms) { return (int)(ms * (AUDIO_SAMPLE_RATE / 1000.0f)); }
-    void  startSegmentTo(float target, float ms);
+    enum { IDLE = 0, DELAY, ATTACK, HOLD, DECAY, SUSTAIN, RELEASE, FORCED };
+    int      state = IDLE;
+    float    mult = 0, inc = 0;     // gain 0..1 and its change per 8-sample step
+    uint32_t count = 0;              // 8-sample steps left in the current segment
+    uint32_t delay_count = 0, attack_count = 1, hold_count = 0, decay_count = 1;
+    uint32_t release_count = 1, release_forced_count = 1;
+    float    sustain_mult = 0.5f;
+    static uint32_t ms2count(float ms) {
+        if (ms < 0) ms = 0;
+        uint32_t c = ((uint32_t)(ms * (AUDIO_SAMPLE_RATE_EXACT / 1000.0f)) + 7) >> 3;
+        return c > 65535 ? 65535 : c;
+    }
 };
 
 // ===========================================================================
-// State-variable filter (Chamberlin), outputs: 0=LP 1=BP 2=HP
-// input 0 = signal, input 1 = optional frequency control (ignored if absent)
+// State-variable filter — the Teensy Audio Library's filter_variable: a Chamberlin
+// SVF run twice per sample (2x oversampled, input interpolated on the first pass),
+// outputs 0 = lowpass, 1 = bandpass, 2 = highpass. Input 1 is the optional frequency
+// control: when connected, the corner is fc * 2^(octaveControl * signal) per sample.
+// frequency() is limited to 20 Hz .. fs/2.5, resonance() (Q) to 0.7 .. 5.
 // ===========================================================================
 class AudioFilterStateVariable : public AudioStream {
 public:
-    AudioFilterStateVariable() : AudioStream(2, inputQueueArray) { frequency(1000); resonance(0.707f); }
+    AudioFilterStateVariable() : AudioStream(2, inputQueueArray) { frequency(1000); octaveControl(1.0f); resonance(0.707f); }
     void frequency(float f) {
-        // Cap well below Nyquist: the oversampled Chamberlin SVF goes unstable as
-        // cutoff*resonance grows, so keep cutoff <= ~Fs/2.4 where it stays stable
-        // even at max resonance.
-        if (f < 20) f = 20; else if (f > AUDIO_SAMPLE_RATE * 0.42f) f = AUDIO_SAMPLE_RATE * 0.42f;
+        if (f < 20.0f) f = 20.0f;
+        else if (f > AUDIO_SAMPLE_RATE_EXACT / 2.5f) f = AUDIO_SAMPLE_RATE_EXACT / 2.5f;
         fc = f;
     }
     void resonance(float q) {
         if (q < 0.7f) q = 0.7f; else if (q > 5.0f) q = 5.0f;
         damp = 1.0f / q;
     }
-    void octaveControl(float n) { octave = n; }
+    void octaveControl(float n) {
+        if (n < 0.0f) n = 0.0f; else if (n > 6.9999f) n = 6.9999f;
+        octave = n;
+    }
     void update(void) override;
 private:
     audio_block_t *inputQueueArray[2];
-    float fc = 1000, damp = 0.707f, octave = 1.0f;
-    float lp = 0, bp = 0;  // state
+    float fc = 1000, damp = 1.0f / 0.707f, octave = 1.0f;
+    float lowpass = 0, bandpass = 0, inputprev = 0;  // state (int16 units)
 };
 
 // ===========================================================================

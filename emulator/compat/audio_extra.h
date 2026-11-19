@@ -1,13 +1,15 @@
 // audio_extra.h — additional Teensy Audio Library nodes used by the TŒRN
 // firmware (beyond the NI404 set in Audio.h): Amplifier, Bitcrusher, WaveformDc,
-// AnalyzePeak, FilterLadder (Moog-style), plus I/O nodes (InputI2S, RecordQueue,
-// PlaySdWav, Granular) that are stubbed for the standalone desktop build.
+// AnalyzePeak, FilterLadder (Moog-style), the I/O nodes InputI2S + RecordQueue (fed
+// by the host capture device), and PlaySdWav / Granular, which are still stubs.
 // Included at the end of Audio.h.
 #ifndef NI404_COMPAT_AUDIO_EXTRA_H
 #define NI404_COMPAT_AUDIO_EXTRA_H
 
 #include <cmath>
 #include <cstring>
+#include <atomic>
+#include "emu_irq.h"
 #include "audio_capture.h"   // host audio-input backend for AudioRecordQueue
 
 // ---- AudioAmplifier: simple gain -----------------------------------------
@@ -110,31 +112,41 @@ private:
 };
 
 // ---- AudioFilterLadder: 4-pole Moog-style ladder (lowpass out) ------------
+// Inputs as the Teensy node: 0 = audio, 1 = frequency control (the corner moves
+// by octaveControl() octaves per full-scale signal: fc * 2^(octaves * ctl)),
+// 2 = resonance control (added to resonance()). TŒRN drives input 1 with its
+// filter envelopes (Sladder*_*), so the modulation must be real.
 class AudioFilterLadder : public AudioStream {
 public:
-    AudioFilterLadder() : AudioStream(2, inputQueueArray) {}
+    AudioFilterLadder() : AudioStream(3, inputQueueArray) {}
     void frequency(float hz) {
-        if (hz < 1) hz = 1; if (hz > AUDIO_SAMPLE_RATE * 0.49f) hz = AUDIO_SAMPLE_RATE * 0.49f;
+        if (hz < 1) hz = 1; if (hz > AUDIO_SAMPLE_RATE * 0.45f) hz = AUDIO_SAMPLE_RATE * 0.45f;
         fc = hz;
     }
     void resonance(float r) { if (r < 0) r = 0; if (r > 1.8f) r = 1.8f; res = r; }
-    void octaveControl(float n) { octave = n; }
+    void octaveControl(float n) { if (n < 0) n = 0; if (n > 7.0f) n = 7.0f; octave = n; }
     void inputDrive(float d) { drive = d < 0 ? 0 : d; }
     void passbandGain(float) {}
     void update(void) override {
         audio_block_t *in = receiveReadOnly(0);
         audio_block_t *fcmod = receiveReadOnly(1);
-        if (fcmod) ::release(fcmod);
-        if (!in) return;
+        audio_block_t *qmod = receiveReadOnly(2);
+        if (!in) { if (fcmod) ::release(fcmod); if (qmod) ::release(qmod); return; }
         audio_block_t *out = allocate();
-        if (!out) { ::release(in); return; }
-        // Linear 4-pole (24 dB/oct) Moog-style ladder. Using linear one-pole
-        // stages (not tanh-per-stage) gives the proper steep rolloff; resonance
-        // feeds the 4th stage back to the input. tanh only on the feedback keeps
-        // it from blowing up at high resonance, and a state clamp is the backstop.
-        float g = 1.0f - expf(-2.0f * 3.14159265f * fc / AUDIO_SAMPLE_RATE);
-        float k = 4.0f * res;  // ~4 = self-oscillation threshold
+        if (!out) { ::release(in); if (fcmod) ::release(fcmod); if (qmod) ::release(qmod); return; }
+        // Linear 4-pole (24 dB/oct) ladder; resonance feeds the 4th stage back to the
+        // input through tanh so it cannot blow up; a state clamp is the backstop.
+        const float w = 2.0f * 3.14159265f / AUDIO_SAMPLE_RATE;
+        float g = 1.0f - expf(-w * fc);
         for (int i = 0; i < AUDIO_BLOCK_SAMPLES; i++) {
+            if (fcmod) {
+                float f = fc * exp2f(octave * (fcmod->data[i] * (1.0f / 32768.0f)));
+                if (f > AUDIO_SAMPLE_RATE * 0.45f) f = AUDIO_SAMPLE_RATE * 0.45f;
+                g = 1.0f - expf(-w * f);
+            }
+            float r = res + (qmod ? qmod->data[i] * (1.0f / 32768.0f) : 0.0f);
+            if (r < 0) r = 0; else if (r > 1.8f) r = 1.8f;
+            const float k = 4.0f * r;  // ~4 = self-oscillation threshold
             float x = (in->data[i] * (1.0f / 32768.0f)) * (drive > 0 ? drive : 1.0f);
             float input = x - k * tanhf(s4);
             s1 += g * (input - s1);
@@ -146,39 +158,86 @@ public:
             out->data[i] = v > 32767 ? 32767 : (v < -32768 ? -32768 : (int16_t)v);
         }
         ::release(in);
+        if (fcmod) ::release(fcmod);
+        if (qmod) ::release(qmod);
         transmit(out);
         ::release(out);
     }
 private:
-    audio_block_t *inputQueueArray[2];
+    audio_block_t *inputQueueArray[3];
     float fc = 1000, res = 0, octave = 1, drive = 1;
     float s1 = 0, s2 = 0, s3 = 0, s4 = 0;
 };
 
-// ---- I/O nodes: stubbed for the standalone desktop build ------------------
-// AudioInputI2S: hardware audio-in. No capture device wired -> silence.
+// ---- I/O nodes ---------------------------------------------------------------
+// AudioInputI2S: the codec's ADC. Like the hardware it transmits a left and a right
+// block every update; the samples come from the host capture device while one is
+// open (src/audio_capture.cpp, resampled to 44.1 kHz), silence otherwise.
 class AudioInputI2S : public AudioStream {
 public:
     AudioInputI2S() : AudioStream(0, nullptr) {}
-    void update(void) override {}   // transmit nothing -> downstream silent
+    void update(void) override {
+        audio_block_t *l = allocate();
+        if (!l) return;
+        audio_block_t *r = allocate();
+        if (!r) { ::release(l); return; }
+        ni404_capture_pull(l->data, AUDIO_BLOCK_SAMPLES);
+        std::memcpy(r->data, l->data, sizeof(r->data));       // mono source on both channels
+        transmit(l, 0); ::release(l);
+        transmit(r, 1); ::release(r);
+    }
 };
 
-// AudioRecordQueue: fed by the host capture backend (selected input device), so
-// the firmware's recording path gets real audio in the emulator.
+// AudioRecordQueue: the Teensy record_queue — it buffers up to 53 blocks of its graph
+// input (here: TŒRN's audioInput -> audioInputAmp chain) between begin() and end().
+// readBuffer() lends the oldest one, freeBuffer() returns it to the pool; when full,
+// new blocks are dropped. begin() also asks the host to open the capture device.
 class AudioRecordQueue : public AudioStream {
 public:
     AudioRecordQueue() : AudioStream(1, inputQueueArray) {}
-    void begin() { enabled = true; ni404_capture_start(); }
-    void end() { enabled = false; ni404_capture_stop(); }
-    int available() { return enabled ? ni404_capture_available() : 0; }
-    int16_t *readBuffer() { return (enabled && ni404_capture_read(buf)) ? buf : nullptr; }
-    void freeBuffer() {}
-    void clear() {}
-    void update(void) override { audio_block_t *in = receiveReadOnly(0); if (in) ::release(in); }
+    // begin()/end() may be called repeatedly (TŒRN does): the capture request is held
+    // once per queue, so the input device never stays open after the last end().
+    void begin() { clear(); enabled = true; if (!requested) { requested = true; ni404_capture_request(true); } }
+    void end()   { enabled = false; if (requested) { requested = false; ni404_capture_request(false); } }
+    int available() {
+        const unsigned h = head, t = tail;
+        return (int)(h >= t ? h - t : MAX_BUFFERS + h - t);
+    }
+    int16_t *readBuffer() {
+        if (userblock) return nullptr;
+        unsigned t = tail;
+        if (t == head) return nullptr;
+        if (++t >= MAX_BUFFERS) t = 0;
+        userblock = queue[t];
+        tail = t;
+        return userblock->data;
+    }
+    void freeBuffer() { if (!userblock) return; ::release(userblock); userblock = nullptr; }
+    void clear() {
+        std::lock_guard<std::recursive_mutex> lk(ni404_irq_lock());
+        if (userblock) { ::release(userblock); userblock = nullptr; }
+        unsigned t = tail;
+        while (t != head) { if (++t >= MAX_BUFFERS) t = 0; ::release(queue[t]); }
+        tail = t;
+    }
+    void update(void) override {
+        audio_block_t *b = receiveReadOnly(0);
+        if (!b) return;
+        if (!enabled) { ::release(b); return; }
+        unsigned h = head + 1;
+        if (h >= MAX_BUFFERS) h = 0;
+        if (h == tail) { ::release(b); return; }   // full: drop, as the Teensy does
+        queue[h] = b;
+        head = h;
+    }
 private:
+    static const unsigned MAX_BUFFERS = 53;
     audio_block_t *inputQueueArray[1];
-    bool enabled = false;
-    int16_t buf[128];
+    audio_block_t *queue[MAX_BUFFERS] = {};
+    audio_block_t *userblock = nullptr;
+    std::atomic<unsigned> head{0}, tail{0};
+    std::atomic<bool> enabled{false};
+    bool requested = false;
 };
 
 // AudioPlaySdWav: minimal stub (the firmware uses one instance; returns silence

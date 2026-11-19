@@ -5,13 +5,15 @@ Strategy: **reuse a real firmware** unchanged and provide a desktop compatibilit
 layer that emulates every Teensy/Arduino API it touches, so the sequencer/UI/MIDI/
 sample logic *is* the device's, not a reimplementation.
 
-> **Two firmwares, one emulator.** The default target `ni404emu` runs the
+> **Two firmwares, one emulator.** The target `ni404emu` runs the
 > **hybrid bench firmware** (`../legacy/soundpauli_ni404/soundpauli_ni404.ino`, 2845 lines) — a 4-encoder
 > NI404 fork used to prototype TŒRN-style features on PC. The **physical
 > instrument** ichosynth runs the **real TŒRN firmware** (built with
-> `firmware/build_toern.py`); the emulator runs that same TŒRN source in the
-> reference target `toernemu` (see `STATUS-toern.md`, `EMU_BUILD_TOERN_REF=ON`).
-> The bench remains the fast iteration loop; the Teensy build is the product.
+> `firmware/build_toern.py`); since 2026-11-18 the emulator's main target `toernemu`
+> compiles that same staged + patched sketch with the real drivers (see
+> `STATUS-toern.md`). The bench is kept as a reference; the Teensy build is the product.
+> The diagram below is the bench's original design: EEPROM now lives next to the exe as
+> `ni404emu-eeprom.bin` and the IntervalTimers run on their own thread.
 
 Decisions locked with the user (2026-06-12):
 - Approach: **native C++ port** (max fidelity), not web/python.

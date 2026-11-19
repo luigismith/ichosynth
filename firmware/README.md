@@ -138,6 +138,7 @@ the `REMOVE_*` flags at the top of `build_toern.py`.
 - Upstream TŒRN opens `ERROR.txt` (crash report) with a mode the Teensy SD library
   doesn't accept, so that log is never written — harmless, left as is.
 
-The desktop emulator (`emulator/`, target `toernemu`) already runs all 23k lines of
-TŒRN with host shims that mirror these same drivers — use it to rehearse the control
-mapping before touching hardware.
+The desktop emulator (`emulator/`, target `toernemu`) compiles the very sketch this script
+stages (`build_toern.py --stage-only`) together with these same drivers, on modelled GPIO,
+I2C/SSD1306, SD and audio — use it to rehearse the controls before touching hardware
+(`python emulator/run.py`, or `python emulator/run.py -- --hwtest` for the headless check).

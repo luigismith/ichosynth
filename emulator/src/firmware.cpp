@@ -5,9 +5,9 @@
 // the LED array `leds[]`, the sequencer, modes, MIDI handlers — everything. The
 // compat/ shims satisfy every Teensy/Arduino API it touches.
 //
-// The frontend calls ni404_setup() once and ni404_loop() each frame; we forward
-// to the firmware's setup()/loop() and pump the IntervalTimers (the sequencer
-// clock playTimer + the MIDI-clock timer) which on hardware fire from an ISR.
+// The frontend calls ni404_setup() once and then ni404_loop() continuously (on the
+// firmware thread); we forward to the firmware's setup()/loop(). The IntervalTimers
+// (sequencer playTimer, MIDI clock) run on the emulator's timer thread, as ISRs do.
 #include "ni404_host.h"
 #include "IntervalTimer.h"
 #include "ni404_prototypes.h"   // Arduino-style forward declarations (auto-generated)
@@ -46,7 +46,7 @@ const char *ni404_import_sample(const char *srcPath) {
 
     // Ensure folder 9 exists and find the first free id 901..999.
     std::error_code ec;
-    fs::path dir = fs::path(NI404_SDCARD_PATH) / "9";
+    fs::path dir = fs::path(SD.getRoot()) / "samples" / "9";   // the bench's samples/9/_9NN.wav
     fs::create_directories(dir, ec);
     int id = 0;
     for (int slot = 1; slot <= 99; slot++) {
@@ -165,14 +165,19 @@ int  ni404_test_note_at(int step, int row) {
     return (int)note[step][row][0];
 }
 
+// The bench's board (legacy/soundpauli_ni404/config.h pins), for the virtual wiring.
+// Its buttons are read through the avdweb_Switch shim, so only the encoders matter.
 void ni404_setup() {
+    ni404_wire_encoder(ENC_LEFT,   ENC_LEFT_CLK,  ENC_LEFT_DT);
+    ni404_wire_encoder(ENC_CENTER, ENC_MIDL_CLK,  ENC_MIDL_DT);
+    ni404_wire_encoder(ENC_RIGHT,  ENC_RIGHT_CLK, ENC_RIGHT_DT);
+    ni404_wire_encoder(ENC_4TH,    ENC_MIDR_CLK,  ENC_MIDR_DT);
     setup();
 }
 
-void ni404_loop() {
-    loop();
-    ni404_pump_timers();
-}
+void ni404_loop() { loop(); }
+int  ni404_test_recording() { return 0; }
+const char *ni404_test_rec_input() { return "LINE IN"; }
 
 // ---- headless verification hooks ------------------------------------------
 // Load samples/0/_1.wav into `channel` (samples load on demand on the device),

@@ -1,6 +1,8 @@
 name: Build emulator (macOS + Windows)
 
-# Builds the desktop emulator (ni404emu bench + toernemu TŒRN) on GitHub's runners and publishes ready-to-run
+# Builds the desktop emulator (toernemu = the real TŒRN firmware, staged by
+# firmware/build_toern.py, + the ni404emu bench) on GitHub's runners, runs the headless
+# hardware-behaviour test, and publishes ready-to-run
 # binaries as artifacts and a rolling "emulator-latest" pre-release — so you can
 # download the macOS build without compiling anything locally.
 
@@ -9,6 +11,7 @@ on:
     branches: [ master ]
     paths:
       - 'emulator/**'
+      - 'firmware/**'
       - 'legacy/soundpauli_ni404/**'
       - '.github/workflows/build.yml'
   workflow_dispatch:
@@ -25,12 +28,12 @@ jobs:
 
       - name: Install toolchain (GCC + SDL2 + dylibbundler)
         # GCC, not Clang: the firmware compiles with -fpermissive (assigns to a
-        # const String[] element, etc.) which Clang has no equivalent for.
+        # const String[] element, etc.) which Clang has no equivalent for. (So the
+        # macOS build has no MIDI input: CoreMIDI's headers need Clang.)
         run: brew install gcc sdl2 dylibbundler
 
-      - name: Fetch TŒRN source (optional second target)
-        continue-on-error: true
-        run: git clone --depth 1 https://github.com/soundpauli/toern.git emulator/toern-src
+      - name: Fetch TŒRN source (the commit pinned in firmware/build_toern.py)
+        run: python3 firmware/build_toern.py --fetch-only
 
       - name: Configure (Homebrew GCC)
         run: |
@@ -42,27 +45,23 @@ jobs:
             -DCMAKE_C_COMPILER="$GCC" \
             -DCMAKE_CXX_COMPILER="$GXX" \
             -DCMAKE_PREFIX_PATH="$(brew --prefix sdl2)" \
-            -DNI404_SDCARD_PATH=sdcard
+            -DEMU_BUILD_TOERN=ON -DPython3_EXECUTABLE="$(command -v python3)"
 
-      - name: Build ni404emu
-        run: cmake --build emulator/build --target ni404emu -j3
+      - name: Build toernemu + ni404emu
+        run: cmake --build emulator/build --target toernemu ni404emu -j3
 
-      - name: Build toernemu (best effort)
-        continue-on-error: true
-        run: cmake --build emulator/build --target toernemu -j3
+      - name: Hardware-behaviour test (headless)
+        run: ./emulator/build/toernemu --hwtest
 
       - name: Package (bundle SDL2 dylib, copy samples)
         run: |
           DIST="dist-macos/NI404-emulator-macOS"
           mkdir -p "$DIST"
-          cp emulator/build/ni404emu "$DIST/" || true
-          cp emulator/build/toernemu "$DIST/" 2>/dev/null || true
+          cp emulator/build/toernemu emulator/build/ni404emu "$DIST/"
           cp emulator/MANUALE.md "$DIST/" 2>/dev/null || true
-          cp emulator/playable-2026-06-13/midi-map.txt "$DIST/" 2>/dev/null || true
           # Bundle the SDL2 dylib next to the binaries so no brew install is needed.
           mkdir -p "$DIST/libs"
-          for b in "$DIST"/ni404emu "$DIST"/toernemu; do
-            [ -f "$b" ] || continue
+          for b in "$DIST"/toernemu "$DIST"/ni404emu; do
             dylibbundler -od -b -x "$b" -d "$DIST/libs" -p @executable_path/libs/ || true
             # collapse duplicate LC_RPATH entries dylibbundler may add (dyld aborts on dupes)
             while install_name_tool -delete_rpath @executable_path/libs/ "$b" 2>/dev/null; do :; done
@@ -71,13 +70,15 @@ jobs:
           # Ship the sample card alongside (the binary looks for ./sdcard).
           cp -R sdcard "$DIST/sdcard"
           cat > "$DIST/LEGGIMI.txt" <<'TXT'
-          Emulatore NI404 — build macOS
-          ==============================
+          Emulatore ichosynth — build macOS
+          =================================
           1) Apri il Terminale in questa cartella.
           2) La prima volta togli la quarantena di Gatekeeper:
                xattr -dr com.apple.quarantine .
-          3) Avvia:   ./ni404emu        (oppure ./ni404emu --demo)
-          Trascina un file .wav nella finestra per caricarlo come campione.
+          3) Avvia:   ./toernemu          (il firmware TŒRN reale)
+                      ./ni404emu --demo   (il vecchio firmware-banco)
+          Trascina un file audio nella finestra: va sulla SD in samples/import/.
+          Su macOS non c'e' ingresso MIDI (build GCC).
           Manuale completo: MANUALE.md
           TXT
           ( cd dist-macos && zip -r ../NI404-emulator-macOS.zip NI404-emulator-macOS )
@@ -105,31 +106,30 @@ jobs:
             mingw-w64-x86_64-cmake
             mingw-w64-x86_64-make
             mingw-w64-x86_64-SDL2
+            mingw-w64-x86_64-python
             git
 
-      - name: Fetch TŒRN source (optional second target)
-        continue-on-error: true
-        run: git clone --depth 1 https://github.com/soundpauli/toern.git emulator/toern-src
+      - name: Fetch TŒRN source (the commit pinned in firmware/build_toern.py)
+        run: python3 firmware/build_toern.py --fetch-only
 
       - name: Configure
-        run: cmake -S emulator -B emulator/build -G "MinGW Makefiles" -DCMAKE_BUILD_TYPE=Release -DNI404_SDCARD_PATH=sdcard
+        run: cmake -S emulator -B emulator/build -G "MinGW Makefiles" -DCMAKE_BUILD_TYPE=Release -DEMU_BUILD_TOERN=ON -DPython3_EXECUTABLE="$(command -v python3)"
 
-      - name: Build ni404emu
-        run: cmake --build emulator/build --target ni404emu -j3
+      - name: Build toernemu + ni404emu
+        run: cmake --build emulator/build --target toernemu ni404emu -j3
 
-      - name: Build toernemu (best effort)
-        continue-on-error: true
-        run: cmake --build emulator/build --target toernemu -j3
+      - name: Hardware-behaviour test (headless)
+        run: |
+          cp /mingw64/bin/SDL2.dll emulator/build/
+          ./emulator/build/toernemu.exe --hwtest > hwtest.log 2>&1; rc=$?; cat hwtest.log; exit $rc
 
       - name: Package (copy SDL2.dll, samples)
         run: |
           DIST="dist-windows/NI404-emulator-Windows"
           mkdir -p "$DIST"
-          cp emulator/build/ni404emu.exe "$DIST/" || true
-          cp emulator/build/toernemu.exe "$DIST/" 2>/dev/null || true
+          cp emulator/build/toernemu.exe emulator/build/ni404emu.exe "$DIST/"
           cp /mingw64/bin/SDL2.dll "$DIST/"
           cp emulator/MANUALE.md "$DIST/" 2>/dev/null || true
-          cp emulator/playable-2026-06-13/midi-map.txt "$DIST/" 2>/dev/null || true
           cp -R sdcard "$DIST/sdcard"
           ( cd dist-windows && powershell -Command "Compress-Archive -Path NI404-emulator-Windows -DestinationPath ../NI404-emulator-Windows.zip -Force" )
 
