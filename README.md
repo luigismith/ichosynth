@@ -232,3 +232,7 @@ yourself.** The workshop is followed by a sonic documentary by **Roberta Trani**
 if you distribute a build, check that you comply with all of them.
 
 <p align="center"><sub>Made in Taranto for ICHOS 2026 · listen to a place, then play it back.</sub></p>
+
+---
+
+Made by **Luigi Massari** in Taranto, Italy: electronic instruments, 3D printing, laser cutting and software. More work at [luigimassari.com](https://luigimassari.com/).

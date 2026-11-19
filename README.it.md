@@ -230,3 +230,7 @@ che hai saldato tu.** Al workshop segue un documentario sonoro di **Roberta Tran
 GPL-3.0): se distribuisci una build, verifica di rispettarle tutte.
 
 <p align="center"><sub>Fatto a Taranto per ICHOS 2026 · ascolta un luogo, poi suonalo.</sub></p>
+
+---
+
+Realizzato da **Luigi Massari** a Taranto: strumenti elettronici, stampa 3D, taglio laser e software. Altri lavori su [luigimassari.com](https://luigimassari.com/).
